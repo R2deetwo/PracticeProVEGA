@@ -67,12 +67,10 @@ export const VegaTrust: React.FC = () => (
         className="py-20 md:py-28 bg-slate-50 border-t border-slate-200/70"
     >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Section head */}
+            {/* Section head — R80: the eyebrow pill is gone (owner: "Get
+                rid of the pill that says why firms run on Vega. Just get
+                rid of that."), the heading leads. */}
             <div className="max-w-3xl mb-10 md:mb-14" data-vg-reveal>
-                <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 font-mono text-2xs font-medium uppercase tracking-[0.18em] text-indigo-700 mb-6">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" aria-hidden="true" />
-                    Why firms run on Vega
-                </p>
                 <h2
                     id="vega-trust-heading"
                     className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-tight text-slate-900 mb-5"

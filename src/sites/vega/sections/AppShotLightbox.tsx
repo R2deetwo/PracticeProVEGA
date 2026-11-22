@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
 import { ArrowsExpandIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from '../../../constants';
-import { CollabPresence } from './CollabPresence';
 import { DashboardHotspots } from './DashboardHotspots';
 
 import { Z_CLASS } from '../../../overlays/constants';
@@ -27,14 +26,20 @@ import { Z_CLASS } from '../../../overlays/constants';
  * → Contacts → Financials → Team) with a visible mono "App views"
  * section label above the strip.
  *
- * R78 TRANSITION FIX (the "floating badges" bug): the overlays
- * (CollabPresence, DashboardHotspots) used to stay mounted across
- * exhibit changes — an open roster/composer panel kept floating over
- * the SWAPPED preview, and the stack rendered over a still-loading
- * frame. The exhibits now gate on the image's OWN load event: the
- * overlays mount fresh (keyed by exhibit src — menus reset, nothing
- * lingers) and fade in only once the pixels are on screen. Badges
- * never float unattached over loading or swapped previews.
+ * R80 owner direction (2026-11-22): the interactive preview MOVES HERE
+ * — "take this and then put it inside the See All space… it could be
+ * larger and the user can hover over things and get info on them."
+ * The Dashboard exhibit becomes THE INTERACTIVE PREVIEW, rendered
+ * LARGER than the other exhibits, carrying the hover zones (dim-the-
+ * rest + floating hints), the click menus, the hover-revealed teammate
+ * monikers and the flippable calendar. Every OTHER exhibit renders as
+ * a clean capture — no presence stack, no hotspots — which also kills
+ * the owner-reported bug of the monikers floating over views they
+ * don't belong on (e.g. over the DraftPro document title).
+ *
+ * R78 TRANSITION FIX (the "floating badges" bug): the overlays mount
+ * only after the image's own load event and are keyed per exhibit, so
+ * nothing lingers across a swap.
  *
  * Practical notes: portal'd to document.body (the page scrolls in an
  * inner container and the capture frames clip); the scroller is locked
@@ -73,6 +78,9 @@ export const AppShotLightbox: React.FC<{
     const flat = groups.flatMap((g) => g.exhibits.map((e) => ({ ...e, group: g.label })));
     const count = flat.length;
     const current = flat[Math.max(0, Math.min(index, count - 1))];
+    // R80: the Dashboard exhibit carries the interactive preview and
+    // renders LARGER than the inspection exhibits.
+    const isInteractive = current.src === '/assets/landing/app/dashboard.jpg';
 
     // Any exhibit change re-arms the load gate.
     useEffect(() => { setImgLoaded(false); }, [current.src]);
@@ -157,8 +165,8 @@ export const AppShotLightbox: React.FC<{
                         rendering a 0x0 image). height = min(66vh, 56vw):
                         viewport-tall on desktop, width-capped on mobile. */}
                     <div
-                        className="relative rounded-xl overflow-hidden ring-1 ring-white/20 shadow-2xl shadow-black/50"
-                        style={{ containerType: 'inline-size', aspectRatio: '8 / 5', height: 'min(66vh, 56vw)' }}
+                        className="relative rounded-xl overflow-hidden ring-1 ring-white/20 shadow-2xl shadow-black/50 transition-[height] duration-300"
+                        style={{ containerType: 'inline-size', aspectRatio: '8 / 5', height: isInteractive ? 'min(74vh, 58vw)' : 'min(66vh, 56vw)' }}
                     >
                         <img
                             key={current.src}
@@ -168,20 +176,20 @@ export const AppShotLightbox: React.FC<{
                             decoding="async"
                             onLoad={() => setImgLoaded(true)}
                         />
-                        {/* R78: the interactive overlays mount FRESH per
-                            exhibit (keyed by src — open menus reset, the
-                            stack never lingers over a swapped preview) and
-                            only after the image has painted (load-gated,
-                            one quiet fade-in). */}
-                        {imgLoaded && (
-                            <div key={`overlays-${current.src}`} className="absolute inset-0 animate-fade-in">
-                                <CollabPresence scale={1.3} onSignup={onSignup} />
-                                {/* R74: on the dashboard exhibit, the same hotspots
-                                    as the hero card — the expanded view answers
-                                    clicks too (workspace, profile, Aloa). */}
-                                {current.src === '/assets/landing/app/dashboard.jpg' && (
-                                    <DashboardHotspots scale={1.3} onSignup={onSignup} />
-                                )}
+                        {/* R80: the interactive preview — ONLY on the
+                            Dashboard exhibit (the owner moved it into See
+                            All). DashboardHotspots composes the whole
+                            preview: the hover zones with the dim veil and
+                            floating hints, the click menus, the
+                            hover-revealed presence stack and the
+                            flippable calendar. Every other exhibit stays
+                            a clean capture — no overlays, so the monikers
+                            can never float over a view they don't belong
+                            on. Load-gated + keyed per exhibit so nothing
+                            lingers across a swap. */}
+                        {imgLoaded && isInteractive && (
+                            <div key={`interactive-${current.src}`} className="absolute inset-0 animate-fade-in">
+                                <DashboardHotspots onSignup={onSignup} />
                             </div>
                         )}
                     </div>

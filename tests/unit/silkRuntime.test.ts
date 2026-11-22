@@ -33,8 +33,13 @@ const read = (...p: string[]) => readFileSync(join(__dirname, '..', '..', ...p),
 describe('R73 runtime: the ribbon canvas frame cap (HeroRibbons.tsx)', () => {
     const comp = read('src', 'components', 'HeroRibbons.tsx');
 
-    it('paints at most once per 33ms while ticking every rAF, accumulating skipped time', () => {
-        expect(comp).toContain('const FRAME_MIN_MS = 33');
+    it('paints at most once per 100ms while ticking every rAF, accumulating skipped time (R79: 33→100)', () => {
+        // R79 (the calm pass): profiling isolated the ribbons as the single
+        // heaviest cost on the landing page (median frame 50ms with them,
+        // 16.7ms without; the JS draw is ~1ms — the cost is the per-paint
+        // compositor upload). An ~11s sway at 10 pose updates/s reads
+        // continuous (adjacent poses differ ~1–2px).
+        expect(comp).toContain('const FRAME_MIN_MS = 100');
         expect(comp).toContain('acc += dt');
         expect(comp).toContain('t += acc');
         // the rAF still reschedules every frame (resume/pause timing unchanged)

@@ -484,9 +484,12 @@ export const PortalAccessSettings: React.FC = () => {
   );
 
   // Fetch portal settings for messaging toggles
+  // Round A (C2) hardened this query to require a verified caller — pass the
+  // bearer session token (same convention as getPortalInvitesByFirm above),
+  // otherwise resolveCaller throws Unauthenticated and the panel crashes.
   const portalSettings = useQuery(
     api.portals.getFirmPortalSettings,
-    firmId ? { firmId } : 'skip'
+    firmId ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
   );
 
   const updateSettings = useMutation(api.portals.updateFirmPortalSettings);

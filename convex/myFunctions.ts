@@ -9891,14 +9891,12 @@ export const getVmsAddonStatus = query({
     }
     if (!firm) return { status: 'none' as const };
 
-    // TIER-BASED BYPASS (Aug 2026): Komplete and Enterprise get VMS included.
-    // Return 'included' so the frontend VmsAddonPanel can show
-    // "Included in your plan" instead of pricing/trial CTAs.
-    const plan = firm.subscriptionPlan;
-    if (plan === 'Komplete' || plan === 'Enterprise') {
-      return { status: 'included' as const };
-    }
-
+    // OWNER RULE (2026-11-22): NO tier-based bypass. Sentry Pass (VMS) is
+    // always a separately-purchased add-on for EVERY plan — Komplete and
+    // Enterprise included. The old synthetic included-status branch for
+    // Komplete/Enterprise is reversed: every firm sees its real add-on
+    // status (none/trial/active/expired) so the VmsAddonPanel can show
+    // the trial/purchase path.
     const vms = (firm.subscriptionAddons as any)?.vms;
     if (!vms) return { status: 'none' as const };
     // Auto-expire trial if past trialEndsAt

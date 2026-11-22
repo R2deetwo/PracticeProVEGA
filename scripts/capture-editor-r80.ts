@@ -1,6 +1,6 @@
 /**
- * capture-editor-r78.ts — takes the landing page's new DraftPro editor
- * capture (editor-r78.jpg) from the REAL app, dev mode + demo session:
+ * capture-editor-r80.ts — takes the landing page's new DraftPro editor
+ * capture (editor-r80.jpg) from the REAL app, dev mode + demo session:
  *
  *   1. boot the dev server (npm run dev — the caller does this)
  *   2. seed the demo session (DEV-only bypass, demo@practicepro.ng) and
@@ -10,9 +10,9 @@
  *   3. open /editor?draftKey=…&title=… (the DraftPro tab route — splash
  *      is bypassed for draftKey tabs)
  *   4. wait for the editor + the document's centred caption to paint
- *   5. screenshot at 1440×900 @2x → public/assets/landing/app/editor-r78.jpg
+ *   5. screenshot at 1440×900 @2x → public/assets/landing/app/editor-r80.jpg
  *
- * Run: npx tsx scripts/capture-editor-r78.ts  (dev server on :5173)
+ * Run: npx tsx scripts/capture-editor-r80.ts  (dev server on :5173)
  */
 import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -20,7 +20,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const BASE = process.env.CAPTURE_BASE || 'http://localhost:5173';
 const DRAFT_KEY = 'draft:general:statement-of-claim';
 const FIRM_ID = 'demo-firm-id'; // AuthContext's demo Vega firm
-const OUT = 'public/assets/landing/app/editor-r78.jpg';
+const OUT = 'public/assets/landing/app/editor-r80.jpg'; // R80: re-captured (reduced top gap, no letterhead band)
 
 async function main() {
   const session = readFileSync('/tmp/soc-draft-session.json', 'utf8');

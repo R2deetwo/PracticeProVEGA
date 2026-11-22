@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { HeroVideo } from '../../../components/HeroVideo';
 import { Button } from '../../../components/ui';
-import { CollabPresence } from './CollabPresence';
-import { DashboardHotspots } from './DashboardHotspots';
 import { AppShotLightbox, ExpandHint } from './AppShotLightbox';
 import { PAGE_GROUPS } from './VegaSuite';
 
@@ -29,11 +27,14 @@ import { PAGE_GROUPS } from './VegaSuite';
  * footer carries "A PracticePro product" (D8) and the hub keeps the
  * built-by line.
  *
- * R69 also lands the live-capture upgrades on the dashboard card: the
- * CollabPresence overlay in the app header's bell→profile gap and
- * click-to-expand into the shared lightbox gallery — the hero's
- * Dashboard capture plus every suite exhibit, so "Tasks, Calendar,
- * Notes" (and the rest) are reachable from the hero without a detour.
+ * R69 also landed the live-capture upgrades on the dashboard card:
+ * the CollabPresence overlay and the R74 interactive hotspots. R80
+ * (owner, 2026-11-22) MOVES the interactive preview off the hero card
+ * into the See All lightbox ("take this and then put it inside the see
+ * all space… it could be larger") — the hero card becomes a clean
+ * capture with the expand affordance; expanding opens the lightbox at
+ * the Dashboard exhibit, which now carries the hover-model preview
+ * (zones, floating hints, the flippable calendar).
  *
  * Copy (headline, sub-copy, CTAs, micro pill), fonts and spacing rhythm
  * are untouched since R56/R65. Presentational only — the CTAs arrive via
@@ -133,9 +134,9 @@ export const VegaHero: React.FC<{
                 clean light browser container with a soft drop shadow.
                 R70: the wrapper above is min-h'd to the band's box at
                 every width, so this always starts past the band foot.
-                R69: the capture carries the team presence overlay and is
-                click-to-expand into the shared gallery (Dashboard + every
-                suite exhibit). ── */}
+                R80: a CLEAN capture — the interactive preview lives in
+                the See All lightbox now; clicking the card opens it at
+                the Dashboard exhibit (the hover-model preview). ── */}
             <div
                 className="relative max-w-5xl mx-auto px-4 sm:px-6 mt-14 2xl:mt-16 mb-20 2xl:mb-24"
                 data-vg-reveal
@@ -167,29 +168,20 @@ export const VegaHero: React.FC<{
                             height={900}
                             className="block w-full h-auto"
                         />
-                        {/* R69: the team-presence overlay + the expand
-                            affordance (the stack sits above the expand
-                            hit-area, so presence clicks open the roster).
-                            R74: the workspace chip, your profile and the
-                            Aloa orb join it — the capture answers clicks
-                            like the app does. R78: the hotspots also carry
-                            the hint zones (nav rail, Recent Matters, Firm
-                            Tasks, calendar) — hovering names the zone in
-                            the capture-foot pill, clicking opens the
-                            page-ordered gallery. */}
-                        <CollabPresence onSignup={onSignup} />
-                        <DashboardHotspots onSignup={onSignup} onExpand={() => setLightbox(0)} />
+                        {/* R80: the interactive furniture moved to the
+                            lightbox (See All) — this card is a clean
+                            capture whose single click opens the preview. */}
                         <Button
                             variant="bare"
                             onClick={() => setLightbox(0)}
-                            aria-label="Expand the Dashboard view"
+                            aria-label="Expand the Dashboard view — open the interactive preview"
                             className="absolute inset-0 z-10 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
                         />
                         <ExpandHint />
                     </div>
                 </div>
                 <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
-                    THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA
+                    THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — OPEN THE INTERACTIVE PREVIEW
                 </p>
             </div>
 

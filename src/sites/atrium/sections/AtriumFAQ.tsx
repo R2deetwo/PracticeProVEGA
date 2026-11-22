@@ -45,7 +45,7 @@ const ATRIUM_FAQS = [
     },
     {
         q: "How does Sentry Pass (visitor management) work?",
-        a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then ₦7,500/month as an add-on (included at no extra cost on Komplete).",
+        a: "Residents generate 6-digit access codes and QR passes for their guests from the portal. Gatekeepers verify codes at a secure web terminal. The system works offline with a 100-visitor cache. Includes a 30-day free trial, then ₦7,500/month as an add-on — available to every plan, including Komplete.",
     },
     {
         q: "What happens if a resident doesn't pay?",

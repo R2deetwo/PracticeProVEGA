@@ -146,7 +146,12 @@ const SESSION_PLAIN_ADMIN = 'sess-admin-3333';
 function baseTables(): Record<string, Row[]> {
   return {
     firms: [
-      { _id: 'firm_1', id: 'firm-1', name: 'Atrium Estates', email: 'admin@atrium.ng', subscriptionPlan: 'Komplete' },
+      { _id: 'firm_1', id: 'firm-1', name: 'Atrium Estates', email: 'admin@atrium.ng', subscriptionPlan: 'Komplete',
+        // R80 (owner rule 2026-11-22): Sentry Pass is ALWAYS a separately-
+        // purchased add-on for every plan — the old Komplete tier bypass is
+        // reversed. This fixture firm carries an ACTIVE add-on subscription,
+        // the new honest path (plan alone no longer opens the gate).
+        subscriptionAddons: { vms: { status: 'active' } } },
     ],
     users: [
       { _id: RESIDENT_ID, id: RESIDENT_ID, name: 'Ada Resident', email: 'ada@res.ng', role: 'Tenant', firmId: 'firm-1', phone: '+2348010000001' },

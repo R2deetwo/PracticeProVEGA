@@ -2,101 +2,101 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
 import { Z_CLASS } from '../../../overlays/constants';
+import { CollabPresence } from './CollabPresence';
 import {
     CheckIcon, CheckCircleIcon, ChevronDownIcon, CogIcon,
     LockClosedIcon, LogoutIcon, PlusIcon, SendIcon, SparklesIcon, UserIcon,
 } from '../../../constants';
 
 /**
- * DashboardHotspots — R74: the hero's dashboard capture becomes a
- * working miniature of the app (owner direction, this round).
+ * DashboardHotspots — R74/R78 reworked into R80: THE INTERACTIVE PREVIEW.
  *
- * "This could probably be a very good opportunity to sort of showcase
- * the whole app like a mini demo… let's have a situation where we're
- * able to have a lot of interactivity brought into that little thing
- * so that users can have an idea and understanding of what could be
- * done." The capture stays a REAL screenshot (the honesty rule —
- * nothing is restaged); instead, the app's own interactive furniture
- * is overlaid on the pixels where it already lives, and each opens the
- * REAL flow in miniature:
+ * Owner direction (2026-11-22, verbatim shape): "the user could hover
+ * over areas and those areas would be highlighted… or they would be the
+ * normal color and the rest would be grayed out… I expected, say for
+ * instance, you hover over the monikers, then the monikers look just like
+ * this, the way they look now. And the same goes for every other
+ * section… it would make sense if there were floating explanations rather
+ * than what's at the bottom… The calendar should be flippable… take this
+ * and put it inside the See All space… it could be larger and the user
+ * can hover over things and get info on them."
  *
- *   • the workspace chip (sidebar head, "Badejo & Associates") → the
- *     multi-workspace switcher: current firm, other firms, Connect New
- *     Workspace with a join code — "keep things separate" made visible;
- *   • your own profile (header right, "Demo User") → the user menu —
- *     profile, settings, lock, sign out — answering "what happens if I
- *     I click on my own moniker?";
- *   • the Aloa orb (bottom-right FAB) → a mini Aloa exchange — ask, and
- *     it answers like it does in the running workspace.
+ * THE R80 MODEL:
+ *   • The preview lives ONLY in the AppShotLightbox's Dashboard exhibit
+ *     (the owner moved it off the hero card into See All).
+ *   • HOVER a zone → the zone keeps its normal colour inside a soft
+ *     indigo ring while THE REST OF THE CAPTURE GRAYS OUT (a dim veil
+ *     with a hole cut at the zone's rect), and a FLOATING HINT note
+ *     appears beside the zone (replacing the old capture-foot pill).
+ *   • The teammate monikers are HIDDEN at rest and appear exactly as
+ *     they always rendered when the presence gap is hovered (the owner:
+ *     "hover over the monikers, then the monikers look just like this").
+ *   • CLICK still answers on the real furniture: the workspace chip opens
+ *     the multi-workspace switcher, the profile opens the user menu, the
+ *     Aloa orb opens the mini exchange, the presence stack opens the
+ *     roster — and the CALENDAR card FLIPS to a day view with the firm's
+ *     hearings, deadlines and sessions for that date.
  *
- * DISCOVERABILITY (the owner's actual R71-adjacent gripe: "it now begs
- * the question, what does this do?"): a quiet mono pill rides the
- * capture foot — "Interactive preview — the workspace, your profile,
- * teammates and Aloa all respond" — until the first interaction; the
- * hotspots themselves stay INVISIBLE at rest (no highlight — the same
- * quiet-chrome rule as the presence stack) and gain only a soft
- * focus-style ring on hover/focus so the pointer finds them naturally.
+ * GEOMETRY FIX (the R78 inversion): zones are sized in cqw inside the
+ * capture frame's container-type: inline-size wrapper (frame = 100cqw ×
+ * 62.5cqw at the capture's fixed 8:5 aspect). R78 converted % of image
+ * HEIGHT to cqw by multiplying by 1.6 — the inverse of the correct
+ * factor (÷1.6, i.e. ×0.625): the old zones rendered ~2.6× too low and
+ * too tall, clipped off-frame (verified live: "Recent Matters" landed at
+ * y=93% of the frame, 799px past its card). Every rect below is
+ * re-measured (VLM, 2026-11-22) and converted correctly: %height × 0.625
+ * → cqw; %width → cqw directly.
  *
- * R78 (owner spec 2026-11-22, "subtle, tasteful hover hints"): the
- * hover cue now also NAMES the zone — hovering (or keyboard-focusing)
- * any key area turns the capture-foot pill into that area's one-line
- * descriptor ("Recent Matters — the firm's active files at a glance"),
- * and the hint extends beyond the three click-hotspots to the zones a
- * visitor's eye actually lands on: the left navigation rail, Recent
- * Matters, Firm Tasks and the firm calendar. The hint zones carry the
- * same soft ring, click through to the lightbox (the inspection
- * state), and mount ONLY where the host provides onExpand (the hero
- * card) — the lightbox keeps the three real hotspots without the
- * informational layer.
- *
- * GEOMETRY (VLM-measured on dashboard.jpg, 1440×900): sidebar head
- * x 1.2–16.5%, y 1.5–7.2%; profile block x 88–99%, y 1.5–7.2%; Aloa
- * FAB x 93.5–98.7%, y 89.7–95.8%. R78 hint zones (pixel-scanned on
- * the current capture): main menu x 1.0–16.6%, y 8.5–72%h; the three
- * content cards (Recent Matters x 19.9–44.8%, Firm Tasks x 46.5–71.2%,
- * calendar x 73.0–97.8%) all y 36.5–88%h. Verticals converted to cqw
- * at the capture's fixed 8:5 aspect (×1.6). Sized in cqw inside the
- * capture's container-type: inline-size wrapper — same system as
- * CollabPresence, so everything tracks the image at any width (card
- * and lightbox).
- *
- * Presentational chrome only; every interactive element is ui/Button
- * (ADR-0004). All state is local demo state — nothing leaves the
- * browser, and the panels say "Preview" once, quietly, without
- * narrating themselves.
+ * Presentational chrome only; every clickable element is ui/Button
+ * (ADR-0004). All state is local demo state — nothing leaves the browser.
  */
 
-type Hotspot = 'workspace' | 'profile' | 'aloa' | null;
+type MenuHotspot = 'workspace' | 'profile' | 'aloa' | null;
 
-/** R78: the hover-descriptor copy per zone — the capture-foot pill
- *  becomes the named hint while a zone is hovered/focused. */
-interface ZoneHint {
-    id: string;
+/** The hover-zone ids. `presence` is owned by CollabPresence's own
+ *  trigger (it reports hover up via onHoverChange). */
+type ZoneId = 'workspace' | 'profile' | 'presence' | 'aloa' | 'nav' | 'stats' | 'recent' | 'tasks' | 'calendar';
+
+/** One hoverable zone: geometry in cqw (frame 100 × 62.5), the floating
+ *  hint copy, and where the hint note floats (below the zone unless it
+ *  sits low in the frame). */
+interface ZoneDef {
+    id: ZoneId;
     label: string;
     desc: string;
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    /** Round the ring like the pixels it frames. */
+    shape?: 'lg' | 'full';
+    /** Show the hint above the zone (for zones low in the frame). */
+    hintAbove?: boolean;
 }
 
-const ZONE_HINTS: Record<string, ZoneHint> = {
-    workspace: { id: 'workspace', label: 'Workspace', desc: 'Badejo & Associates — switch or connect firms' },
-    profile: { id: 'profile', label: 'Your profile', desc: 'Profile, settings, lock and sign-out' },
-    aloa: { id: 'aloa', label: 'Aloa', desc: 'Ask the legal AI anything' },
-    nav: { id: 'nav', label: 'Main menu', desc: 'Every workspace one click away' },
-    recent: { id: 'recent', label: 'Recent Matters', desc: "The firm's active files at a glance" },
-    tasks: { id: 'tasks', label: 'Firm Tasks', desc: "Today's work — assigned and dated" },
-    calendar: { id: 'calendar', label: 'The firm calendar', desc: 'Hearings and events in one diary' },
-};
-
-/** R78: the informational hover zones — nav rail + the three content
- *  cards. Geometry in cqw (verticals pre-converted from % of height at
- *  the capture's 8:5 aspect). Clicks open the lightbox (the same
- *  inspection state as the capture's expand control). btn/ring carry
- *  LITERAL Tailwind classes (the JIT scanner must see them). */
-const HINT_ZONES: Array<ZoneHint & { top: number; left: number; height: number; width: number; btn: string; ring: string }> = [
-    { ...ZONE_HINTS.nav, top: 13.6, left: 1.0, height: 100.8, width: 15.6, btn: 'rounded-lg', ring: '!rounded-lg' },
-    { ...ZONE_HINTS.recent, top: 58.4, left: 19.9, height: 82, width: 24.9, btn: 'rounded-lg', ring: '!rounded-lg' },
-    { ...ZONE_HINTS.tasks, top: 58.4, left: 46.5, height: 82, width: 24.7, btn: 'rounded-lg', ring: '!rounded-lg' },
-    { ...ZONE_HINTS.calendar, top: 58.4, left: 73.0, height: 82, width: 24.8, btn: 'rounded-lg', ring: '!rounded-lg' },
+// VLM-measured on dashboard.jpg (2880×1800), 2026-11-22:
+//   workspace chip x 1.1–16.6%w, y 1.4–7.4%h
+//   profile block x 91.5–99%w (right of the presence gap)
+//   presence gap x 85.9–91.5%w (CollabPresence owns the trigger)
+//   Aloa FAB x 93.5–98.7%w, y 89.7–95.8%h
+//   nav rail x 1.0–16.6%w, y 8.5–79%h
+//   stat card row (Active Matters · Overdue Tasks · Outstanding
+//     Invoices) x 20.2–97.7%w, y 23.5–36.9%h
+//   content cards (Recent Matters x 19.9–44.8 · Firm Tasks x 46.5–71.2 ·
+//     calendar x 73.0–97.8) all y 38–91%h
+const ZONES: ZoneDef[] = [
+    { id: 'workspace', label: 'Workspaces', desc: 'Badejo & Associates — multiple practices under one login, each with its own matters, calendar and billing. Side-by-side workspaces ride the Enterprise and Komplete plans. Click to switch.', top: 0.9, left: 1.1, width: 15.5, height: 3.9, shape: 'lg' },
+    { id: 'profile', label: 'Your profile', desc: 'Profile, settings, lock and sign-out. Click to open.', top: 0.9, left: 91.0, width: 8.0, height: 3.9, shape: 'lg' },
+    { id: 'presence', label: 'Your team, live', desc: 'Eight teammates in this workspace — click a face to message.', top: 0.9, left: 85.9, width: 5.6, height: 3.9, shape: 'lg' },
+    { id: 'aloa', label: 'Aloa', desc: "The firm's legal AI — on every file. Click to ask.", top: 56.1, left: 93.5, width: 5.2, height: 3.8, shape: 'full' },
+    { id: 'nav', label: 'Main menu', desc: 'Every workspace page one click away.', top: 5.3, left: 1.0, width: 15.6, height: 44.1, shape: 'lg', hintAbove: true },
+    { id: 'stats', label: 'The practice at a glance', desc: 'Active matters, overdue tasks and outstanding invoices — counted live.', top: 14.5, left: 20.2, width: 77.5, height: 8.7, shape: 'lg' },
+    { id: 'recent', label: 'Recent Matters', desc: "The firm's active files — stage, court and next deadline on every row.", top: 23.8, left: 19.9, width: 24.9, height: 32.0, shape: 'lg', hintAbove: true },
+    { id: 'tasks', label: 'Firm Tasks', desc: "Today's work — assigned, dated, and reminded on the 7 · 3 · 1 cadence.", top: 23.8, left: 46.5, width: 24.7, height: 32.0, shape: 'lg', hintAbove: true },
+    { id: 'calendar', label: 'The firm calendar', desc: 'Hearings and firm events in one diary. Click a date to open its day.', top: 23.8, left: 73.0, width: 24.8, height: 32.0, shape: 'lg', hintAbove: true },
 ];
+
+const zoneById = (id: ZoneId) => ZONES.find((z) => z.id === id)!;
 
 interface Workspace {
     id: string;
@@ -127,12 +127,14 @@ const ALOA_REPLIES: Record<string, string> = {
 const ALOA_FALLBACK =
     'In the running workspace I\u2019d pull your matters, deadlines and files to answer that properly — start free and ask me anything inside.';
 
-const HotspotRing: React.FC<{ className?: string }> = ({ className = '' }) => (
-    <span
-        aria-hidden="true"
-        className={`pointer-events-none absolute -inset-1 rounded-lg ring-2 ring-indigo-400/0 bg-indigo-400/0 transition-all duration-150 group-hs:hover:ring-indigo-400/50 group-hs:hover:bg-indigo-400/[0.06] group-hs:focus-visible:ring-indigo-500 ${className}`}
-    />
-);
+/** The calendar's flipped day view — a representative day with activity,
+ *  in the app's own register (one quiet Preview chip, nothing narrated). */
+const DAY_ENTRIES: { time: string; kind: string; text: string }[] = [
+    { time: '9:00', kind: 'Hearing', text: 'Okafor v. Bale — High Court of Lagos, Ikeja, Court 12' },
+    { time: '11:30', kind: 'Filing', text: 'MAR/2024/011 — affidavit of service due' },
+    { time: '2:00', kind: 'Session', text: 'Meridian Agro — client intake (Vox, recorded)' },
+    { time: '4:00', kind: 'Debrief', text: 'LIT/2023/042 — pre-trial bundle review' },
+];
 
 const DemoChip: React.FC = () => (
     <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
@@ -141,21 +143,16 @@ const DemoChip: React.FC = () => (
 );
 
 export const DashboardHotspots: React.FC<{
-    /** 1 in the hero card, 1.3 in the lightbox (matches CollabPresence). */
-    scale?: number;
     /** "Start free" hand-off for the Aloa panel's closing CTA. */
     onSignup?: () => void;
-    /** R78: present on the hero card — mounts the informational hint
-     *  zones (nav rail, Recent Matters, Firm Tasks, calendar); clicking
-     *  a zone opens the host's lightbox (the inspection state). */
-    onExpand?: () => void;
-}> = ({ scale = 1, onSignup, onExpand }) => {
-    const [open, setOpen] = useState<Hotspot>(null);
+}> = ({ onSignup }) => {
+    const [open, setOpen] = useState<MenuHotspot>(null);
     const [anchor, setAnchor] = useState<{ top: number; right: number; left?: number } | null>(null);
-    const [interacted, setInteracted] = useState(false);
-    // R78: the hovered/focused zone id — drives the capture-foot pill's
-    // descriptor text (ZONE_HINTS).
-    const [hintZone, setHintZone] = useState<string | null>(null);
+    // R80: the hovered zone — drives the dim veil, the floating hint and
+    // the presence reveal. `presence` is set by CollabPresence's own
+    // trigger reporting hover up.
+    const [hoverZone, setHoverZone] = useState<ZoneId | null>(null);
+    const [calendarFlipped, setCalendarFlipped] = useState(false);
 
     // Current workspace + the connect-a-workspace flow state.
     const [currentWs, setCurrentWs] = useState('badejo');
@@ -194,7 +191,7 @@ export const DashboardHotspots: React.FC<{
         }
     }, [aloaThread, open]);
 
-    const openPanel = (which: Exclude<Hotspot, null>, e: React.MouseEvent<HTMLButtonElement>) => {
+    const openPanel = (which: Exclude<MenuHotspot, null>, e: React.MouseEvent<HTMLButtonElement>) => {
         const r = e.currentTarget.getBoundingClientRect();
         const right = window.innerWidth - r.right;
         // The workspace menu anchors to its LEFT edge (it opens under the
@@ -205,7 +202,6 @@ export const DashboardHotspots: React.FC<{
         setJoined(null);
         setJoinCode('');
         setOpen((v) => (v === which ? null : which));
-        setInteracted(true);
     };
 
     const askAloa = (question: string) => {
@@ -215,47 +211,51 @@ export const DashboardHotspots: React.FC<{
         setAloaInput('');
     };
 
-    const s = (v: number) => `${(v * scale).toFixed(3)}cqw`;
+    const zone = hoverZone ? zoneById(hoverZone) : null;
 
-    // R78: the capture-foot pill — the discoverability affordance AND the
-    // hover-descriptor readout. Default copy until first interaction;
-    // while a zone is hovered/focused it names that zone; it stays gone
-    // after the first interaction EXCEPT while actively hinting.
-    const hint = hintZone ? ZONE_HINTS[hintZone] : null;
-    const pillText = hint ? `${hint.label} — ${hint.desc}` : 'Interactive preview — click around';
-    const pillVisible = !interacted || !!hint;
-    const zoneProps = (id: string) => ({
-        onMouseEnter: () => setHintZone(id),
-        onMouseLeave: () => setHintZone(null),
-        onFocus: () => setHintZone(id),
-        onBlur: () => setHintZone(null),
-    });
+    // The dim veil's hole — the hovered zone's rect, kept at full colour
+    // while everything around it grays out (the owner's hover model).
+    const hole = zone;
 
     return (
         <>
-            {/* ── The affordance pill — quiet, mono, rides the capture foot
-                until the first interaction; while a zone is hovered or
-                focused it becomes that zone's one-line descriptor (R78).
-                Mobile says TAP, pointer says CLICK. Never blocks the
-                hotspots (pointer-events-none). ── */}
-            <span
+            {/* ── R80: THE DIM VEIL — gray-out-the-rest. A full-frame
+                shadow spread from the hovered zone's rect: the zone's own
+                box stays clear (normal colour + the soft ring), the
+                200cqw spread covers everything else. Fades in/out so the
+                capture never snaps. ── */}
+            <div
                 aria-hidden="true"
-                className={`pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 bottom-[2.5%] hidden sm:inline-flex items-center gap-2 rounded-full bg-slate-950/70 backdrop-blur-sm px-3.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-100 shadow-lg transition-opacity duration-500 max-w-[94%] ${pillVisible ? 'opacity-100' : 'opacity-0'}`}
-                style={{ whiteSpace: 'nowrap' }}
+                className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${Z_CLASS.captureDim} ${zone ? 'opacity-100' : 'opacity-0'}`}
+                style={{ visibility: zone ? 'visible' : 'hidden' }}
             >
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                <span className="truncate">{pillText}</span>
-            </span>
-            <span
-                aria-hidden="true"
-                className={`pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 bottom-[2.5%] sm:hidden inline-flex items-center gap-1.5 rounded-full bg-slate-950/70 backdrop-blur-sm px-3 py-1.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-100 shadow-lg transition-opacity duration-500 ${interacted ? 'opacity-0' : 'opacity-100'}`}
-                style={{ whiteSpace: 'nowrap' }}
-            >
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                Tap to explore
-            </span>
+                {hole && (
+                    <div
+                        className="absolute"
+                        style={{
+                            top: `${hole.top}cqw`,
+                            left: `${hole.left}cqw`,
+                            width: `${hole.width}cqw`,
+                            height: `${hole.height}cqw`,
+                            borderRadius: hole.shape === 'full' ? '9999px' : '0.6cqw',
+                            boxShadow: '0 0 0 200cqw rgba(2, 6, 23, 0.55)',
+                        }}
+                    />
+                )}
+            </div>
 
-            {/* ── Workspace trigger — the sidebar's firm chip. ── */}
+            {/* ── The teammate monikers — CollabPresence owns the trigger;
+                R80: hidden at rest, revealed on its own hover (reported
+                up via onHoverChange) exactly as they always rendered. ── */}
+            <CollabPresence
+                onSignup={onSignup}
+                revealed={hoverZone === 'presence'}
+                onHoverChange={(h) => setHoverZone((prev) => (h ? 'presence' : prev === 'presence' ? null : prev))}
+            />
+
+            {/* ── The three CLICK hotspots (workspace chip, profile, Aloa
+                orb) — real menus on the app's own furniture. Each carries
+                its zone's hover for the dim veil + floating hint. ── */}
             <Button
                 variant="bare"
                 data-hs-trigger
@@ -263,17 +263,16 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="menu"
                 aria-expanded={open === 'workspace'}
                 onClick={(e) => openPanel('workspace', e)}
-                {...zoneProps('workspace')}
+                onMouseEnter={() => setHoverZone('workspace')}
+                onMouseLeave={() => setHoverZone((v) => (v === 'workspace' ? null : v))}
+                onFocus={() => setHoverZone('workspace')}
+                onBlur={() => setHoverZone((v) => (v === 'workspace' ? null : v))}
                 className="group-hs absolute z-20 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500"
-                style={{ top: s(1.4), left: s(1.1), height: s(6.2), width: s(15.6) }}
+                style={{ top: '0.9cqw', left: '1.1cqw', height: '3.9cqw', width: '15.5cqw' }}
             >
-                <HotspotRing />
+                <ZoneRing shape="lg" />
             </Button>
 
-            {/* ── Profile trigger — "Demo User" + the DU avatar. Narrow on
-                purpose: it must stop short of the presence stack's gap
-                (the stack owns x 85.9–91.5%; the profile text starts at
-                91.5%) so the two triggers never fight for a click. ── */}
             <Button
                 variant="bare"
                 data-hs-trigger
@@ -281,14 +280,16 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="menu"
                 aria-expanded={open === 'profile'}
                 onClick={(e) => openPanel('profile', e)}
-                {...zoneProps('profile')}
+                onMouseEnter={() => setHoverZone('profile')}
+                onMouseLeave={() => setHoverZone((v) => (v === 'profile' ? null : v))}
+                onFocus={() => setHoverZone('profile')}
+                onBlur={() => setHoverZone((v) => (v === 'profile' ? null : v))}
                 className="group-hs absolute z-20 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500"
-                style={{ top: s(1.4), right: s(0.8), height: s(6.2), width: s(7.5) }}
+                style={{ top: '0.9cqw', left: '91.0cqw', height: '3.9cqw', width: '8.0cqw' }}
             >
-                <HotspotRing />
+                <ZoneRing shape="lg" />
             </Button>
 
-            {/* ── Aloa trigger — the spark orb at the foot. ── */}
             <Button
                 variant="bare"
                 data-hs-trigger
@@ -296,33 +297,132 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="dialog"
                 aria-expanded={open === 'aloa'}
                 onClick={(e) => openPanel('aloa', e)}
-                {...zoneProps('aloa')}
+                onMouseEnter={() => setHoverZone('aloa')}
+                onMouseLeave={() => setHoverZone((v) => (v === 'aloa' ? null : v))}
+                onFocus={() => setHoverZone('aloa')}
+                onBlur={() => setHoverZone((v) => (v === 'aloa' ? null : v))}
                 className="group-hs absolute z-20 rounded-full focus-visible:ring-2 focus-visible:ring-indigo-500"
-                style={{ bottom: s(3.9), right: s(1.4), height: s(6.2), width: s(6.2) }}
+                style={{ top: '56.1cqw', left: '93.5cqw', height: '3.8cqw', width: '5.2cqw' }}
             >
-                <HotspotRing className="!rounded-full" />
+                <ZoneRing shape="full" />
             </Button>
 
-            {/* ── R78: the informational hint zones — nav rail + the three
-                content cards. Soft ring on hover/focus + the capture-foot
-                pill names the zone; clicking opens the lightbox (the same
-                inspection state as the capture's expand control). Mounted
-                ONLY where the host provides onExpand (the hero card) —
-                above the expand hit-area (Z_CLASS.captureHint) but below
-                the three menu hotspots (z-20). ── */}
-            {onExpand && HINT_ZONES.map((z) => (
-                <Button
-                    key={z.id}
-                    variant="bare"
-                    aria-label={`${z.label} — ${z.desc}. Expand this view.`}
-                    onClick={() => { setOpen(null); onExpand(); }}
-                    {...zoneProps(z.id)}
-                    className={`group-hs absolute ${Z_CLASS.captureHint} ${z.btn} focus-visible:ring-2 focus-visible:ring-indigo-500`}
-                    style={{ top: s(z.top), left: s(z.left), height: s(z.height), width: s(z.width) }}
+            {/* ── The CALENDAR zone — click flips the card to its day
+                view (the owner: "the calendar should be flippable"). ── */}
+            <Button
+                variant="bare"
+                data-hs-trigger
+                aria-label="The firm calendar — hearings and events in one diary. Opens the day view."
+                aria-expanded={calendarFlipped}
+                onClick={() => setCalendarFlipped((v) => !v)}
+                onMouseEnter={() => setHoverZone('calendar')}
+                onMouseLeave={() => setHoverZone((v) => (v === 'calendar' ? null : v))}
+                onFocus={() => setHoverZone('calendar')}
+                onBlur={() => setHoverZone((v) => (v === 'calendar' ? null : v))}
+                className={`group-hs absolute ${Z_CLASS.captureHint} rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500`}
+                style={{ top: '23.8cqw', left: '73.0cqw', height: '32.0cqw', width: '24.8cqw' }}
+            >
+                <ZoneRing shape="lg" />
+            </Button>
+
+            {/* ── The informational hover zones — nav rail, the three
+                stat cards, Recent Matters, Firm Tasks. Hover/focus only
+                (the floating hint is their whole job); they frame the
+                pixels they describe and click through nothing. ── */}
+            {(['nav', 'stats', 'recent', 'tasks'] as const).map((id) => {
+                const z = zoneById(id);
+                return (
+                    <div
+                        key={z.id}
+                        role="img"
+                        aria-label={`${z.label} — ${z.desc}`}
+                        onMouseEnter={() => setHoverZone(z.id)}
+                        onMouseLeave={() => setHoverZone((v) => (v === z.id ? null : v))}
+                        className={`absolute ${Z_CLASS.captureHint} rounded-lg group-hs`}
+                        style={{ top: `${z.top}cqw`, left: `${z.left}cqw`, height: `${z.height}cqw`, width: `${z.width}cqw` }}
+                    >
+                        <ZoneRing shape="lg" />
+                    </div>
+                );
+            })}
+
+            {/* ── R80: THE FLOATING HINT — the zone's explanation, floating
+                beside the zone (replacing the old capture-foot pill).
+                Clamped to the frame; pointer-events-none so it never
+                blocks the zone it explains. ── */}
+            {zone && (
+                <div
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute ${Z_CLASS.captureHintNote} -translate-x-1/2 w-max max-w-[40cqw] rounded-lg bg-slate-950/90 backdrop-blur-sm px-[1.3cqw] py-[0.9cqw] shadow-xl animate-fade-in`}
+                    style={
+                        zone.hintAbove
+                            ? { left: `${Math.min(Math.max(zone.left + zone.width / 2, 21), 79)}cqw`, bottom: `${62.5 - zone.top + 1.2}cqw` }
+                            : { left: `${Math.min(Math.max(zone.left + zone.width / 2, 21), 79)}cqw`, top: `${zone.top + zone.height + 1.2}cqw` }
+                    }
                 >
-                    <HotspotRing className={z.ring} />
-                </Button>
-            ))}
+                    <p className="font-mono uppercase tracking-[0.12em] font-semibold text-indigo-300" style={{ fontSize: '1.05cqw' }}>
+                        {zone.label}
+                    </p>
+                    <p className="text-slate-100 leading-[1.5]" style={{ fontSize: '1.15cqw' }}>
+                        {zone.desc}
+                    </p>
+                </div>
+            )}
+
+            {/* ── R80: THE CALENDAR FLIP — the card turns over to a day
+                with activity. The wrapper holds the 3D context at the
+                calendar card's exact rect; the front face is transparent
+                (the capture's own month grid shows through until the
+                flip), the back face is the day view. ── */}
+            <div
+                aria-hidden={!calendarFlipped}
+                className={`absolute ${Z_CLASS.captureHint} transition-transform duration-500 [transform-style:preserve-3d]`}
+                style={{
+                    top: '23.8cqw', left: '73.0cqw', height: '32.0cqw', width: '24.8cqw',
+                    perspective: '60cqw',
+                    transform: calendarFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+            >
+                {/* Front face — transparent: the capture's month grid. */}
+                <div className="absolute inset-0 [backface-visibility:hidden]" />
+                {/* Back face — the day view, mirrored back upright. */}
+                <div
+                    className="absolute inset-0 [backface-visibility:hidden] rounded-lg bg-white border border-slate-200 shadow-xl overflow-hidden flex flex-col [transform:rotateY(180deg)]"
+                    style={{ fontSize: '1.05cqw' }}
+                >
+                    <div className="flex items-center justify-between gap-[0.8cqw] px-[1.2cqw] py-[0.9cqw] border-b border-slate-100 bg-slate-50">
+                        <div className="min-w-0">
+                            <p className="font-bold text-slate-900 truncate" style={{ fontSize: '1.25cqw' }}>Thursday, 14 November</p>
+                            <p className="text-slate-500" style={{ fontSize: '0.95cqw' }}>4 entries · reminders fired 7 · 3 · 1 days out</p>
+                        </div>
+                        <DemoChip />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-hidden px-[1.2cqw] py-[1cqw] flex flex-col gap-[0.9cqw]">
+                        {DAY_ENTRIES.map((e) => (
+                            <div key={e.time} className="flex gap-[0.9cqw] items-start">
+                                <span className="font-mono font-semibold text-indigo-700 shrink-0" style={{ fontSize: '1cqw' }}>{e.time}</span>
+                                <span className="min-w-0">
+                                    <span className="block font-semibold text-slate-900" style={{ fontSize: '1.05cqw' }}>{e.kind}</span>
+                                    <span className="block text-slate-600 leading-[1.4]" style={{ fontSize: '0.95cqw' }}>{e.text}</span>
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="border-t border-slate-100 px-[1.2cqw] py-[0.8cqw]">
+                        <Button
+                            variant="bare"
+                            onClick={() => setCalendarFlipped(false)}
+                            className="w-full inline-flex items-center justify-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition-colors"
+                            style={{ fontSize: '1cqw', padding: '0.55cqw 0' }}
+                        >
+                            <span className="inline-flex" style={{ width: '1cqw', height: '1cqw' }} aria-hidden="true">
+                                <ChevronDownIcon className="rotate-90 h-full w-full" />
+                            </span>
+                            Back to the month
+                        </Button>
+                    </div>
+                </div>
+            </div>
 
             {/* ── The open panel — one at a time, portal'd. ── */}
             {open && anchor && createPortal(
@@ -537,6 +637,15 @@ export const DashboardHotspots: React.FC<{
         </>
     );
 };
+
+/** The zone's soft ring — invisible at rest, a gentle indigo frame on
+ *  hover/focus (the zone's own pixels stay at normal colour inside it). */
+const ZoneRing: React.FC<{ shape?: 'lg' | 'full' }> = ({ shape = 'lg' }) => (
+    <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -inset-[0.25cqw] ${shape === 'full' ? 'rounded-full' : 'rounded-[0.7cqw]'} ring-2 ring-indigo-400/0 bg-indigo-400/0 transition-all duration-150 group-hs:hover:ring-indigo-500/90 group-hs:hover:bg-indigo-400/[0.08] group-hs:focus-visible:ring-indigo-500`}
+    />
+);
 
 /** A profile-menu row — click unfolds the one-line explanation of what
  * it does inside the app, right under the item (the menu stays put). */

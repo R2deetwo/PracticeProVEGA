@@ -778,7 +778,11 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
 
   it("sections name the product, never 'run on PracticePro'", () => {
     // Pass B: both attestations live in the product-owned files.
-    expect(vegaCredentials).toContain("Why firms run on Vega");
+    // R80: the Vega trust band's EYEBROW PILL is gone (owner: "Get rid
+    // of the pill that says why firms run on Vega") — the product-name
+    // attestation survives in the band's own copy, not the pill.
+    expect(vegaCredentials).not.toContain(">Why firms run on Vega<");
+    expect(vegaCredentials).toContain("how you practise");
     expect(atriumWhyRunOn).toContain("Why portfolios run on Atrium");
     expect(surfaces).not.toContain("run on PracticePro");
   });
@@ -936,9 +940,10 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // The dashboard preview: the real capture in the light browser frame.
     expect(vegaHero).toContain("/assets/landing/app/dashboard.jpg");
     expect(vegaHero).toContain("rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10");
-    // R74: the caption tells the visitor the capture ANSWERS CLICKS —
-    // and the LIVE CAPTURE label is retired.
-    expect(vegaHero).toContain("CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA");
+    // R80: the caption points at the interactive preview in See All (the
+    // hero card is a clean capture now) — and the LIVE CAPTURE label
+    // stays retired.
+    expect(vegaHero).toContain("OPEN THE INTERACTIVE PREVIEW");
     expect(vegaHero).not.toContain("LIVE CAPTURE");
     // The headline sells legal workflow automation in Nigeria.
     expect(vegaHero).toContain("Legal workflow automation");
@@ -1049,14 +1054,17 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(collab).toContain("8.75cqw");
     expect(collab).toContain("s(1.6)");
     expect(collab).toContain("COLLAB_ROSTER");
-    expect(vegaHero).toContain("CollabPresence");
+    // The presence overlay still rides the suite cards (quiet chrome,
+    // R71) — but R80 moves the interactive preview into the lightbox, so
+    // the hero card is a CLEAN capture (no CollabPresence, no hotspots).
+    expect(vegaHero).not.toContain("<CollabPresence");
+    expect(vegaHero).not.toContain("<DashboardHotspots");
     expect(vegaSuite).toContain("CollabPresence");
-    expect(lightbox).toContain("CollabPresence");
-    // The editor capture (DraftPro toolbar, no app header) opts out.
-    // R78: the editor exhibit is the re-captured editor-r78.jpg (the
-    // properly-formatted statement of claim, assembled through the app's
-    // own pipeline).
-    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r78.jpg'}");
+    expect(collab).toContain("revealed?: boolean");
+    expect(collab).toContain("onHoverChange");
+    // R80: the editor capture is re-captured as editor-r80.jpg (reduced
+    // top gap: the pt-32 detach retired, no empty letterhead band).
+    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r80.jpg'}");
     // THE LIGHTBOX: shared gallery — the hero's Dashboard plus every
     // suite exhibit; labeled with the exhibit + group vocabulary;
     // ←/→/Escape; the pill strip walks everything. R78: the walk is
@@ -1090,19 +1098,19 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // (2) subtle hover hints on the key zones + a clean expand control
     // + page-order navigation under a section label; (3) the See All
     // pill on the workflow tabs + a lawyer-grade DraftPro document.
+    // R80 REWORK: the hover model replaces the capture-foot pill — see
+    // the R80 block below; this block pins what survives (See All,
+    // page-order gallery, load-gating, the exhibit vocabulary).
     const hotspots = read("src", "sites", "vega", "sections", "DashboardHotspots.tsx");
     const suite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
     const appShotSrc = read("src", "sites", "vega", "sections", "VegaAppShot.tsx");
-    // The hint zones: nav rail + Recent Matters + Firm Tasks + calendar,
-    // named in the capture-foot pill on hover/focus, clicking through to
-    // the lightbox — mounted only where the host provides onExpand.
-    expect(hotspots).toContain("ZONE_HINTS");
+    // The zones keep their vocabulary (Recent Matters, Firm Tasks, the
+    // firm calendar, the main menu) — now as R80 hover zones.
+    expect(hotspots).toContain("ZONES");
     expect(hotspots).toContain("Recent Matters");
     expect(hotspots).toContain("Firm Tasks");
     expect(hotspots).toContain("The firm calendar");
     expect(hotspots).toContain("Main menu");
-    expect(hotspots).toContain("onExpand?: () => void");
-    expect(vegaHero).toContain("onExpand={() => setLightbox(0)}");
     // The See All pill on the tab bar opens the page-ordered gallery.
     expect(suite).toContain("See All");
     expect(suite).toContain("PAGE_GROUPS");
@@ -1115,6 +1123,67 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // VegaAppShot keys + load-gates the presence overlay per exhibit.
     expect(appShotSrc).toContain("key={`collab-${src}`}");
     expect(appShotSrc).toContain("imgLoaded");
+  });
+
+  it("R80: the interactive preview — hover-highlight + gray-out-the-rest, floating hints, monikers on hover, the flippable calendar, See All home", () => {
+    // Owner spec 2026-11-22 (verbatim shape): "the user could hover over
+    // areas and those areas would be highlighted… the rest would be
+    // grayed out… I expected, say for instance, you hover over the
+    // monikers, then the monikers look just like this, the way they look
+    // now… it would make sense if there were floating explanations
+    // rather than what's at the bottom… The calendar should be
+    // flippable… take this and then put it inside the See All space…
+    // it could be larger and the user can hover over things and get
+    // info on them."
+    const hotspots = read("src", "sites", "vega", "sections", "DashboardHotspots.tsx");
+    const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
+    const collab = read("src", "sites", "vega", "sections", "CollabPresence.tsx");
+    // THE HOME: the preview lives ONLY in the lightbox's Dashboard
+    // exhibit (moved off the hero card); the dashboard frame renders
+    // LARGER than the inspection exhibits.
+    expect(lightbox).toContain("isInteractive");
+    expect(lightbox).toContain("height: isInteractive ? 'min(74vh, 58vw)' : 'min(66vh, 56vw)'");
+    expect(lightbox).toContain("imgLoaded && isInteractive");
+    expect(lightbox).not.toContain("<CollabPresence");
+    // Non-dashboard exhibits are CLEAN captures — the monikers can never
+    // float over a view they don't belong on (the DraftPro title bug).
+    expect(vegaHero).not.toContain("<CollabPresence");
+    expect(vegaHero).not.toContain("<DashboardHotspots");
+    // THE HOVER MODEL: a zone keeps its normal colour inside the soft
+    // ring while the dim veil (a 200cqw shadow-spread from the zone's
+    // rect) grays out everything else.
+    expect(hotspots).toContain("boxShadow: '0 0 0 200cqw rgba(2, 6, 23, 0.55)'");
+    expect(hotspots).toContain("Z_CLASS.captureDim");
+    // THE FLOATING HINTS: each zone's explanation floats beside it
+    // (Z_CLASS.captureHintNote), replacing the capture-foot pill.
+    expect(hotspots).toContain("Z_CLASS.captureHintNote");
+    expect(hotspots).not.toContain("Interactive preview — click around");
+    expect(hotspots).not.toContain("setInteracted");
+    // THE ZONES: workspace chip (with the multi-workspace tier note),
+    // profile, the presence gap, the Aloa orb, the nav rail, the three
+    // stat cards (Active Matters · Overdue Tasks · Outstanding
+    // Invoices), Recent Matters, Firm Tasks, the calendar.
+    expect(hotspots).toContain("The practice at a glance");
+    expect(hotspots).toContain("Active matters, overdue tasks and outstanding invoices");
+    expect(hotspots).toContain("Side-by-side workspaces ride the Enterprise and Komplete plans");
+    // THE GEOMETRY FIX: R78 converted % of image height to cqw by ×1.6
+    // — the INVERSE of the correct ×0.625; the zones rendered ~2.6× too
+    // low and clipped off-frame (verified live). R80 re-measures and
+    // pins the correct frame math (frame = 100cqw × 62.5cqw).
+    expect(hotspots).toContain("frame 100 × 62.5");
+    expect(hotspots).not.toContain("const s = (v: number)");
+    // THE MONIKERS ON HOVER: CollabPresence hides at rest inside the
+    // preview (revealed on its own hover, reported up) and stays
+    // quiet chrome on the suite cards (revealed defaults true).
+    expect(collab).toContain("revealed = true");
+    expect(collab).toContain("revealed ? 'opacity-100' : 'opacity-0'");
+    expect(hotspots).toContain("revealed={hoverZone === 'presence'}");
+    // THE FLIPPABLE CALENDAR: clicking the calendar zone flips the card
+    // to its day view (hearings, deadlines, sessions; a back control).
+    expect(hotspots).toContain("calendarFlipped");
+    expect(hotspots).toContain("[transform-style:preserve-3d]");
+    expect(hotspots).toContain("Back to the month");
+    expect(hotspots).toContain("reminders fired 7 · 3 · 1 days out");
   });
 
   it("R71: the presence stack is quiet chrome — no hover pop, no highlight plate", () => {
@@ -1144,14 +1213,17 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // thing with being able to… message people directly… maybe you can
     // even select multiple people so that you can create a group
     // message." The capture stays a REAL screenshot; the app's own
-    // interactive furniture is overlaid where it already lives.
+    // interactive furniture is overlaid where it already lives. R80
+    // moves the whole preview into the lightbox (See All) — see the R80
+    // block — but the three click hotspots and their menus survive.
     const hotspots = read("src", "sites", "vega", "sections", "DashboardHotspots.tsx");
     const collab = read("src", "sites", "vega", "sections", "CollabPresence.tsx");
-    // Wired into BOTH the hero card and the lightbox's dashboard exhibit.
-    expect(vegaHero).toContain("DashboardHotspots");
+    // Wired into the lightbox's dashboard exhibit ONLY (R80: the hero
+    // card is a clean capture).
+    expect(vegaHero).not.toContain("<DashboardHotspots");
     const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
     expect(lightbox).toContain("DashboardHotspots");
-    expect(lightbox).toContain("current.src === '/assets/landing/app/dashboard.jpg'");
+    expect(lightbox).toContain("'/assets/landing/app/dashboard.jpg'");
     // The three hotspots, over the real pixels: the workspace chip
     // (multi-workspace + join code), your own profile (the user menu),
     // and the Aloa orb (the mini exchange).
@@ -1160,14 +1232,9 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(hotspots).toContain("Lock Workspace");
     expect(hotspots).toContain("Ask Aloa");
     expect(hotspots).toContain("ALOA_REPLIES");
-    // Discoverability without highlight: a quiet pill rides the capture
-    // foot until the first interaction; the hotspots stay invisible at
-    // rest (no permanent ring/plate — the R71 quiet-chrome rule).
-    expect(hotspots).toContain("Interactive preview");
-    expect(hotspots).toContain("setInteracted(true)");
-    // The profile hotspot must stop short of the presence stack's gap
-    // (the stack owns x 85.9–91.5%) so the two triggers never fight.
-    expect(hotspots).toContain("width: s(7.5)");
+    // R80: the profile zone sits right of the presence gap (the stack
+    // owns x 85.9–91.5%) so the two triggers never fight.
+    expect(hotspots).toContain("left: '91.0cqw'");
     // The presence roster composes REAL messages in preview: DM for one,
     // group for several, delivered with the app hand-off.
     expect(collab).toContain("New group message");
@@ -1298,12 +1365,12 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaAIDrafting).not.toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
     expect(vegaAIDrafting).not.toContain("EveningExchange");
     expect(vegaAIDrafting).not.toContain("home for dinner");
-    // The two real captures.
-    expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa.jpg");
-    expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa-drawout.jpg");
-    // R74: the LIVE CAPTURE prefix retires; the captions stay.
-    expect(vegaAIDrafting).toContain("ALOA IN THE RUNNING WORKSPACE");
-    expect(vegaAIDrafting).toContain("THE DRAW-OUT");
+    // R80: the two ALOA exhibit captures are REMOVED from the band
+    // (owner: "Now just below that there are two images. Get rid of
+    // those images.") — the section closes on the three pillars.
+    expect(vegaAIDrafting).not.toContain("/assets/landing/app/vega-aloa.jpg");
+    expect(vegaAIDrafting).not.toContain("/assets/landing/app/vega-aloa-drawout.jpg");
+    expect(vegaAIDrafting).not.toContain("VegaAppShot");
     expect(vegaAIDrafting).not.toContain("LIVE CAPTURE");
     // The pullout demos stay (owner: "the demos should appear a little
     // further down"): the deadline computer, the drafting studio, the
@@ -1332,7 +1399,10 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // from the app so we are not showing false images") and a capture
     // selector so a visitor can page the exhibits.
     expect(vegaSuite).toContain('id="suite"');
-    expect(vegaSuite).toContain("The Core Suite");
+    // R80: the eyebrow pill is gone (owner: "look at that pill that
+    // says the court suite. Get rid of it") — the heading leads.
+    expect(vegaSuite).not.toContain(">The Core Suite<");
+    expect(vegaSuite).toContain("One workspace.");
     expect(vegaSuite).toContain("Matter Management");
     expect(vegaSuite).toContain("Smart Documents & DraftPro");
     expect(vegaSuite).toContain("Time & Billing");
@@ -1353,7 +1423,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/editor-r78.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/editor-r80.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/research.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");

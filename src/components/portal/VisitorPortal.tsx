@@ -58,7 +58,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     // ─── Form state ─────────────────────────────────────────────────────
     // Default expiry window reads from portal settings (admin-configurable
     // via vmsDefaultExpiryHours). Falls back to 6 hours if no setting found.
-    const portalSettings = useQuery(api.portals.getFirmPortalSettings, firmId ? { firmId } : 'skip');
+    const portalSettings = useQuery(api.portals.getFirmPortalSettings, firmId ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip');
     const [visitorName, setVisitorName] = useState('');
     const [visitorPhone, setVisitorPhone] = useState('');
     const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);

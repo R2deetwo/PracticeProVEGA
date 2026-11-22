@@ -116,7 +116,8 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
         // the centre curve, normal and twist are computed once per ribbon
         // into typed arrays; every hairline is offset ALONG THE NORMAL, so
         // the lines stay parallel through the bows (no hatched stripes)
-        expect(lib).toContain('const N = 220');
+        // R79: N halves 220 → 120 (Nyquist-safe, raster-identical, −50% path cost)
+        expect(lib).toContain('const N = 120');
         expect(lib).toContain('nx[j] = dy / len; ny[j] = -dx / len;');
         expect(lib).toContain('const off = halfW * s * ct[j];');
         expect(lib).toContain('const x = px[j] + nx[j] * off;');
@@ -143,8 +144,27 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
 describe('R55 the component (src/components/HeroRibbons.tsx)', () => {
     const comp = read('src', 'components', 'HeroRibbons.tsx');
 
-    it('clamps DPR to 2 on resize', () => {
-        expect(comp).toContain('Math.min(window.devicePixelRatio || 1, 2)');
+    it('clamps DPR to 1.5 on resize (R79 calm pass — fill cost −44% vs 2)', () => {
+        // R79: profiling showed the full-viewport additive canvas alone
+        // pushed median frame times 16.7ms → 50ms. The DPR cap drops to
+        // 1.5 and the canvas becomes a right-side crop (see the crop test
+        // below); 1.1px hairlines are visually identical at 1.5×.
+        expect(comp).toContain('Math.min(window.devicePixelRatio || 1, 1.5)');
+    });
+
+    it('R79: the canvas is a RIGHT-SIDE CROP — 54% wide, not full-viewport', () => {
+        // the preset never reaches left of ~0.515 of the hero, so a
+        // right-crop at 46% is geometry-safe and cuts painted area ~46%
+        expect(comp).toContain('absolute top-0 right-0 h-full w-[54%]');
+    });
+
+    it('R79: painting MUTES while the scroll host moves (and 150ms after)', () => {
+        // the page scrolls in a div container — the nearest scrollable
+        // ancestor is found and its scroll events hold the ribbon pose
+        expect(comp).toContain("addEventListener('scroll', onScroll, { passive: true })");
+        expect(comp).toContain('scrollUntil = performance.now() + 150');
+        expect(comp).toContain('acc = 0; // scrolling: hold the pose, drop the time');
+        expect(comp).toContain("scrollHost.removeEventListener('scroll', onScroll)");
     });
 
     it('clamps frame delta to 0.1s (no jump after a tab switch)', () => {

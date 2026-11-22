@@ -44,9 +44,25 @@ import { Z_CLASS } from '../../../overlays/constants';
  * at every render width (suite card, hero dashboard card, lightbox).
  *
  * INTERACTION (R71 contract, kept): the trigger never enlarges, never
- * gains a plate, shows no hover state — only the keyboard focus ring.
- * The whole gap zone stays ONE ui/Button (ADR-0004); the click roster
- * and keyboard focus ring stay.
+ * gains a plate — the stack sits in the header as quiet, always-on
+ * chrome; only the keyboard focus ring (focus-visible) remains.
+ *
+ * R80 (owner spec 2026-11-22): inside the interactive preview the
+ * monikers are HIDDEN at rest and appear exactly as they always
+ * rendered when the gap is hovered — "if you hover over the monikers,
+ * then the monikers look just like this, the way they look now." The
+ * `revealed` prop (default true) drives a plain opacity fade, and the
+ * trigger reports its own hover/focus up via `onHoverChange` so the
+ * preview can dim the rest of the capture and float the hint. On the
+ * suite cards nothing changes — revealed defaults to true, the stack
+ * stays quiet chrome (R71).
+ *
+ * GEOMETRY (R78 measure, R80 correction): the header's right cluster is
+ * bell icon x 85.76–86.74%, divider ~90.7%, "Demo User" text x 91.53%+.
+ * The stack (avatars + the +5 chip, ≈3.8% wide) centers in the gap with
+ * clearance on both sides. All cqw, inside the capture frame's
+ * container-type: inline-size wrapper, so it tracks the image at every
+ * render width (suite card, lightbox).
  */
 
 export interface CollabTeammate {
@@ -86,13 +102,17 @@ const DemoChip: React.FC = () => (
 );
 
 export const CollabPresence: React.FC<{
-    /** Scales the stack: 1 in the cards, 1.3 in the lightbox where the
-     *  header strip has more room to carry bigger initials. */
-    scale?: number;
+    /** R80: hide the stack until the zone is hovered (the interactive
+     *  preview's reveal model). Default true — the quiet-chrome contract
+     *  on the suite cards is unchanged. */
+    revealed?: boolean;
+    /** R80: the trigger reports its own hover/focus so the interactive
+     *  preview can dim the rest of the capture and float the hint. */
+    onHoverChange?: (hovering: boolean) => void;
     /** "Start free" hand-off for the sent view — provided by sections
      *  that own a signup callback (VegaSuite/VegaHero). Omitted elsewhere. */
     onSignup?: () => void;
-}> = ({ scale = 1, onSignup }) => {
+}> = ({ revealed = true, onHoverChange, onSignup }) => {
     const btnRef = useRef<HTMLButtonElement>(null);
     const [open, setOpen] = useState(false);
     const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
@@ -125,7 +145,7 @@ export const CollabPresence: React.FC<{
         setOpen((v) => !v);
     };
 
-    const s = (v: number) => `${(v * scale).toFixed(3)}cqw`;
+    const s = (v: number) => `${v.toFixed(3)}cqw`;
 
     const toggleSelected = (initials: string) => {
         setSelected((prev) => {
@@ -156,15 +176,17 @@ export const CollabPresence: React.FC<{
                 aria-expanded={open}
                 data-collab-trigger
                 onClick={openMenu}
-                className="absolute z-20 flex items-center justify-end rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1"
+                onMouseEnter={() => onHoverChange?.(true)}
+                onMouseLeave={() => onHoverChange?.(false)}
+                onFocus={() => onHoverChange?.(true)}
+                onBlur={() => onHoverChange?.(false)}
+                className={`absolute z-20 flex items-center justify-end rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 transition-opacity duration-200 ${revealed ? 'opacity-100' : 'opacity-0'}`}
                 style={{
                     // R78: the measured gap on the current captures — bell
                     // ends 86.74%, "Demo User" starts 91.53%. The stack
                     // (avatars + the +5 chip, ≈3.8% wide incl. the button's
-                    // own padding) CENTERS in the gap — measured live at
-                    // ~0.5% clearance both sides (was right 8.55cqw /
-                    // width 5.6cqw — edge-to-edge, hugging the text).
-                    top: '1.4cqw', right: '8.75cqw', height: '1.6cqw', width: '4.2cqw',
+                    // own padding) CENTERS in the gap.
+                    top: '0.9cqw', right: '8.75cqw', height: '3.9cqw', width: '4.2cqw',
                 }}
             >
                 {/* R71: the static stack — three avatars + the "+5"

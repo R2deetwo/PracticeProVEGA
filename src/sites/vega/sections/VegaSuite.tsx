@@ -115,7 +115,7 @@ const TABS: SuiteTab[] = [
         ],
         shots: [
             {
-                src: '/assets/landing/app/editor-r78.jpg',
+                src: '/assets/landing/app/editor-r80.jpg',
                 alt: 'DraftPro editor — a statement of claim under drafting, with the legal tools ribbon',
                 caption: 'THE DRAFTPRO EDITOR: A4 PAGINATION, LEGAL FONTS, [PLACEHOLDER] GUARDRAILS',
                 label: 'Editor',
@@ -226,11 +226,12 @@ export const SUITE_GROUPS: LightboxGroup[] = TABS.map((t) => ({
     exhibits: t.shots,
 }));
 
-/** The hero's Dashboard exhibit — shared with PAGE_GROUPS. */
+/** The hero's Dashboard exhibit — shared with PAGE_GROUPS. R80: the
+ *  caption points at the interactive preview it now carries. */
 const DASHBOARD_EXHIBIT = {
     src: '/assets/landing/app/dashboard.jpg',
     alt: 'Vega dashboard — the practice at a glance: matters, hearings, billing and tasks',
-    caption: 'THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA',
+    caption: 'THE VEGA DASHBOARD — HOVER THE WORKSPACE, YOUR PROFILE, THE TEAM, ALOA, THE CARDS OR THE CALENDAR',
     label: 'Dashboard',
 };
 
@@ -269,7 +270,7 @@ export const PAGE_GROUPS: LightboxGroup[] = [
         id: 'documents',
         label: 'Documents',
         exhibits: [
-            { ...shot('documents', '/assets/landing/app/editor-r78.jpg'), label: 'DraftPro editor' },
+            { ...shot('documents', '/assets/landing/app/editor-r80.jpg'), label: 'DraftPro editor' },
             { ...shot('documents', '/assets/landing/app/documents.jpg'), label: 'Document vault' },
             { ...shot('documents', '/assets/landing/app/research.jpg'), label: 'Research' },
         ],
@@ -330,12 +331,10 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
             className="py-20 md:py-28 bg-slate-50 border-t border-slate-200/70"
         >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Section head */}
+                {/* Section head — R80: the eyebrow pill is gone (owner:
+                    "I want to try and get rid of those pills. They make it
+                    too clear that it's an AI."), the heading leads. */}
                 <div className="max-w-3xl mb-10 md:mb-14" data-vg-reveal>
-                    <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 font-mono text-2xs font-medium uppercase tracking-[0.18em] text-indigo-700 mb-6">
-                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" aria-hidden="true" />
-                        The Core Suite
-                    </p>
                     <h2
                         id="vega-suite-heading"
                         className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-tight text-slate-900 mb-5"
@@ -448,7 +447,7 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                             label={exhibit.label}
                             onSignup={onSignup}
                             onExpand={() => openLightboxAt(exhibit.src)}
-                            collab={exhibit.src !== '/assets/landing/app/editor-r78.jpg'}
+                            collab={exhibit.src !== '/assets/landing/app/editor-r80.jpg'}
                         />
                     </div>
                 </div>

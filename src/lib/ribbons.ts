@@ -34,14 +34,29 @@ export const RIBBON_PRESET: RibbonOptions = {
   ],
 };
 
-const N = 220;
+// R79 (the calm pass): 120 samples across the ribbon length. The centre
+// curve and twist are low-frequency sines (≤ ~1.3 cycles over the range) —
+// 120 points is ~50 samples per cycle, far above Nyquist, so the raster
+// is pixel-identical to the old N=220 while the per-stroke path build and
+// flatten cost halves.
+const N = 120;
 const px = new Float32Array(N + 1), py = new Float32Array(N + 1);
 const nx = new Float32Array(N + 1), ny = new Float32Array(N + 1);
 const ct = new Float32Array(N + 1);
 
 export function drawRibbons(
-  ctx: CanvasRenderingContext2D, W: number, H: number, t: number, o: RibbonOptions
+  ctx: CanvasRenderingContext2D, W: number, H: number, t: number, o: RibbonOptions,
+  view?: { heroW?: number; ox?: number }
 ): void {
+  // R79 (the calm pass): the ribbons live on the right of the hero, so the
+  // canvas is now a right-side CROP, not a full-viewport surface. Geometry
+  // stays proportional to the FULL hero width (heroW) and is shifted by the
+  // canvas's left offset inside the hero (ox); W/H remain the canvas's own
+  // size (clear + vertical fade). With the preset the ribbons never reach
+  // left of ~0.515 of the hero, so a 54%-wide crop is geometry-safe and
+  // cuts the painted area (and its additive-blend fill cost) by ~46%.
+  const heroW = view?.heroW ?? W;
+  const ox = view?.ox ?? 0;
   ctx.clearRect(0, 0, W, H);
   ctx.globalCompositeOperation = o.blend;
   ctx.lineCap = 'round';
@@ -58,9 +73,9 @@ export function drawRibbons(
 
   for (const R of o.ribbons) {
     const X = (v: number) =>
-      W * (R.cx
+      heroW * (R.cx
         + R.amp * Math.sin(Math.PI * v + R.ph + 0.7 * Math.sin(t * R.sp * 0.6 + R.ph))
-        + 0.035 * Math.sin(2 * Math.PI * v * R.f2 + t * R.sp + 2 * R.ph));
+        + 0.035 * Math.sin(2 * Math.PI * v * R.f2 + t * R.sp + 2 * R.ph)) - ox;
 
     // centre curve, tangent normal and twist: computed ONCE per ribbon
     for (let j = 0; j <= N; j++) {
@@ -74,7 +89,7 @@ export function drawRibbons(
     }
 
     const tilt = Math.tanh(2.2 * Math.sin(t * R.sp * 0.5 + R.ph * 1.7)); // which edge is "near"
-    const halfW = 0.5 * W * R.maxW;
+    const halfW = 0.5 * heroW * R.maxW;
 
     for (let i = 0; i < o.lines; i++) {
       const s = (i / (o.lines - 1)) * 2 - 1;   // -1..1 across the ribbon

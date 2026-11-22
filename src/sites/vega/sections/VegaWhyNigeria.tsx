@@ -1,5 +1,4 @@
 import React from 'react';
-import { VegaAppShot } from './VegaAppShot';
 
 /**
  * VegaWhyNigeria — R56: "Built for Nigerian practice", the differentiator
@@ -59,12 +58,10 @@ export const VegaWhyNigeria: React.FC = () => (
         className="py-20 md:py-28 bg-white border-t border-slate-200/70"
     >
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Section head */}
+            {/* Section head — R80: the eyebrow pill is gone (owner: "The
+                next pill is built for Nigerian practice. Get rid of that
+                pill."), the heading leads. */}
             <div className="max-w-3xl mb-10 md:mb-14" data-vg-reveal>
-                <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 font-mono text-2xs font-medium uppercase tracking-[0.18em] text-indigo-700 mb-6">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" aria-hidden="true" />
-                    Built for Nigerian practice
-                </p>
                 <h2
                     id="vega-why-heading"
                     className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-tight text-slate-900 mb-5"
@@ -78,8 +75,11 @@ export const VegaWhyNigeria: React.FC = () => (
                 </p>
             </div>
 
-            {/* The three pillars — light cards. */}
-            <div className="grid md:grid-cols-3 gap-5 mb-14 md:mb-20" data-vg-reveal>
+            {/* The three pillars — light cards. R80: the two ALOA exhibit
+                captures below them are REMOVED (owner: "Now just below
+                that there are two images. Get rid of those images.") —
+                the section closes on the pillars. */}
+            <div className="grid md:grid-cols-3 gap-5" data-vg-reveal>
                 {PILLARS.map((p) => (
                     <div
                         key={p.id}
@@ -102,20 +102,6 @@ export const VegaWhyNigeria: React.FC = () => (
                         </ul>
                     </div>
                 ))}
-            </div>
-
-            {/* The ALOA exhibits — the running workspace and the draw-out. */}
-            <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-start" data-vg-reveal>
-                <VegaAppShot
-                    src="/assets/landing/app/vega-aloa.jpg"
-                    alt="ALOA in the running workspace — the AI copilot at work inside a matter"
-                    caption="ALOA IN THE RUNNING WORKSPACE"
-                />
-                <VegaAppShot
-                    src="/assets/landing/app/vega-aloa-drawout.jpg"
-                    alt="The draw-out — ALOA reasoning through a legal problem, step by step"
-                    caption="THE DRAW-OUT"
-                />
             </div>
         </div>
     </section>

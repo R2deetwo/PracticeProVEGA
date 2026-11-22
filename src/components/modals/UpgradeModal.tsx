@@ -34,7 +34,6 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
           "Unlimited Active Tenants",
           assistantCopilot + " (Uncapped Priority)",
           isProperty ? 'Full Property Suite' : 'Full Legal + Property Suite',
-          "Sentry Pass (VMS) included",
           "500 GB shared storage",
           "Dedicated account manager"
         ],

@@ -153,6 +153,19 @@ const FOOTER_HEIGHT_PX = 40;  // Space reserved for page number above bottom mar
 // Usable body height per page (content area between header and footer)
 const USABLE_CONTENT_HEIGHT = PAGE_HEIGHT_PX - (PAGE_MARGIN_PX * 2) - HEADER_HEIGHT_PX - FOOTER_HEIGHT_PX;
 
+/** R80 (owner, 2026-11-22 — "the typing of the words should be shifted
+ * upwards; there's so much of a gap at the top of that page"): a
+ * letterhead band only exists when something is actually configured
+ * (the same honesty rule as letterheadToStaticHtml — nothing configured
+ * → nothing rendered, no fake empty header band eating the top of the
+ * first page). */
+const hasLetterheadContent = (config?: import('../../../types').HeaderConfiguration | null): boolean =>
+    !!config && (
+        !!(config.logo && config.logo.url) ||
+        !!(config.firmName && typeof config.firmName.text === 'string' && config.firmName.text.trim() !== '') ||
+        !!(config.address && typeof config.address.text === 'string' && config.address.text.trim() !== '')
+    );
+
 const FONTS = [
     { label: 'Times New Roman', value: "'Times New Roman', serif" },
     { label: 'Arial', value: 'Arial, sans-serif' },
@@ -3262,14 +3275,14 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
                  *
-                 * The pt-32 (128px top padding) DETACHES the first page from the
-                 * ribbon so it floats independently in "center stage" — like a
-                 * real document on a desk, not glued to the toolbar. The generous
-                 * gap gives a premium, breathable layout with clear visual
-                 * separation between the ribbon and the document.
+                 * R80: the top padding is pt-6 (was pt-32/128px) — the old
+                 * "premium detach" read, on the landing capture and in the
+                 * app, as a dead gap above the document (owner: "the typing
+                 * of the words should be shifted upwards"). The page keeps a
+                 * small breath under the ribbon instead of floating.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0 pt-32"
+                    className="flex justify-center mb-20 shrink-0 pt-6"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,
@@ -3304,7 +3317,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                                     }}
                                 >
                                     {/* ── Letterhead / Header ── */}
-                                    {(i === 0 || appState.firmDetails.settings?.headerConfig?.showOnAllPages) && (
+                                    {hasLetterheadContent(appState.firmDetails?.settings?.headerConfig) && (i === 0 || appState.firmDetails.settings?.headerConfig?.showOnAllPages) && (
                                         <div
                                             className="absolute left-0 right-0 top-0 z-10 pointer-events-none"
                                             style={{ height: `${PAGE_MARGIN_PX + HEADER_HEIGHT_PX}px` }}
@@ -3397,8 +3410,11 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                                 style={{
                                     paddingLeft:  `${PAGE_MARGIN_PX}px`,
                                     paddingRight: `${PAGE_MARGIN_PX}px`,
-                                    // First page: push content below letterhead
-                                    paddingTop: `${PAGE_MARGIN_PX + HEADER_HEIGHT_PX}px`,
+                                    // First page: push content below the letterhead —
+                                    // but only the real 1-inch print margin when no
+                                    // letterhead is configured (R80: no fake empty
+                                    // header band; the typing starts higher).
+                                    paddingTop: `${PAGE_MARGIN_PX + (hasLetterheadContent(appState.firmDetails?.settings?.headerConfig) ? HEADER_HEIGHT_PX : 0)}px`,
                                     // Bottom padding so last page has room
                                     paddingBottom: `${PAGE_MARGIN_PX + FOOTER_HEIGHT_PX}px`,
                                 }}

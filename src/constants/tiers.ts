@@ -23,9 +23,12 @@ export type TierId = 'Core' | 'Growth' | 'Pro' | 'Enterprise';
 // of Vega Pro + Atrium Pro (₦768K + ₦2.1M = ₦2.868M). At ₦2.5M, Komplete is
 // still a genuine ~13% discount off the raw sum, but positioned as a clear
 // step above Atrium Pro alone (19% premium, not 5%).
-// Unlimited seats. All add-ons included. Sentry Pass (VMS) included.
+// Unlimited seats. All add-ons included EXCEPT Sentry Pass (VMS) — the
+// owner rule (2026-11-22): Sentry Pass is ALWAYS a separately-purchased
+// add-on for ANY plan; it never ships with Komplete and is never mentioned
+// inside the Komplete feature list.
 const KOMPLETE_MONTHLY = null;        // Komplete is NEVER billed monthly
-const KOMPLETE_ANNUAL = 2500000;      // ₦2.5M/yr — unlimited seats, all add-ons
+const KOMPLETE_ANNUAL = 2500000;      // ₦2.5M/yr — unlimited seats (Sentry Pass sold separately as an add-on)
 
 export interface TierDef {
   id: TierId;
@@ -387,7 +390,9 @@ export const KOMPLETE_TIER: TierDef = {
     'ALOA Vox™ voice capture & hybrid Legal Pad — dictate hands-free, speaker-labelled consultations',
     'ARIA® AI Copilot (Uncapped Priority)',
     'Full Legal + Property Suite',
-    'Sentry Pass (VMS) included — ₦7.5K/mo value',
+    // The visitor-management add-on is intentionally ABSENT here — always
+    // sold separately, never bundled with or mentioned inside Komplete
+    // (owner rule 2026-11-22).
     '500 GB shared storage',
     'Dedicated account manager',
     'Priority phone & WhatsApp support',
