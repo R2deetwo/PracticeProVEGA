@@ -25,7 +25,7 @@ const ATTESTATIONS = [
     },
     {
         title: "Deadlines by the right state's rules",
-        body: 'Filing and service windows are computed under the matter\u2019s court and state, with the governing Civil Procedure Rules cited on every entry — all 36 states and the FCT.',
+        body: 'Record the service of a court process and the response windows are computed under the matter\u2019s court, the governing Civil Procedure Rules cited on every entry. Every state\u2019s rules carried in the registry — all 36 states and the FCT; built-in windows for the Lagos, FCT and Federal High Courts and the appellate periods, one manual entry for any other court.',
     },
     {
         title: 'Client data never trains a model',
@@ -43,7 +43,7 @@ const SEGMENTS = [
         title: 'The litigation practice, diary and all.',
         points: [
             'Pleadings & motions — DraftPro formats captions, parties\u2019 designations and prayers to Nigerian court practice.',
-            'Deadlines by the right rules — filing and service windows under the matter\u2019s Civil Procedure Rules, 36 states and the FCT.',
+            'Deadlines by the right rules — record the service of any process and the response windows are computed under the matter\u2019s Civil Procedure Rules, the rule cited on every entry.',
             'The chronology — a provisional timeline of every event and computed deadline, kept per matter.',
             'Reminders that fire — 7 · 3 · 1 days before each hearing, delivered to assigned counsel on WhatsApp (paid plans).',
         ],

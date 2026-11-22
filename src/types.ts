@@ -408,12 +408,52 @@ export interface Task { id: string; _id?: string; firmId: string; title: string;
 export interface DocumentCategory { id: string; firmId: string; name: string; parentId: string | null; isCore?: boolean; product?: Product; }
 export interface FileDetails { name: string; type: string; size: number; filePath: string; dataUrl?: string; storageId?: string; }
 export interface DocumentComment { id: string; content: string; authorId: string; timestamp: string; }
+
+// ─── Litigation lifecycle events (2026-11-22 — "how does the app know when a
+//     document was served?" — it records the human-observed event; nothing
+//     is inferred). The service date drives the CPR deadline engine
+//     (src/legal/cprWindows.ts) with the rule cited on every entry. ────────
+export type ServiceMethod = 'personal' | 'substituted' | 'registered_post' | 'electronic' | 'by_counsel' | 'acknowledged' | 'other';
+/** One recorded service of a court process. */
+export interface ServiceEvent {
+    id: string;
+    /** ISO date the process was SERVED (the event the CPR windows run from). */
+    date: string;
+    method: ServiceMethod;
+    /** Party (or counsel) the process was served on. */
+    servedOn?: string;
+    /** Affidavit of service / receipt reference or note. */
+    proofNote?: string;
+    recordedAt: string;
+    recordedBy?: string;
+}
+/** The registry filing of a court process. */
+export interface FilingEvent {
+    /** ISO date the process was FILED at the registry. */
+    date: string;
+    receiptNumber?: string;
+    recordedAt: string;
+}
+/** A deadline computed from a recorded event, kept on the document so the
+ *  tracking stays idempotent (one task/event pair per window, per document). */
+export interface ComputedDeadlineRef {
+    /** The CPR_WINDOWS registry entry id (e.g. "lagos-hc-defence-42"). */
+    windowId: string;
+    /** ISO date the window was computed from (service/judgment date). */
+    fromDate: string;
+    dueDate: string;
+    citation: string;
+    /** The task created to track this deadline, if any. */
+    taskRef?: string;
+    /** The calendar event created to track this deadline, if any. */
+    eventRef?: string;
+}
 export interface DocumentVersion { id: string; /** V4 (V-DOC-13): optional — content-only documents have versions with no file. */ file?: FileDetails; uploadedBy: string; uploadedAt: string; changesSummary?: string; /** V4 (V-DOC-13): what the prior state actually said — without this, versions of generated (content) documents had nothing to restore. */ content?: string; /** V4 (V-DOC-13): the prior title, so a restore recovers the name too. */ title?: string; }
 export interface RiskAnalysis { legalRisk: number; commercialRisk: number; complianceRisk: number; operationalRisk: number; overallRiskScore: number; justification: string; highRiskClauses: { clause: string; summary: string; }[]; }
 export interface ExtractedMetadata { contractType: string; partiesInvolved: string[]; effectiveDate: string | null; expirationDate: string | null; autoRenewalDate: string | null; governingLaw: string; jurisdiction: string; opposingCounselInfo?: { name: string; firmName?: string; phone?: string; email?: string; address?: string; }[]; }
 export interface DataProtectionAnalysis { overallRiskLevel: 'Low' | 'Medium' | 'High'; identifiedPii: string[]; findings: { risk: string; recommendation: string; }[]; }
 export interface RpcStatus { status: 'approved' | 'warning'; commentary: string; }
-export interface Document { id: string; firmId: string; title: string; matter?: { id: string; title: string; }; property?: { id: string; title: string; }; categoryId: string; dateFiled: string; assignedUsers: string[]; file?: FileDetails; content?: string; source?: 'upload' | 'generated'; uploadedBy?: string; versions?: DocumentVersion[]; comments?: DocumentComment[]; analysisState?: 'pending' | 'complete' | 'failed'; summary?: string; riskAnalysis?: RiskAnalysis; extractedMetadata?: ExtractedMetadata; dataProtectionAnalysis?: DataProtectionAnalysis; rpcReview?: RpcStatus; analysisCompletedAt?: string; isSharedWithClient?: boolean; clientReviewStatus?: 'pending' | 'review_requested' | 'reviewed'; isSignatureRequested?: boolean; signatureData?: string; signedAt?: string; signerId?: string; metadata?: any; matterId?: string; propertyId?: string; isCourtProcess?: boolean; litigationStatus?: 'draft' | 'filed' | 'served' | 'acknowledged'; }
+export interface Document { id: string; firmId: string; title: string; matter?: { id: string; title: string; }; property?: { id: string; title: string; }; categoryId: string; dateFiled: string; assignedUsers: string[]; file?: FileDetails; content?: string; source?: 'upload' | 'generated'; uploadedBy?: string; versions?: DocumentVersion[]; comments?: DocumentComment[]; analysisState?: 'pending' | 'complete' | 'failed'; summary?: string; riskAnalysis?: RiskAnalysis; extractedMetadata?: ExtractedMetadata; dataProtectionAnalysis?: DataProtectionAnalysis; rpcReview?: RpcStatus; analysisCompletedAt?: string; isSharedWithClient?: boolean; clientReviewStatus?: 'pending' | 'review_requested' | 'reviewed'; isSignatureRequested?: boolean; signatureData?: string; signedAt?: string; signerId?: string; metadata?: any; matterId?: string; propertyId?: string; isCourtProcess?: boolean; litigationStatus?: 'draft' | 'filed' | 'served' | 'acknowledged'; /** The registry filing event (date + receipt) — captured when the process is marked FILED. */ filing?: FilingEvent; /** Every recorded service of this process (date + method + proof) — the first entry's date drives the CPR response windows. */ serviceEvents?: ServiceEvent[]; /** Deadlines computed from the recorded events, with the governing rule citation — see src/legal/cprWindows.ts. */ computedDeadlines?: ComputedDeadlineRef[]; }
 export interface CustomEventType { id: string; firmId: string; name: string; color: string; }
 export interface CalendarEvent {
     id: string; firmId: string; title: string; description?: string; matterTitle?: string; type: string; date: string; endDate?: string; matterId?: string; status: EventStatus; court?: string; judicialDivision?: string; assignedUsers?: string[]; reminder?: { value: number; unit: 'minutes' | 'hours' | 'days'; }; recurrence?: { frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'biannually' | 'yearly'; endDate?: string; }; originalId?: string; created_by?: string;

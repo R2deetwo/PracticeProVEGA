@@ -163,6 +163,93 @@ export const SUPREME_COURT: JurisdictionProfile = {
   defaultLocation: "Abuja",
 };
 
+// ─── Federal High Court (populated 2026-11-22 — verified citations) ────────
+// Defence/appearance windows live in legal/cprWindows.ts (the deadlines
+// engine); this profile carries the caption + motion/frontloading furniture.
+
+export const FEDERAL_HIGH_COURT: JurisdictionProfile = {
+  key: "federal_high_court",
+  label: "Federal High Court of Nigeria",
+  headingTemplates: [
+    "IN THE FEDERAL HIGH COURT OF NIGERIA",
+    "IN THE {{DIVISION}} JUDICIAL DIVISION",
+    "HOLDEN AT {{LOCATION}}",
+  ],
+  // The enabling rule for interlocutory applications is cited generically
+  // (order-level citation pending counsel verification) — never invented.
+  motionEnablingRule: rule(
+    "Order 26 of the Federal High Court (Civil Procedure) Rules 2019 (interlocutory applications)"
+  ),
+  inherentJurisdictionClause: rule(
+    "the inherent jurisdiction of this Honourable Court"
+  ),
+  frepRules: rule(
+    "the Fundamental Rights (Enforcement Procedure) Rules 2009"
+  ),
+  garnisheeProvisions: rule(
+    "Section 83 of the Sheriff and Civil Process Act and the Federal High Court (Civil Procedure) Rules 2019"
+  ),
+  noticePeriodDays: {},
+  noticePeriodRule: null,
+  frontloading: {
+    required: true,
+    accompanyingDocuments: [
+      "witness_statement_on_oath",
+      "list_of_witnesses",
+      "list_of_documents",
+    ],
+    rule: rule(
+      "Order 3 Rule 3(1) of the Federal High Court (Civil Procedure) Rules 2019 (frontloading of accompanying processes)"
+    ),
+  },
+  addressHeadings: LAGOS_HIGH_COURT.addressHeadings,
+  briefHeadings: LAGOS_HIGH_COURT.briefHeadings,
+  defaultLocation: "Lagos",
+};
+
+// ─── FCT High Court (populated 2026-11-22 — verified citations) ─────────────
+// The FCT High Court (Civil Procedure) Rules 2025 superseded the 2018 Rules
+// (in force since early 2025); the 21-day appearance window under the 2025
+// Rules (Order 11 Rule 1) is encoded in legal/cprWindows.ts.
+
+export const FCT_HIGH_COURT: JurisdictionProfile = {
+  key: "fct_high_court",
+  label: "High Court of the Federal Capital Territory",
+  headingTemplates: [
+    "IN THE HIGH COURT OF THE FEDERAL CAPITAL TERRITORY, ABUJA",
+    "IN THE {{DIVISION}} JUDICIAL DIVISION",
+    "HOLDEN AT {{LOCATION}}",
+  ],
+  motionEnablingRule: rule(
+    "the High Court of the Federal Capital Territory (Civil Procedure) Rules 2025"
+  ),
+  inherentJurisdictionClause: rule(
+    "the inherent jurisdiction of this Honourable Court"
+  ),
+  frepRules: rule(
+    "the Fundamental Rights (Enforcement Procedure) Rules 2009"
+  ),
+  garnisheeProvisions: rule(
+    "Section 83 of the Sheriff and Civil Process Act and the High Court of the Federal Capital Territory (Civil Procedure) Rules 2025"
+  ),
+  noticePeriodDays: {},
+  noticePeriodRule: null,
+  frontloading: {
+    required: true,
+    accompanyingDocuments: [
+      "witness_statement_on_oath",
+      "list_of_witnesses",
+      "list_of_documents",
+    ],
+    rule: rule(
+      "the frontloading provisions of the High Court of the Federal Capital Territory (Civil Procedure) Rules 2025"
+    ),
+  },
+  addressHeadings: LAGOS_HIGH_COURT.addressHeadings,
+  briefHeadings: LAGOS_HIGH_COURT.briefHeadings,
+  defaultLocation: "Abuja",
+};
+
 // ─── Stubs (DEFERRED — full population needs counsel-verified rules) ────────
 
 function stub(key: string, label: string, location: string): JurisdictionProfile {
@@ -183,8 +270,6 @@ function stub(key: string, label: string, location: string): JurisdictionProfile
   };
 }
 
-export const FEDERAL_HIGH_COURT = stub("federal_high_court", "Federal High Court of Nigeria", "Lagos");
-export const FCT_HIGH_COURT = stub("fct_high_court", "High Court of the Federal Capital Territory", "Abuja");
 export const NICN = stub("nicn", "National Industrial Court of Nigeria", "Abuja");
 export const DEFAULT_PROFILE = stub("default", "High Court", "Lagos");
 

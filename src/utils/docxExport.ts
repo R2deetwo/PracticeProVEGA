@@ -153,6 +153,11 @@ function convertNode(node: Node, flags: RunFlags, state: ConvertState, listCtx: 
     case 'p':
     case 'div': {
       if (isPageBreak(el)) { emitPageBreak(state); return; }
+      // The Nigerian court-process party row (voice→draftpro pipeline): a
+      // name at the left margin, one dotted leader, the designation in the
+      // right-hand column — mapped to the construct real pleadings use in
+      // Word: a RIGHT TAB STOP with a DOT LEADER at the text width.
+      if (el.getAttribute('data-type') === 'party-row') { emitPartyRow(el, flags, state); return; }
       // divs with block children recurse; plain divs act as paragraphs.
       if (hasBlockChild(el)) { convertChildren(el, flags, state, listCtx); return; }
       emitSimpleParagraph(el, flags, state, { align: paraAlign(el) });
@@ -298,6 +303,34 @@ function emitSimpleParagraph(el: HTMLElement, flags: RunFlags, state: ConvertSta
   if (isPageBreak(el)) { emitPageBreak(state); return; }
   const runs = collectInline(el, flags);
   state.paragraphs.push(paraXml(runs, opts));
+}
+
+/** The party-row div (Nigerian court-process party line): exported as the
+ *  construct real pleadings use in Word — ONE paragraph with a RIGHT TAB
+ *  STOP at the text width carrying a DOT LEADER, so the designation lands
+ *  flush right (under the right-aligned case number) and the leader is
+ *  Word's own uniform dotted rule, exactly like the on-screen geometry. */
+function emitPartyRow(el: HTMLElement, flags: RunFlags, state: ConvertState): void {
+  // A4 (11906 twips) minus two 25mm margins (2 × 1417) = 9072 twips of text.
+  const TAB_POS = 9072;
+  const designation =
+    el.getAttribute('data-designation') || el.getAttribute('data-capacity') || '';
+  // The party NAME is the row's FIRST child span (the renderer emits
+  // name-span | leader-span | designation-span; collecting the whole div
+  // would duplicate the designation text).
+  const nameEl = el.firstElementChild as HTMLElement | null;
+  const nameRuns = nameEl ? collectInline(nameEl, flags) : collectInline(el, flags);
+  const parts: string[] = [];
+  parts.push('<w:p>');
+  parts.push(
+    `<w:pPr><w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${TAB_POS}"/></w:tabs>` +
+    '<w:spacing w:after="120"/></w:pPr>'
+  );
+  if (nameRuns.length) parts.push(...nameRuns);
+  parts.push('<w:r><w:tab/></w:r>');
+  if (designation) parts.push(runXml(designation, flags));
+  parts.push('</w:p>');
+  state.paragraphs.push(parts.join(''));
 }
 
 function emitPageBreak(state: ConvertState): void {

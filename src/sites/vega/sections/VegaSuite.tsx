@@ -60,7 +60,7 @@ const TABS: SuiteTab[] = [
             },
             {
                 title: 'Deadlines by the right rules',
-                detail: 'Filing and service windows computed under the matter\u2019s Civil Procedure Rules — 36 states and the FCT.',
+                detail: 'Record the service of any court process and the response windows are computed under the matter\u2019s Civil Procedure Rules — the governing rule cited on every entry.',
             },
             {
                 title: 'Contacts & parties',
@@ -115,7 +115,7 @@ const TABS: SuiteTab[] = [
         ],
         shots: [
             {
-                src: '/assets/landing/app/editor-r80.jpg',
+                src: '/assets/landing/app/editor-r81.jpg',
                 alt: 'DraftPro editor — a statement of claim under drafting, with the legal tools ribbon',
                 caption: 'THE DRAFTPRO EDITOR: A4 PAGINATION, LEGAL FONTS, [PLACEHOLDER] GUARDRAILS',
                 label: 'Editor',
@@ -270,7 +270,7 @@ export const PAGE_GROUPS: LightboxGroup[] = [
         id: 'documents',
         label: 'Documents',
         exhibits: [
-            { ...shot('documents', '/assets/landing/app/editor-r80.jpg'), label: 'DraftPro editor' },
+            { ...shot('documents', '/assets/landing/app/editor-r81.jpg'), label: 'DraftPro editor' },
             { ...shot('documents', '/assets/landing/app/documents.jpg'), label: 'Document vault' },
             { ...shot('documents', '/assets/landing/app/research.jpg'), label: 'Research' },
         ],
@@ -447,7 +447,7 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                             label={exhibit.label}
                             onSignup={onSignup}
                             onExpand={() => openLightboxAt(exhibit.src)}
-                            collab={exhibit.src !== '/assets/landing/app/editor-r80.jpg'}
+                            collab={exhibit.src !== '/assets/landing/app/editor-r81.jpg'}
                         />
                     </div>
                 </div>

@@ -22,7 +22,7 @@ const PILLARS = [
     {
         id: 'court-rules',
         title: 'The firm diary that keeps itself.',
-        body: 'For every matter, the Court Rules Agent cites the governing Civil Procedure Rules of the matter\u2019s state — all 36 states and the FCT — computes the filing and service windows under the matter\u2019s court, and keeps a provisional chronology updated as filings land and dates move. Where a period varies between states, the entry says so and asks you to confirm your division\u2019s rules.',
+        body: 'For every matter, the Court Rules Agent cites the governing Civil Procedure Rules of the matter\u2019s state — all 36 states and the FCT. Record the service of a process and the filing and response windows are computed under the matter\u2019s court — built-in for the Lagos, FCT and Federal High Courts and the appellate periods, one manual entry for any other court — with the rule cited on every entry, and a provisional chronology kept updated as filings land and dates move. Every computed period asks you to confirm your division\u2019s practice before you rely on it.',
         points: [
             'Deadlines under the right state\u2019s rules — HCCPR 2019 and its siblings',
             'The chronology, kept per matter',

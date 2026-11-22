@@ -1062,9 +1062,9 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("CollabPresence");
     expect(collab).toContain("revealed?: boolean");
     expect(collab).toContain("onHoverChange");
-    // R80: the editor capture is re-captured as editor-r80.jpg (reduced
+    // R80: the editor capture is re-captured as editor-r81.jpg (reduced
     // top gap: the pt-32 detach retired, no empty letterhead band).
-    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r80.jpg'}");
+    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r81.jpg'}");
     // THE LIGHTBOX: shared gallery — the hero's Dashboard plus every
     // suite exhibit; labeled with the exhibit + group vocabulary;
     // ←/→/Escape; the pill strip walks everything. R78: the walk is
@@ -1142,7 +1142,13 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // exhibit (moved off the hero card); the dashboard frame renders
     // LARGER than the inspection exhibits.
     expect(lightbox).toContain("isInteractive");
-    expect(lightbox).toContain("height: isInteractive ? 'min(74vh, 58vw)' : 'min(66vh, 56vw)'");
+    // R81: the stage is WIDTH-driven (fit = min(94vw, (100dvh − ~180px) ×
+    // 1.6)) and carries a FIT ↔ 1:1 toggle — the expand that actually
+    // expands (native logical width, scrollable + drag-pannable stage).
+    expect(lightbox).toContain("width: '1440px'");
+    expect(lightbox).toContain("calc((100dvh - 175px) * 1.6)");
+    expect(lightbox).toContain("setZoom((z) => (z === 'fit' ? 'full' : 'fit'))");
+    expect(lightbox).toContain("cursor-grab");
     expect(lightbox).toContain("imgLoaded && isInteractive");
     expect(lightbox).not.toContain("<CollabPresence");
     // Non-dashboard exhibits are CLEAN captures — the monikers can never
@@ -1423,7 +1429,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/editor-r80.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/editor-r81.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/research.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");

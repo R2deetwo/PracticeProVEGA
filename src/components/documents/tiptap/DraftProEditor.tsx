@@ -45,6 +45,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 import LegalPlaceholder, { resolveCategory } from './extensions/LegalPlaceholder';
+import { PartyRow } from './extensions/PartyRow';
 import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
 import { getAssistantName } from '../../../utils/assistantIdentity';
 // Shared AI-draft HTML post-processing (fences, markdown bold, <br> pairs,
@@ -1195,6 +1196,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             TableHeader,
             LegalPlaceholder,
             LegalPartiesGroup,
+            PartyRow,
             PageBreak,
             Citation,
             AutoPagination,

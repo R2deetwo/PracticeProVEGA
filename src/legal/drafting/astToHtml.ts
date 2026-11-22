@@ -10,10 +10,11 @@
  * same output, so what the lawyer sees is what files.
  *
  * Court-layout styling (spec §7.1): centred caps heading, right-aligned
- * case number, party blocks with right-aligned capacity labels (dotted
- * leader: "JOHN OKAFOR ……………………… CLAIMANT"), centred bold underlined
- * process titles, numbered paragraphs as real lists, right-aligned
- * franking block, page breaks between bundle documents.
+ * case number, party blocks as STRUCTURAL rows (name left, one uniform
+ * dotted leader, designation in a right-hand column under the case number
+ * — the PartyRow node), centred bold underlined process titles, numbered
+ * paragraphs as real lists, right-aligned franking block, page breaks
+ * between bundle documents.
  *
  * Placeholders: both typed `placeholder` Slots and `[[LABEL]]` markers in
  * literal text render as legal-placeholder pills (the TipTap
@@ -54,10 +55,31 @@ function renderSlot(slot: Slot): string {
   }
 }
 
-/** Dotted leader between party name and right-aligned capacity label. */
-function dottedLeader(name: string, capacity: string): string {
-  const pad = Math.max(8, 64 - name.length - capacity.length);
-  return `${escapeHtml(name)} ${".".repeat(pad)} ${escapeHtml(capacity)}`;
+/**
+ * One Nigerian court-process party line, as a STRUCTURAL row (2026-11-22
+ * owner direction, the DraftPro demo review): the party name sits at the
+ * left margin, a single uniform dotted leader spans the middle, and the
+ * designation (CLAIMANT / DEFENDANT / APPLICANT …) sits in a right-hand
+ * column — aligned under the right-aligned case number above it. The old
+ * renderer counted dots per name (`64 - name.length`), so in a proportional
+ * font every designation landed mid-page at a different x-position
+ * (visually under the centered BETWEEN) and the leaders broke across
+ * lines. The row is emitted as a party-row div (the TipTap PartyRow node;
+ * the DOCX export maps it to a native right-tab + dot-leader paragraph).
+ */
+function partyRow(p: { name: string; capacity: string }): string {
+  // The name goes through inlineText so [[LABEL]] fallbacks render as
+  // placeholder pills inside the row's name span.
+  const name = inlineText(p.name);
+  const designation = escapeHtml(p.capacity);
+  return (
+    `<div data-type="party-row" data-designation="${designation}"` +
+    ` style="display:flex;align-items:baseline;gap:10px;margin:0 0 0.35em 0;break-inside:avoid;">` +
+    `<span style="white-space:nowrap;">${name}</span>` +
+    `<span aria-hidden="true" style="flex:1 1 auto;border-bottom:1.5pt dotted #111;transform:translateY(-0.22em);min-width:2em;"></span>` +
+    `<span style="white-space:nowrap;font-variant:all-small-caps;letter-spacing:0.06em;">${designation}</span>` +
+    `</div>`
+  );
 }
 
 function renderBlock(b: Block): string {
@@ -77,7 +99,7 @@ function renderBlock(b: Block): string {
         parts.push(
           `<p data-align="center" style="text-align: center;">${i === 0 ? escapeHtml(b.connectors) : "AND"}</p>`
         );
-        parts.push(`<p>${dottedLeader(p.name, p.capacity)}</p>`);
+        parts.push(partyRow(p));
       });
       return parts.join("");
     }

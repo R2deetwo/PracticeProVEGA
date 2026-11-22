@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppMode } from '../../types';
-import type { Document, User, FirmDetails, ModalType, View } from '../../types';
+import type { Document, User, FirmDetails, ModalType, View, ServiceEvent, ServiceMethod, ComputedDeadlineRef } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useMatterState } from '../../contexts/MatterContext';
+import { computeServiceDeadlines, courtJurisdictionProfile } from '../../legal/cprWindows';
+import { v4 as uuidv4 } from 'uuid';
 import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon, ArrowsExpandIcon } from '../../constants'; // Fixed path
 import { Breadcrumbs } from '../Breadcrumbs';
 import Tooltip from '../Tooltip';
@@ -268,7 +271,9 @@ const DocumentDetailViewContent: React.FC = () => {
     const { documentState, documentActions } = useDocumentState();
     const { coreState } = useCoreState();
     const { currentUser } = useAuth();
-    const { handleRunDocumentAnalysis } = useDataActions();
+    const { handleRunDocumentAnalysis, addItem } = useDataActions();
+    const { matterState } = useMatterState();
+    const { addToast } = useUI();
     const { isProperty } = useProduct();
     const { confirm: confirmDialog } = useConfirm();
 
@@ -282,6 +287,27 @@ const DocumentDetailViewContent: React.FC = () => {
     // with a stale/deleted ID. Now all hooks run first, then the guard.
     const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'history'>('details');
     const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
+
+    // ─── Litigation lifecycle capture (2026-11-22 — "how does the app know
+    //     when a document was served?"): marking a court process FILED or
+    //     SERVED opens a small event-capture form (date, method, proof); the
+    //     recorded SERVICE date then drives the Civil Procedure Rules
+    //     deadline engine (src/legal/cprWindows.ts) — computed windows with
+    //     the governing rule cited on every entry, tracked as a task + a
+    //     calendar event (idempotent via document.computedDeadlines). ────
+    const [captureStep, setCaptureStep] = useState<'filed' | 'served' | null>(null);
+    const [savingEvent, setSavingEvent] = useState(false);
+    const todayIso = () => new Date().toISOString().slice(0, 10);
+    const [filingForm, setFilingForm] = useState({ date: todayIso(), receiptNumber: '' });
+    const [serviceForm, setServiceForm] = useState<{ date: string; method: ServiceMethod; servedOn: string; proofNote: string }>({ date: todayIso(), method: 'personal', servedOn: '', proofNote: '' });
+    const [manualDeadline, setManualDeadline] = useState({ label: '', date: '' });
+
+    // The matter this process belongs to — its COURT selects the CPR windows.
+    const matter = React.useMemo(
+        () => (document?.matterId ? matterState.matters.find(m => m.id === document.matterId) : undefined),
+        [matterState.matters, document?.matterId]
+    );
+    const court = matter?.court || '';
 
     // Reset tab to 'details' and close full-screen preview whenever the
     // selected document changes. Also resets activeTab if the litigation
@@ -335,6 +361,173 @@ const DocumentDetailViewContent: React.FC = () => {
     };
 
     const isLocal = document.firmId === 'local';
+
+    // ─── Litigation lifecycle: FILED / SERVED event capture + CPR deadlines ──
+
+    const handleStepClick = (stepId: string) => {
+        if (isLocal) {
+            // Local (unsynced) documents keep the plain status flip — the
+            // event capture + deadline engine is a firm-data flow.
+            documentActions.updateDocument({ ...document, litigationStatus: stepId as any });
+            return;
+        }
+        if (stepId === 'filed') { setCaptureStep('filed'); setFilingForm(f => ({ ...f, date: f.date || todayIso() })); return; }
+        if (stepId === 'served') { setCaptureStep('served'); setServiceForm(f => ({ ...f, date: f.date || todayIso() })); return; }
+        documentActions.updateDocument({ ...document, litigationStatus: stepId as any });
+    };
+
+    const saveFilingEvent = async () => {
+        if (!filingForm.date) { addToast('Enter the filing date.', { type: 'error' }); return; }
+        try {
+            setSavingEvent(true);
+            await documentActions.updateDocument({
+                ...document,
+                litigationStatus: 'filed',
+                dateFiled: filingForm.date,
+                filing: { date: filingForm.date, receiptNumber: filingForm.receiptNumber.trim() || undefined, recordedAt: new Date().toISOString() },
+            });
+            setCaptureStep(null);
+            addToast(`Filed ${new Date(filingForm.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}${filingForm.receiptNumber.trim() ? ` — receipt ${filingForm.receiptNumber.trim()}` : ''}.`, { type: 'success' });
+        } catch (e) {
+            addToast('Could not save the filing event.', { type: 'error' });
+        } finally {
+            setSavingEvent(false);
+        }
+    };
+
+    const saveServiceEvent = async () => {
+        if (!serviceForm.date) { addToast('Enter the service date.', { type: 'error' }); return; }
+        try {
+            setSavingEvent(true);
+            const event: ServiceEvent = {
+                id: uuidv4(),
+                date: serviceForm.date,
+                method: serviceForm.method,
+                servedOn: serviceForm.servedOn.trim() || undefined,
+                proofNote: serviceForm.proofNote.trim() || undefined,
+                recordedAt: new Date().toISOString(),
+                recordedBy: currentUser?.email,
+            };
+            const serviceEvents = [...(document.serviceEvents || []), event];
+
+            // Compute the CPR windows from the service date under the
+            // matter's court — verified windows only, citation on each.
+            const computed = computeServiceDeadlines({ court, fromDate: serviceForm.date });
+            const existing = document.computedDeadlines || [];
+            const newWindows = computed.filter(c => !existing.some(x => x.windowId === c.window.id));
+            const freshRefs: ComputedDeadlineRef[] = [];
+            for (const c of newWindows) {
+                // Track each NEW window as a task + a Filing Deadline calendar
+                // event (idempotent: refs are stored on the document).
+                let taskRef: string | undefined;
+                let eventRef: string | undefined;
+                try {
+                    const task = await addItem('tasks', {
+                        id: uuidv4(),
+                        title: `${c.window.action} — ${document.title || 'court process'}`,
+                        description: `${c.note} Governing rule: ${c.window.citation}. Recorded from the service of this process on ${new Date(serviceForm.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}${serviceForm.servedOn.trim() ? ` on ${serviceForm.servedOn.trim()}` : ''}. Verify before relying.`,
+                        status: 'todo',
+                        priority: 'High',
+                        dueDate: c.dueDate,
+                        assignedUsers: document.assignedUsers || matter?.assignedUsers || [],
+                        matterId: document.matterId || undefined,
+                        createdAt: new Date().toISOString(),
+                        creatorId: currentUser?.id || currentUser?.email || 'system',
+                    }, 'Deadline task');
+                    taskRef = task?.id;
+                    const calEvent = await addItem('events', {
+                        id: uuidv4(),
+                        title: `${c.window.action} (${matter?.suitNumber || matter?.title || document.title || 'matter'})`,
+                        type: 'Filing Deadline',
+                        status: 'Active',
+                        date: c.dueDate,
+                        matterId: document.matterId || undefined,
+                        matterTitle: matter?.title,
+                        description: `${c.note} Governing rule: ${c.window.citation}.`,
+                        assignedUsers: document.assignedUsers || [],
+                        reminder: { value: 7, unit: 'days' },
+                    }, 'Deadline event');
+                    eventRef = calEvent?.id;
+                } catch (e) {
+                    // The deadline entry still records even if tracking fails.
+                    console.warn('[cprWindows] deadline tracking failed', e);
+                }
+                freshRefs.push({ windowId: c.window.id, fromDate: serviceForm.date, dueDate: c.dueDate, citation: c.window.citation, taskRef, eventRef });
+            }
+
+            const computedDeadlines = [
+                ...existing.map(x => {
+                    const live = computed.find(c => c.window.id === x.windowId);
+                    return live && live.dueDate !== x.dueDate ? { ...x, dueDate: live.dueDate } : x;
+                }),
+                ...freshRefs,
+            ];
+            await documentActions.updateDocument({
+                ...document,
+                litigationStatus: 'served',
+                serviceEvents,
+                computedDeadlines,
+            });
+            setCaptureStep(null);
+            if (newWindows.length > 0) {
+                addToast(`Service recorded. ${newWindows.length} deadline${newWindows.length > 1 ? 's' : ''} computed under the ${courtJurisdictionProfile(court).label} rules and added to your calendar.`, { type: 'success' });
+            } else if (computed.length === 0 && existing.length === 0) {
+                addToast('Service recorded. No built-in rule window for this court yet — add the deadline manually below.', { type: 'info' });
+            } else {
+                addToast('Service recorded.', { type: 'success' });
+            }
+        } catch (e) {
+            addToast('Could not save the service event.', { type: 'error' });
+        } finally {
+            setSavingEvent(false);
+        }
+    };
+
+    const addManualDeadline = async () => {
+        if (!manualDeadline.label.trim() || !manualDeadline.date) { addToast('Give the deadline a label and a date.', { type: 'error' }); return; }
+        try {
+            setSavingEvent(true);
+            await addItem('tasks', {
+                id: uuidv4(),
+                title: `${manualDeadline.label.trim()} — ${document.title || 'court process'}`,
+                status: 'todo',
+                priority: 'High',
+                dueDate: new Date(manualDeadline.date).toISOString(),
+                assignedUsers: document.assignedUsers || matter?.assignedUsers || [],
+                matterId: document.matterId || undefined,
+                createdAt: new Date().toISOString(),
+                creatorId: currentUser?.id || currentUser?.email || 'system',
+            }, 'Deadline task');
+            await addItem('events', {
+                id: uuidv4(),
+                title: `${manualDeadline.label.trim()} (${matter?.suitNumber || matter?.title || document.title || 'matter'})`,
+                type: 'Filing Deadline',
+                status: 'Active',
+                date: new Date(manualDeadline.date).toISOString(),
+                matterId: document.matterId || undefined,
+                matterTitle: matter?.title,
+                assignedUsers: document.assignedUsers || [],
+            }, 'Deadline event');
+            setManualDeadline({ label: '', date: '' });
+            addToast('Deadline added to your tasks and calendar.', { type: 'success' });
+        } catch (e) {
+            addToast('Could not add the deadline.', { type: 'error' });
+        } finally {
+            setSavingEvent(false);
+        }
+    };
+
+    // The live deadline read-out: recomputed from the latest recorded event
+    // so the panel always matches the document's stored data.
+    const latestServiceEvent = document.serviceEvents?.length
+        ? document.serviceEvents[document.serviceEvents.length - 1]
+        : null;
+    const liveDeadlines = useMemo(() => {
+        if (!latestServiceEvent) return [];
+        return computeServiceDeadlines({ court, fromDate: latestServiceEvent.date });
+    }, [latestServiceEvent?.date, court]);
+    const trackedWindowIds = new Set((document.computedDeadlines || []).map(d => d.windowId));
+    const hasVerifiedCoverage = liveDeadlines.length > 0;
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 overflow-hidden">
@@ -474,10 +667,10 @@ const DocumentDetailViewContent: React.FC = () => {
                                                     <h5 className={`font-bold text-sm mb-1 ${isCurrent ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{step.label}</h5>
                                                     <p className="text-2xs leading-tight text-slate-500">{step.desc}</p>
                                                     <button
-                                                        onClick={() => documentActions.updateDocument({ ...document, litigationStatus: step.id as any })}
+                                                        onClick={() => handleStepClick(step.id)}
                                                         className={`mt-3 w-full py-1.5 text-2xs font-bold rounded-lg transition-all ${isCurrent ? stageStyle.button : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600'}`}
                                                     >
-                                                        {isCurrent ? 'Current Stage' : isPast ? 'Revert to Stage' : 'Mark as Done'}
+                                                        {isCurrent ? 'Current Stage' : isPast ? 'Revert to Stage' : (step.id === 'filed' ? 'Record Filing' : step.id === 'served' ? 'Record Service' : 'Mark as Done')}
                                                     </button>
                                                 </div>
                                                 {idx < 3 && (
@@ -490,14 +683,146 @@ const DocumentDetailViewContent: React.FC = () => {
                                     })}
                                 </div>
 
+                                {/* ── Event capture forms (filed / served) ──
+                                    The app can never KNOW a document was
+                                    served — a human records the event; the
+                                    recorded date then drives the CPR
+                                    deadline engine below. */}
+                                {!isProperty && captureStep === 'filed' && (
+                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-xl border-2 border-orange-200 dark:border-orange-900/50 shadow-sm animate-fade-in">
+                                        <h6 className="text-sm font-black text-slate-900 dark:text-white mb-1">Record the registry filing</h6>
+                                        <p className="text-2xs text-slate-500 mb-4">When was this process filed? The date is kept with the process record.</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Filing date</span>
+                                                <input type="date" value={filingForm.date} onChange={e => setFilingForm({ ...filingForm, date: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                            </label>
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Registry receipt no. (optional)</span>
+                                                <input type="text" value={filingForm.receiptNumber} onChange={e => setFilingForm({ ...filingForm, receiptNumber: e.target.value })} placeholder="e.g. F/2026/0142" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                            </label>
+                                        </div>
+                                        <div className="flex gap-2 justify-end">
+                                            <button onClick={() => setCaptureStep(null)} className="px-4 py-2 text-xs font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700">Cancel</button>
+                                            <button disabled={savingEvent} onClick={saveFilingEvent} className="px-5 py-2 text-xs font-black rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50">{savingEvent ? 'Saving…' : 'Save Filing'}</button>
+                                        </div>
+                                    </div>
+                                )}
+                                {!isProperty && captureStep === 'served' && (
+                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-xl border-2 border-blue-200 dark:border-blue-900/50 shadow-sm animate-fade-in">
+                                        <h6 className="text-sm font-black text-slate-900 dark:text-white mb-1">Record the service</h6>
+                                        <p className="text-2xs text-slate-500 mb-4">
+                                            The service date is what the response windows run from — record it as the affidavit of service / proof states.
+                                            {court ? <span className="block mt-1">Deadlines will be computed under the <strong>{courtJurisdictionProfile(court).label}</strong> rules, with the governing rule cited on every entry.</span> : null}
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Date served</span>
+                                                <input type="date" value={serviceForm.date} onChange={e => setServiceForm({ ...serviceForm, date: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                            </label>
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Method of service</span>
+                                                <select value={serviceForm.method} onChange={e => setServiceForm({ ...serviceForm, method: e.target.value as ServiceMethod })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm">
+                                                    <option value="personal">Personal service</option>
+                                                    <option value="substituted">Substituted service</option>
+                                                    <option value="registered_post">Registered post / courier</option>
+                                                    <option value="electronic">Electronic (as agreed under the rules)</option>
+                                                    <option value="by_counsel">Service on counsel</option>
+                                                    <option value="acknowledged">Acknowledged by party</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </label>
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Served on (party / counsel)</span>
+                                                <input type="text" value={serviceForm.servedOn} onChange={e => setServiceForm({ ...serviceForm, servedOn: e.target.value })} placeholder="e.g. Savannah Haulage Ltd." className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                            </label>
+                                            <label className="block">
+                                                <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Proof / note (optional)</span>
+                                                <input type="text" value={serviceForm.proofNote} onChange={e => setServiceForm({ ...serviceForm, proofNote: e.target.value })} placeholder="e.g. Affidavit of personal service, filed 14 Nov" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                            </label>
+                                        </div>
+                                        <div className="flex gap-2 justify-end">
+                                            <button onClick={() => setCaptureStep(null)} className="px-4 py-2 text-xs font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700">Cancel</button>
+                                            <button disabled={savingEvent} onClick={saveServiceEvent} className="px-5 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50">{savingEvent ? 'Saving…' : 'Save Service & Compute Deadlines'}</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── The CPR deadlines read-out ──
+                                    Every entry carries the governing rule
+                                    citation; only VERIFIED windows appear
+                                    (nothing is guessed for uncovered
+                                    courts — a manual deadline can be set
+                                    instead). */}
+                                {!isProperty && (
+                                    <div className="mb-8 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center gap-2">
+                                            <ClockIcon className="w-4 h-4 text-primary-600" />
+                                            <h6 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Deadlines under the matter's rules</h6>
+                                        </div>
+                                        <div className="p-6">
+                                            {latestServiceEvent ? (
+                                                <>
+                                                    <p className="text-2xs text-slate-500 mb-4">
+                                                        Computed from the recorded service on <strong>{new Date(latestServiceEvent.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                                                        {latestServiceEvent.servedOn ? <> on <strong>{latestServiceEvent.servedOn}</strong></> : null}
+                                                        {court ? <> — windows under the <strong>{courtJurisdictionProfile(court).label}</strong> rules</> : null}.
+                                                    </p>
+                                                    {liveDeadlines.map(d => (
+                                                        <div key={d.window.id} className="mb-3 last:mb-0 p-4 rounded-lg bg-slate-50 dark:bg-zinc-900/50 border border-slate-100 dark:border-zinc-800">
+                                                            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1.5">
+                                                                <span className="text-sm font-bold text-slate-900 dark:text-white">{d.window.action}</span>
+                                                                <span className="font-mono text-sm font-black text-primary-700 dark:text-primary-300">
+                                                                    {new Date(d.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-2xs text-slate-500 leading-relaxed mb-1.5">{d.note}</p>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-2xs font-bold border border-indigo-100 dark:border-indigo-800/50">
+                                                                    <ScalesIcon className="w-3 h-3" /> {d.window.citation}
+                                                                </span>
+                                                                {trackedWindowIds.has(d.window.id) && (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-2xs font-bold border border-green-100 dark:border-green-800/50">
+                                                                        <CheckCircleIcon className="w-3 h-3" /> Tracked — task & calendar
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {!hasVerifiedCoverage && (
+                                                        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40">
+                                                            <p className="text-2xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                                                                No built-in rule window for this court yet — the built-in windows cover the High Courts of Lagos and the FCT, the Federal High Court and the appellate periods. Set this court's deadline manually below (and verify it against your division's rules).
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <p className="text-2xs text-slate-500 leading-relaxed">
+                                                    Record the service of this process and the response windows are computed automatically — the governing Civil Procedure Rules citation rides every entry. Built-in windows: High Court of Lagos State (Order 17 Rule 1(2), 2019 Rules), FCT High Court (2025 Rules), Federal High Court (Order 7 Rule 1, 2019 Rules) and the Court of Appeal periods.
+                                                </p>
+                                            )}
+                                            {/* The manual row — works for ANY court */}
+                                            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+                                                <label className="block">
+                                                    <span className="block text-2xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Add a deadline manually (any court)</span>
+                                                    <input type="text" value={manualDeadline.label} onChange={e => setManualDeadline({ ...manualDeadline, label: e.target.value })} placeholder="e.g. File Notice of Intention to Defend" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                </label>
+                                                <input type="date" value={manualDeadline.date} onChange={e => setManualDeadline({ ...manualDeadline, date: e.target.value })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm h-[38px]" />
+                                                <button disabled={savingEvent || !manualDeadline.label.trim() || !manualDeadline.date} onClick={addManualDeadline} className="px-4 py-2 text-xs font-black rounded-lg bg-slate-900 dark:bg-white dark:text-zinc-900 text-white disabled:opacity-40 whitespace-nowrap h-[38px]">Add</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50 flex items-start gap-3">
                                     <SparklesIcon className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
                                     <div>
                                         <h6 className="text-xs font-bold text-primary-900 dark:text-primary-100 mb-1">{isProperty ? 'Manager Tip' : 'Litigation Lawyer Tip'}</h6>
                                         <p className="text-xs text-primary-700 dark:text-primary-300 leading-relaxed">
-                                            {isProperty 
+                                            {isProperty
                                                 ? 'Marking a document as Finalized helps PracticePro track the next steps in your portfolio workflow automatically.'
-                                                : 'Marking a document as Served helps PracticePro track deadlines for the respondent\'s Memorandum of Appearance and Statement of Defence automatically in your calendar.'}
+                                                : 'Record the service of an originating process and the respondent\u2019s Memorandum of Appearance and Statement of Defence windows are computed under the matter\u2019s Civil Procedure Rules — the rule cited on every entry — and tracked in your tasks and calendar automatically.'}
                                         </p>
                                     </div>
                                 </div>

@@ -410,6 +410,16 @@ export default defineSchema({
     metadata: v.optional(v.any()),
     isCourtProcess: nullableBoolean,
     litigationStatus: nullableString,
+    /** 2026-11-22 litigation lifecycle (the CPR deadline engine): the
+     *  registry filing event (date + receipt) captured when a court process
+     *  is marked FILED, the recorded service events (date + method + proof)
+     *  captured when it is marked SERVED — the human-observed events the
+     *  Civil Procedure Rules windows are computed from — and the computed
+     *  deadline refs (windowId + dueDate + citation) that keep the tracking
+     *  idempotent. See src/legal/cprWindows.ts. */
+    filing: v.optional(v.any()),
+    serviceEvents: v.optional(v.array(v.any())),
+    computedDeadlines: v.optional(v.array(v.any())),
     createdAt: nullableString,
     updatedAt: nullableString,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"])

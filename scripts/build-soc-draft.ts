@@ -1,7 +1,7 @@
 /**
  * build-soc-draft.ts — R78 (2026-11-22): builds the Statement of Claim
  * draft behind the landing page's new DraftPro editor capture
- * (editor-r80.jpg) THROUGH THE APP'S OWN PIPELINE — assembleBundle +
+ * (editor-r81.jpg) THROUGH THE APP'S OWN PIPELINE — assembleBundle +
  * bundleToHtml from src/legal/drafting — so the document shown in the
  * capture is genuinely what the product renders: centred court caption,
  * right-aligned case number, dotted-leader party block, centred bold

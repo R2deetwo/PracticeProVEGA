@@ -60,7 +60,7 @@ export const JURISDICTION_REGISTRY: Record<string, JurisdictionConfig> = {
     highCourtCaption: 'IN THE HIGH COURT OF THE FEDERAL CAPITAL TERRITORY, ABUJA',
     magistrateCourtCaption: 'IN THE MAGISTRATE COURT OF THE FCT, HOLDEN AT ABUJA',
     federalHighCourtCaption: 'IN THE FEDERAL HIGH COURT OF NIGERIA, HOLDEN AT ABUJA',
-    highCourtRules: 'High Court of the Federal Capital Territory (Civil Procedure) Rules 2018',
+    highCourtRules: 'High Court of the Federal Capital Territory (Civil Procedure) Rules 2025',
     magistrateRules: 'Magistrate Court (Civil Procedure) Rules of the FCT',
     defaultDivision: 'Abuja',
   },

@@ -73,6 +73,16 @@ export const AppShotLightbox: React.FC<{
     // once the swapped-in image has actually painted, and reset (keyed)
     // on every navigation so no panel state survives a preview change.
     const [imgLoaded, setImgLoaded] = useState(false);
+    // R81 (owner, 2026-11-22): "when you hit expand… it doesn't actually
+    // expand, it just brings it to the center of the screen and that is
+    // barely legible." The stage now renders the capture MUCH larger, and
+    // a FIT ↔ 1:1 toggle reads it at NATIVE logical resolution (the
+    // captures are 2880px wide @2x — razor sharp at 1:1), scrollable and
+    // drag-pannable inside the stage. Re-arms per exhibit.
+    const [zoom, setZoom] = useState<'fit' | 'full'>('fit');
+    const stageRef = useRef<HTMLDivElement>(null);
+    // Drag-to-pan state (pointer events; no capture outside the stage).
+    const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
 
     // Flatten once per render for the nav + strip.
     const flat = groups.flatMap((g) => g.exhibits.map((e) => ({ ...e, group: g.label })));
@@ -82,8 +92,12 @@ export const AppShotLightbox: React.FC<{
     // renders LARGER than the inspection exhibits.
     const isInteractive = current.src === '/assets/landing/app/dashboard.jpg';
 
-    // Any exhibit change re-arms the load gate.
-    useEffect(() => { setImgLoaded(false); }, [current.src]);
+    // Any exhibit change re-arms the load gate + the zoom mode.
+    useEffect(() => {
+        setImgLoaded(false);
+        setZoom('fit');
+        stageRef.current?.scrollTo?.({ top: 0, left: 0 });
+    }, [current.src]);
 
     // Focus + scroll lock — ONCE per open (the landing page scrolls inside
     // its [data-public-page] root; lock it while the lightbox is open).
@@ -119,7 +133,7 @@ export const AppShotLightbox: React.FC<{
             className={`fixed inset-0 ${Z_CLASS.lightbox} flex flex-col bg-slate-950/85 backdrop-blur-sm animate-swap-in outline-none`}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            {/* Header — the prominent label + the close. */}
+            {/* Header — the prominent label, the zoom toggle + the close. */}
             <div className="flex items-start justify-between gap-4 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 text-left">
                 <div className="min-w-0">
                     <p className="font-mono text-2xs tracking-[0.18em] uppercase text-indigo-300 mb-1 truncate">
@@ -132,20 +146,60 @@ export const AppShotLightbox: React.FC<{
                         {current.label}
                     </h2>
                 </div>
-                <Button
-                    variant="bare"
-                    iconOnly
-                    aria-label="Close the expanded view"
-                    onClick={onClose}
-                    className="flex-shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                    <XIcon className="h-5 w-5" aria-hidden="true" />
-                </Button>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                    {/* R81: FIT ↔ 1:1 — the expand that actually expands. */}
+                    <Button
+                        variant="bare"
+                        aria-pressed={zoom === 'full'}
+                        onClick={() => setZoom((z) => (z === 'fit' ? 'full' : 'fit'))}
+                        className={`inline-flex items-center gap-1.5 px-3 h-10 rounded-full text-xs font-semibold border transition-colors ${
+                            zoom === 'full'
+                                ? 'bg-indigo-500 border-indigo-400 text-white'
+                                : 'bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white border-white/20'
+                        }`}
+                    >
+                        <ArrowsExpandIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        {zoom === 'full' ? '1:1' : 'Fit'}
+                    </Button>
+                    <Button
+                        variant="bare"
+                        iconOnly
+                        aria-label="Close the expanded view"
+                        onClick={onClose}
+                        className="flex-shrink-0 inline-flex items-center justify-center h-10 w-10 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                        <XIcon className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                </div>
             </div>
 
             {/* The stage — the capture at its largest, prev/next at the
-                sides, the caption under it. */}
-            <div className="relative flex-1 min-h-0 flex items-center justify-center px-4 sm:px-16 pb-2">
+                sides, the caption under it. R81: the stage SCROLLS (the
+                1:1 mode renders the capture at native logical width,
+                1440px); drag-to-pan on fine pointers. */}
+            <div
+                ref={stageRef}
+                className="relative flex-1 min-h-0 flex overflow-auto custom-scrollbar"
+                onPointerDown={(e) => {
+                    if (zoom !== 'full' || e.button !== 0) return;
+                    const stage = stageRef.current;
+                    if (!stage) return;
+                    panRef.current = { x: e.clientX, y: e.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+                    stage.setPointerCapture(e.pointerId);
+                }}
+                onPointerMove={(e) => {
+                    const pan = panRef.current;
+                    const stage = stageRef.current;
+                    if (!pan || !stage) return;
+                    stage.scrollLeft = pan.left - (e.clientX - pan.x);
+                    stage.scrollTop = pan.top - (e.clientY - pan.y);
+                }}
+                onPointerUp={(e) => {
+                    panRef.current = null;
+                    stageRef.current?.releasePointerCapture?.(e.pointerId);
+                }}
+                onPointerCancel={() => { panRef.current = null; }}
+            >
                 <Button
                     variant="bare"
                     iconOnly
@@ -155,25 +209,41 @@ export const AppShotLightbox: React.FC<{
                 >
                     <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
                 </Button>
-                <figure className="max-w-full max-h-full flex flex-col items-center justify-center min-h-0">
-                    {/* The capture frame — sized EXPLICITLY (height + the
-                        captures' own 8:5 aspect) because a
-                        container-type wrapper must never be shrink-to-fit:
-                        size containment forbids the content from informing
-                        the box, so a content-sized wrapper collapses to
-                        0x0 (the first r69 harness caught the lightbox
-                        rendering a 0x0 image). height = min(66vh, 56vw):
-                        viewport-tall on desktop, width-capped on mobile. */}
+                <figure
+                    className={`flex flex-col items-center justify-center min-h-0 m-auto px-4 sm:px-16 pb-2 ${zoom === 'full' ? 'max-w-none cursor-grab active:cursor-grabbing' : 'max-w-full max-h-full'}`}
+                    onDoubleClick={() => setZoom((z) => (z === 'fit' ? 'full' : 'fit'))}
+                >
+                    {/* The capture frame — sized EXPLICITLY and WIDTH-driven
+                        (R81): fit mode = min(94vw, (100dvh − 190px) × 1.6),
+                        which on a 1440×900 laptop renders ~20% larger than
+                        the old height-driven min(66vh, 56vw) and reaches
+                        ~native width on desktop; 1:1 mode = the capture's
+                        NATIVE LOGICAL width (1440px), scrollable in the
+                        stage. A container-type wrapper must never be
+                        shrink-to-fit: size containment forbids the content
+                        from informing the box, so a content-sized wrapper
+                        collapses to 0x0 (the first r69 harness caught the
+                        lightbox rendering a 0x0 image). */}
                     <div
-                        className="relative rounded-xl overflow-hidden ring-1 ring-white/20 shadow-2xl shadow-black/50 transition-[height] duration-300"
-                        style={{ containerType: 'inline-size', aspectRatio: '8 / 5', height: isInteractive ? 'min(74vh, 58vw)' : 'min(66vh, 56vw)' }}
+                        className={`relative rounded-xl overflow-hidden ring-1 ring-white/20 shadow-2xl shadow-black/50 ${zoom === 'full' ? 'flex-shrink-0' : ''}`}
+                        style={{
+                            containerType: 'inline-size',
+                            aspectRatio: '8 / 5',
+                            ...(zoom === 'full'
+                                ? { width: '1440px' }
+                                : isInteractive
+                                  ? { width: 'min(94vw, calc((100dvh - 190px) * 1.6))' }
+                                  : { width: 'min(94vw, calc((100dvh - 175px) * 1.6))' }),
+                        }}
                     >
                         <img
                             key={current.src}
                             src={current.src}
                             alt={current.alt}
                             className="absolute inset-0 h-full w-full object-cover select-none"
+                            style={{ imageRendering: zoom === 'full' ? 'auto' : undefined }}
                             decoding="async"
+                            draggable={false}
                             onLoad={() => setImgLoaded(true)}
                         />
                         {/* R80: the interactive preview — ONLY on the
@@ -193,7 +263,7 @@ export const AppShotLightbox: React.FC<{
                             </div>
                         )}
                     </div>
-                    <figcaption className="mt-3 font-mono text-2xs tracking-widest text-slate-400 text-center px-14 sm:px-2">
+                    <figcaption className="mt-3 font-mono text-2xs tracking-widest text-slate-400 text-center px-14 sm:px-2 w-full">
                         {current.caption}
                     </figcaption>
                 </figure>
