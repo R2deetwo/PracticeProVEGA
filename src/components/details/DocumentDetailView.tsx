@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon, ArrowsExpandIcon } from '../../constants'; // Fixed path
 import { Breadcrumbs } from '../Breadcrumbs';
 import Tooltip from '../Tooltip';
+import { Button, Input, Select } from '../ui';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { sanitize } from "../../utils/sanitization";
@@ -695,16 +696,16 @@ const DocumentDetailViewContent: React.FC = () => {
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Filing date</span>
-                                                <input type="date" value={filingForm.date} onChange={e => setFilingForm({ ...filingForm, date: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                <Input type="date" value={filingForm.date} onChange={e => setFilingForm({ ...filingForm, date: e.target.value })} inputClassName="w-full text-sm" aria-label="Filing date" />
                                             </label>
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Registry receipt no. (optional)</span>
-                                                <input type="text" value={filingForm.receiptNumber} onChange={e => setFilingForm({ ...filingForm, receiptNumber: e.target.value })} placeholder="e.g. F/2026/0142" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                <Input type="text" value={filingForm.receiptNumber} onChange={e => setFilingForm({ ...filingForm, receiptNumber: e.target.value })} placeholder="e.g. F/2026/0142" inputClassName="w-full text-sm" aria-label="Registry receipt number" />
                                             </label>
                                         </div>
                                         <div className="flex gap-2 justify-end">
-                                            <button onClick={() => setCaptureStep(null)} className="px-4 py-2 text-xs font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700">Cancel</button>
-                                            <button disabled={savingEvent} onClick={saveFilingEvent} className="px-5 py-2 text-xs font-black rounded-lg bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50">{savingEvent ? 'Saving…' : 'Save Filing'}</button>
+                                            <Button variant="ghost" size="sm" onClick={() => setCaptureStep(null)} className="text-xs font-bold">Cancel</Button>
+                                            <Button variant="primary" size="sm" disabled={savingEvent} onClick={saveFilingEvent} className="text-xs font-black">{savingEvent ? 'Saving…' : 'Save Filing'}</Button>
                                         </div>
                                     </div>
                                 )}
@@ -718,11 +719,11 @@ const DocumentDetailViewContent: React.FC = () => {
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Date served</span>
-                                                <input type="date" value={serviceForm.date} onChange={e => setServiceForm({ ...serviceForm, date: e.target.value })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                <Input type="date" value={serviceForm.date} onChange={e => setServiceForm({ ...serviceForm, date: e.target.value })} inputClassName="w-full text-sm" aria-label="Date served" />
                                             </label>
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Method of service</span>
-                                                <select value={serviceForm.method} onChange={e => setServiceForm({ ...serviceForm, method: e.target.value as ServiceMethod })} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm">
+                                                <Select value={serviceForm.method} onChange={e => setServiceForm({ ...serviceForm, method: e.target.value as ServiceMethod })} selectClassName="w-full text-sm" aria-label="Method of service">
                                                     <option value="personal">Personal service</option>
                                                     <option value="substituted">Substituted service</option>
                                                     <option value="registered_post">Registered post / courier</option>
@@ -730,20 +731,20 @@ const DocumentDetailViewContent: React.FC = () => {
                                                     <option value="by_counsel">Service on counsel</option>
                                                     <option value="acknowledged">Acknowledged by party</option>
                                                     <option value="other">Other</option>
-                                                </select>
+                                                </Select>
                                             </label>
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Served on (party / counsel)</span>
-                                                <input type="text" value={serviceForm.servedOn} onChange={e => setServiceForm({ ...serviceForm, servedOn: e.target.value })} placeholder="e.g. Savannah Haulage Ltd." className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                <Input type="text" value={serviceForm.servedOn} onChange={e => setServiceForm({ ...serviceForm, servedOn: e.target.value })} placeholder="e.g. Savannah Haulage Ltd." inputClassName="w-full text-sm" aria-label="Served on" />
                                             </label>
                                             <label className="block">
                                                 <span className="block text-2xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Proof / note (optional)</span>
-                                                <input type="text" value={serviceForm.proofNote} onChange={e => setServiceForm({ ...serviceForm, proofNote: e.target.value })} placeholder="e.g. Affidavit of personal service, filed 14 Nov" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                <Input type="text" value={serviceForm.proofNote} onChange={e => setServiceForm({ ...serviceForm, proofNote: e.target.value })} placeholder="e.g. Affidavit of personal service, filed 14 Nov" inputClassName="w-full text-sm" aria-label="Proof note" />
                                             </label>
                                         </div>
                                         <div className="flex gap-2 justify-end">
-                                            <button onClick={() => setCaptureStep(null)} className="px-4 py-2 text-xs font-bold rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700">Cancel</button>
-                                            <button disabled={savingEvent} onClick={saveServiceEvent} className="px-5 py-2 text-xs font-black rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50">{savingEvent ? 'Saving…' : 'Save Service & Compute Deadlines'}</button>
+                                            <Button variant="ghost" size="sm" onClick={() => setCaptureStep(null)} className="text-xs font-bold">Cancel</Button>
+                                            <Button variant="primary" size="sm" disabled={savingEvent} onClick={saveServiceEvent} className="text-xs font-black">{savingEvent ? 'Saving…' : 'Save Service & Compute Deadlines'}</Button>
                                         </div>
                                     </div>
                                 )}
@@ -806,10 +807,10 @@ const DocumentDetailViewContent: React.FC = () => {
                                             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
                                                 <label className="block">
                                                     <span className="block text-2xs font-bold uppercase tracking-widest text-slate-400 mb-1.5">Add a deadline manually (any court)</span>
-                                                    <input type="text" value={manualDeadline.label} onChange={e => setManualDeadline({ ...manualDeadline, label: e.target.value })} placeholder="e.g. File Notice of Intention to Defend" className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm" />
+                                                    <Input type="text" value={manualDeadline.label} onChange={e => setManualDeadline({ ...manualDeadline, label: e.target.value })} placeholder="e.g. File Notice of Intention to Defend" inputClassName="w-full text-sm" aria-label="Deadline label" />
                                                 </label>
-                                                <input type="date" value={manualDeadline.date} onChange={e => setManualDeadline({ ...manualDeadline, date: e.target.value })} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm h-[38px]" />
-                                                <button disabled={savingEvent || !manualDeadline.label.trim() || !manualDeadline.date} onClick={addManualDeadline} className="px-4 py-2 text-xs font-black rounded-lg bg-slate-900 dark:bg-white dark:text-zinc-900 text-white disabled:opacity-40 whitespace-nowrap h-[38px]">Add</button>
+                                                <Input type="date" value={manualDeadline.date} onChange={e => setManualDeadline({ ...manualDeadline, date: e.target.value })} inputClassName="text-sm h-[38px]" aria-label="Deadline date" />
+                                                <Button variant="dark" size="sm" disabled={savingEvent || !manualDeadline.label.trim() || !manualDeadline.date} onClick={addManualDeadline} className="text-xs font-black whitespace-nowrap">Add</Button>
                                             </div>
                                         </div>
                                     </div>
