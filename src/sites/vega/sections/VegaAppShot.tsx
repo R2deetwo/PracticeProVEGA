@@ -4,7 +4,7 @@ import { CollabPresence } from './CollabPresence';
 import { ExpandHint } from './AppShotLightbox';
 
 /**
- * VegaAppShot — a REAL screenshot of the shipping app, framed in the
+ * VegaAppShot — a REAL screenshot of the live app, framed in the
  * page's light sheet chrome (R38).
  *
  * Owner direction (R28, kept): "The images do not look like what the app

@@ -274,31 +274,25 @@ export const VegaFooter: React.FC<{
     onUsageClick: () => void;
     onResources: () => void;
     onContactSales: () => void;
-    onOpenProduct: (p: 'vega' | 'atrium') => void;
-}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, onOpenProduct }) => (
+}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales }) => (
     <footer className="bg-white border-t border-slate-200 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
-                {/* Brand — the product's own mark; the company as attribution. */}
+                {/* Brand — the product's own lockup, mirroring the
+                    header (mark + wordmark horizontal), with the company
+                    attribution seated below, aligned to the mark's start
+                    (2026-11-22 footer cleanup). */}
                 <div>
-                    <div className="flex items-center gap-2.5 mb-4">
-                        <VegaMark className="h-7 w-7" />
-                        <span className="flex flex-col leading-none">
-                            <span className="text-slate-900 font-bold text-lg font-display">
+                    <div className="mb-4">
+                        <div className="flex items-center gap-2.5">
+                            <VegaMark className="h-8 w-8" />
+                            <span className="text-lg font-bold tracking-tight font-display text-slate-900">
                                 Vega
                             </span>
-                            <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
-                        </span>
+                        </div>
+                        <p className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-2">by Practice Pro</p>
                     </div>
                     <p className="text-slate-600 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
-                    <div className="mt-4 flex items-center gap-3">
-                        <button
-                            onClick={() => onOpenProduct('atrium')}
-                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all duration-150 active:scale-[0.98] text-[#1E3A8A] hover:text-[#1E40AF] border-slate-300 hover:border-[#1E3A8A] hover:bg-indigo-50"
-                        >
-                            Open Atrium <span className="text-xs">↗</span>
-                        </button>
-                    </div>
                 </div>
                 {/* Product */}
                 <div>
@@ -331,10 +325,13 @@ export const VegaFooter: React.FC<{
                     </div>
                 </div>
             </div>
-            <div className="border-t border-slate-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-500">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
-                <p className="text-xs text-slate-500 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
-                <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
+            {/* The close — one clean line, no divider rules above or
+                below (2026-11-22 footer cleanup): the redundant
+                built-by attribution and the NDPA/TLS strip are retired;
+                the © ends the page, left-aligned with the columns
+                above. */}
+            <div className="flex items-center">
+                <p className="text-xs text-slate-500">© {new Date().getFullYear()} Practice Pro Systems Limited, Lagos, Nigeria</p>
             </div>
         </div>
     </footer>

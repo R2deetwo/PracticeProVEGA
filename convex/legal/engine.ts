@@ -488,3 +488,65 @@ export const getIngestionInspector = query({
     };
   },
 });
+
+// ─── JUDGMENT INDEX & ISSUE EXTRACTION (2026-11-22 owner spec) ─────────────
+// "When I click a downloaded/ingested judgment, don't leave it a dead
+// click with nothing shown." The inspector's judgment rows and the
+// dashboard's recent-judgment rows carry the citation; this query
+// returns the full structured record — citation/metadata, parties,
+// coram, counsel, the extracted ratio, and the authorities cited with
+// their treatment tags — PLUS the judgment's chunk sections (the Issue →
+// Reasoning → Ratio boundaries the chunker cut at ingest), so an
+// ingested judgment reads as a usable precedent entry instead of a flat
+// unindexed blob. Missing extractions come back empty and the UI states
+// the absence honestly (the corpus philosophy: never invent a field).
+export const getJudgmentDetail = query({
+  args: { sessionToken: v.string(), citation: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
+
+    const j = await ctx.db
+      .query("legal_judgments")
+      .withIndex("by_citation", (q) => q.eq("citation", args.citation))
+      .first();
+    if (!j) {
+      return { found: false as const, judgment: null, sections: [] };
+    }
+
+    const sections = await ctx.db
+      .query("legal_chunks")
+      .withIndex("by_document", (q) =>
+        q.eq("documentType", "judgment").eq("documentKey", args.citation)
+      )
+      .collect();
+
+    return {
+      found: true as const,
+      judgment: {
+        citation: j.citation,
+        suitNumber: j.suitNumber,
+        court: j.court,
+        courtLevel: j.courtLevel ?? "",
+        dateDelivered: j.dateDelivered,
+        parties: j.parties,
+        judges: j.judges,
+        counsel: j.counsel,
+        ratioDecidendi: j.ratioDecidendi,
+        obiterDicta: j.obiterDicta ?? "",
+        summary: j.summary ?? "",
+        statutesConsidered: j.statutesConsidered,
+        casesCited: j.casesCited,
+        sourceUrl: j.sourceUrl,
+        rawDocumentHash: j.rawDocumentHash,
+        lastVerifiedAt: j.lastVerifiedAt,
+      },
+      sections: sections.map((c: any) => ({
+        heading: c.heading ?? "",
+        boundaryPath: c.boundaryPath ?? [],
+        text: c.text ?? "",
+        tokenCount: c.tokenCount ?? 0,
+        embedded: Array.isArray(c.embedding) && c.embedding.length > 0,
+      })),
+    };
+  },
+});

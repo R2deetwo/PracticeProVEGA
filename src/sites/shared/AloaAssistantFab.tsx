@@ -394,7 +394,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
             chip: 'Show me how Vega tracks court matters',
             reply: 'Every case lives as a Matter — one file with the parties, counsel, court dates, filing deadlines and documents, that the whole firm works from.',
             steps: [
-                'A litigator opens the matter for a Lagos High Court suit and the next adjourned date is the first thing on the file — with hearing reminders firing 7, 3 and 1 days before, to assigned counsel by email and in-app.',
+                'A litigator opens the matter for a Lagos High Court suit and the next adjourned date is the first thing on the file — with hearing reminders firing 7, 3 and 1 days before, delivered to assigned counsel on WhatsApp.',
                 'Parties, opposing counsel and the presiding judge sit on the matter, so an associate picking up the file sees the whole picture without a handover meeting.',
                 'Filing deadlines ride the same timeline as hearings under the matter’s Civil Procedure Rules — the diary keeps itself instead of depending on one person’s memory.',
                 'Notes, documents and bills attach to the matter — the file IS the workspace.',

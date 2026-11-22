@@ -110,7 +110,7 @@ const TABS: SuiteTab[] = [
             },
             {
                 title: 'Document vault & research',
-                detail: 'Version history, access controls, NDPA-compliant metadata and full-text search — plus a research studio with statute lookup.',
+                detail: 'Version history, access controls and full-text search across every filing — plus a research studio with statute lookup.',
             },
         ],
         shots: [
@@ -146,7 +146,7 @@ const TABS: SuiteTab[] = [
             },
             {
                 title: 'Billing on the Scale',
-                detail: 'Land-documentation fee notes computed under the Remuneration Order 2023 — the right fee, every time.',
+                detail: 'Land-documentation fee notes computed under the Remuneration Order 2023, with the derivation shown on every fee note.',
             },
             {
                 title: 'The financial dashboard',
@@ -186,7 +186,7 @@ const TABS: SuiteTab[] = [
             },
             {
                 title: 'The firm calendar',
-                detail: 'Hearings, filings and firm events in one diary — with automated reminders 7 · 3 · 1 days before each hearing.',
+                detail: 'Hearings, filings and firm events in one diary — with automated WhatsApp reminders 7 · 3 · 1 days before each hearing.',
             },
             {
                 title: 'The file discusses itself',
@@ -344,8 +344,8 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                         <span className="text-[#1E3A8A]">Every workflow.</span>
                     </h2>
                     <p className="text-base md:text-lg leading-[1.75] text-slate-600">
-                        Four instruments, one system — every capture below is the shipping
-                        app, not a mockup. Switch the tabs, page the exhibits.
+                        Four instruments, one system — every capture below is the
+                        live product, not a mockup. Switch the tabs, page the exhibits.
                     </p>
                 </div>
 

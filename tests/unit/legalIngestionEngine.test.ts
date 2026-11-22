@@ -565,3 +565,57 @@ describe('founder signup hardening (this round\'s security ask)', () => {
         expect(login).toContain('{signupVisible && (');
     });
 });
+
+// ─── 2026-11-22 OWNER SPEC — JUDGMENT INDEX & ISSUE EXTRACTION ─────────────
+// "When a user clicks a downloaded/ingested judgment, do not leave it as
+// a dead click with nothing shown." The judgment rows (Recent documents
+// + the Judgments inspector bucket) open a structured reading sheet:
+// metadata/citation, core facts, issues determined, holdings/ratio,
+// key authorities cited, and the section-by-section text.
+describe('judgment index & issue extraction (no dead clicks)', () => {
+    it('engine exposes getJudgmentDetail — the structured record + chunk sections', () => {
+        const engine = read('convex/legal/engine.ts');
+        expect(engine).toContain('export const getJudgmentDetail = query');
+        expect(engine).toContain('by_citation');
+        expect(engine).toContain('by_document');
+        // The full capture: parties, coram, counsel, ratio, authorities.
+        expect(engine).toContain('ratioDecidendi');
+        expect(engine).toContain('casesCited');
+        expect(engine).toContain('statutesConsidered');
+        expect(engine).toContain('lastVerifiedAt');
+    });
+
+    it('the view wires every judgment row to the reader (house div role="button" pattern)', () => {
+        const view = read('src/admin/views/IngestionEngine.tsx');
+        expect(view).toContain('getJudgmentDetail');
+        expect(view).toContain('openJudgment');
+        expect(view).toContain('JudgmentIndexSheet');
+        // Both entry points are clickable — the recent-documents rows and
+        // the judgments inspector bucket rows.
+        expect((view.match(/openJudgment\(/g) || []).length).toBeGreaterThanOrEqual(4);
+        expect(view).toContain('inspectorBucket === \'judgments\'');
+        // The reader replaces the inspector (one sheet at a time).
+        expect(view).toContain('setInspectorBucket(null)');
+    });
+
+    it('the reading sheet carries the legal structure, with honest absence notes', () => {
+        const view = read('src/admin/views/IngestionEngine.tsx');
+        for (const pinned of [
+            'Judgment Index · Issue Extraction',
+            'Issues determined by the court',
+            'Holdings · Ratio · Precedent points',
+            'Key authorities cited',
+            'Coram',
+            'Full text —',
+            'No explicit issues-for-determination section was detected',
+            'the extractor records only what the document states',
+        ]) {
+            expect(view).toContain(pinned);
+        }
+        // Treatment tags on cited cases (the schema\'s applied/distinguished/
+        // overruled/affirmed/followed/considered vocabulary).
+        expect(view).toContain('TREATMENT_STYLES');
+        expect(view).toContain('distinguished');
+        expect(view).toContain('overruled');
+    });
+});

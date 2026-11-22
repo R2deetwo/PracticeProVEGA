@@ -213,7 +213,6 @@ export const VegaSite: React.FC = () => {
                 onUsageClick={() => navigate(vegaSiteConfig.legal.usage)}
                 onResources={() => navigate(vegaSiteConfig.resourcesPath)}
                 onContactSales={() => openContactSales('Footer')}
-                onOpenProduct={openProductPage}
             />
         </div>
     );

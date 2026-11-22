@@ -658,14 +658,16 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     // R24 (owner, 2026-10-13): no visible "BY PRACTICEPRO" line in the
     // header lockup — the header is mark + wordmark only. The company
     // attribution lives in the footer brand column (one occurrence per
-    // shell source).
+    // shell source). 2026-11-22 footer cleanup: Vega's attribution is
+    // re-cased "by Practice Pro" and seated below the mark+wordmark
+    // lockup (mirroring the header); Atrium keeps the mono caps.
     expect(vegaShell).toContain('aria-label="Vega — a PracticePro product, back to all products"');
     expect(atriumShell).toContain('aria-label="Atrium — a PracticePro product, back to all products"');
     expect(productPages).toContain("onClick={onBackToHub}");
     expect(hub).toContain("onClick={() => scrollTo('home')}");
     expect(productPages).toContain("pathname !== '/'");
     expect(productPages).toContain("navigate('/')");
-    expect((vegaShell.match(/BY PRACTICEPRO/g) || []).length).toBe(1);
+    expect((vegaShell.match(/by Practice Pro/g) || []).length).toBe(1);
     expect((atriumShell.match(/BY PRACTICEPRO/g) || []).length).toBe(1);
   });
 
@@ -1415,9 +1417,13 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
   });
 
   it("credentials fold the trust badges into a mono colophon (no chip strip)", () => {
-    expect(vegaCredentials).toContain("NDPA 2023 Compliant");
+    // 2026-11-22 claims audit: "NDPA 2023 Compliant" overstated a
+    // certification nobody issued — the honest house phrasing (hub,
+    // legal pages) is "aligned"; encryption is enforced at the
+    // infrastructure layer.
+    expect(vegaCredentials).toContain("NDPA 2023-aligned");
     expect(vegaCredentials).toContain("TLS 1.3");
-    expect(vegaCredentials).toContain("Data Encrypted at Rest");
+    expect(vegaCredentials).toContain("encrypted at rest");
   });
 });
 
@@ -1761,5 +1767,103 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(index).toContain(
       '<meta property="og:site_name" content="PracticePro Systems" />'
     );
+  });
+});
+
+describe("2026-11-22 claims audit — every public claim states what the system does today", () => {
+  const tiersSource = read("src", "constants", "tiers.ts");
+  const aloaFab = read("src", "sites", "shared", "AloaAssistantFab.tsx");
+
+  it("the reminder channel is WhatsApp, not email/in-app (what proactive.ts actually delivers)", () => {
+    // convex/proactive.ts sendCourtReminders inserts scheduled_messages
+    // with channel "whatsapp", dispatched to assigned lawyers via the
+    // WhatsApp provider — the old "by email and in-app" copy overstated
+    // the channel. Also tier-gated honestly (paid plans, Growth+).
+    expect(vegaCredentials).toContain("delivered to assigned counsel on WhatsApp (paid plans)");
+    expect(vegaAIDrafting).toContain("7 · 3 · 1 cadence to assigned counsel, by WhatsApp");
+    expect(vegaSuite).toContain("automated WhatsApp reminders 7 · 3 · 1 days before each hearing");
+    expect(vegaFAQ).toContain("delivered on WhatsApp");
+    expect(vegaCredentials).not.toContain("by email and in-app");
+    expect(vegaFAQ).not.toContain("by email and in-app");
+    expect(aloaFab).not.toContain("by email and in-app");
+    // The tier feature strings (rendered by the pricing matrix and the
+    // in-app subscription page) carry the same channel truth.
+    expect(tiersSource).not.toContain("(email & in-app)");
+    expect(tiersSource).toContain("Court Date Reminders — automated alerts 7/3/1 days before hearings (WhatsApp)");
+  });
+
+  it("no 'shipping' vocabulary on the page — grounded practice language instead", () => {
+    expect(vegaCredentials).not.toContain("shipping");
+    expect(vegaSuite).not.toContain("shipping");
+    expect(vegaAIDrafting).not.toContain("shipping");
+    expect(vegaCredentials).toContain(
+      "Every statement below describes a capability that is live"
+    );
+    expect(vegaSuite).toContain("live product, not a mockup");
+  });
+
+  it("the security posture is 'NDPA 2023-aligned', never an unearned 'Compliant' certification", () => {
+    expect(vegaCredentials).toContain("NDPA 2023-aligned");
+    expect(vegaCredentials).not.toContain("NDPA 2023 Compliant");
+    expect(vegaFAQ).toContain("NDPA 2023-aligned");
+    expect(vegaFAQ).not.toContain("NDPA 2023 compliant");
+    // The no-training claim is the Terms' own written commitment.
+    expect(vegaCredentials).toContain("never used to train or fine-tune any model");
+  });
+
+  it("the Regulatory Cross-Referencing engine is Enterprise-only — no phantom add-on", () => {
+    // The add-on catalog (convex/addonCatalog.ts) carries seats, storage
+    // and integration setup only — there is no compliance add-on to buy,
+    // so the page must not sell one.
+    expect(vegaAIDrafting).not.toContain("Available as an add-on");
+    expect(vegaFAQ).not.toContain("Available as an add-on");
+    expect(vegaFAQ).not.toContain("or as an add-on");
+    expect(vegaAIDrafting).toContain("Included with the Enterprise plan.");
+    expect(vegaFAQ).toContain("Included with the Enterprise plan.");
+  });
+
+  it("the Court Rules claim states the honesty caveats the engine itself carries", () => {
+    // proceduralRules.ts flags state-specific periods for confirmation;
+    // the landing copy now says the same out loud.
+    expect(vegaAIDrafting).toContain("confirm your division");
+    expect(vegaCredentials).toContain("all 36 states and the FCT");
+    expect(vegaAIDrafting).toContain("all 36 states and the FCT");
+  });
+
+  it("the FAQ answers the practical questions firms actually ask (2026-11-22 expansion)", () => {
+    const faqBlock = vegaFAQ.slice(vegaFAQ.indexOf("const FAQS"), vegaFAQ.indexOf("const CARD_BASE"));
+    const questions = faqBlock.match(/q: '/g) || [];
+    expect(questions.length).toBe(9);
+    for (const pinned of [
+      "How much does Vega cost?",
+      "What does the free plan include?",
+      "How long does it take to get started?",
+      "How do court date reminders reach me?",
+      "Does Vega handle litigation and transactional work alike?",
+      "Can I bring my existing matters and documents?",
+      "Is my data secure?",
+      "What happens to my data if I leave?",
+      "How do support and updates work?",
+    ]) {
+      expect(faqBlock).toContain(pinned);
+    }
+    // Grounded specifics, not filler: the free plan's real limits, the
+    // 60-day export window (Privacy Policy §7), and the ingestion wizard.
+    expect(faqBlock).toContain("up to 10 active matters");
+    expect(faqBlock).toContain("export it within 60 days");
+    expect(faqBlock).toContain("matter ingestion wizard");
+  });
+
+  it("the Vega footer ends cleanly — header-matched lockup, no Open Atrium, one © line", () => {
+    // 2026-11-22 owner spec: mark + "Vega" horizontal like the header,
+    // "by Practice Pro" below aligned to the mark; the Open Atrium
+    // button and the redundant attribution/NDPA lines are gone; the page
+    // ends with the © line and no divider rules around it.
+    expect(vegaShell).toContain("by Practice Pro");
+    expect(vegaShell).not.toContain("Open Atrium");
+    expect(vegaShell).not.toContain("Vega &amp; Atrium · Built by PracticePro");
+    expect(vegaShell).not.toContain("NDPA 2023 Compliant · TLS 1.3");
+    expect(vegaShell).toContain("Practice Pro Systems Limited, Lagos, Nigeria");
+    expect(vegaShell).not.toContain("border-t border-slate-200 pt-8");
   });
 });

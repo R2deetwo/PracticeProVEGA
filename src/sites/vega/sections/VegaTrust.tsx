@@ -5,9 +5,13 @@ import React from 'react';
  * consolidated trust band (VegaCredentials + VegaSegments folded
  * together).
  *
- *   - The attestations (P8: verifiable statements only): drafted for
- *     Nigerian courts, deadlines by the right state's rules, client data
- *     never trains a model, NDPA 2023 / TLS 1.3 / encrypted at rest.
+ *   - The attestations (P8): drafted for Nigerian courts, deadlines by
+ *     the right state's rules, client data never trains a model,
+ *     NDPA 2023-aligned safeguards / TLS 1.3 / encrypted at rest.
+ *     (2026-11-22 claims audit: every attestation is stated as the
+ *     system runs it — the reminder channel is WhatsApp, the security
+ *     posture is "aligned" rather than a certification, and the
+ *     no-training commitment is the one written into the Terms.)
  *   - The segments: the litigation practice and the transactional desk —
  *     "Solutions rightly built for how you practise."
  *
@@ -17,19 +21,19 @@ import React from 'react';
 const ATTESTATIONS = [
     {
         title: 'Drafted for Nigerian courts',
-        body: 'Captions, parties\u2019 designations and prayers formatted to Nigerian court practice — A4, ready to file.',
+        body: 'Captions, parties\u2019 designations and prayers formatted to Nigerian court practice — drafted A4, ready to print and file.',
     },
     {
         title: "Deadlines by the right state's rules",
-        body: 'The Court Rules Agent calculates filing deadlines from the Civil Procedure Rules of the correct state, so the firm diary keeps itself.',
+        body: 'Filing and service windows are computed under the matter\u2019s court and state, with the governing Civil Procedure Rules cited on every entry — all 36 states and the FCT.',
     },
     {
         title: 'Client data never trains a model',
-        body: 'Your matters, drafts and client records stay yours — no client data is used to train any model.',
+        body: 'Your matters, drafts and client records are never used to train or fine-tune any model — a written commitment in our Terms of Service.',
     },
     {
         title: 'Secured to the standard',
-        body: 'NDPA 2023 Compliant · TLS 1.3 · Data Encrypted at Rest.',
+        body: 'NDPA 2023-aligned safeguards · TLS 1.3 in transit · data encrypted at rest, enforced at the infrastructure layer.',
     },
 ];
 
@@ -41,16 +45,16 @@ const SEGMENTS = [
             'Pleadings & motions — DraftPro formats captions, parties\u2019 designations and prayers to Nigerian court practice.',
             'Deadlines by the right rules — filing and service windows under the matter\u2019s Civil Procedure Rules, 36 states and the FCT.',
             'The chronology — a provisional timeline of every event and computed deadline, kept per matter.',
-            'Reminders that fire — 7 · 3 · 1 days before each hearing, to assigned counsel by email and in-app.',
+            'Reminders that fire — 7 · 3 · 1 days before each hearing, delivered to assigned counsel on WhatsApp (paid plans).',
         ],
     },
     {
         id: 'transactional',
         title: 'The transactional desk, kept in order.',
         points: [
-            'Document vault — version history, access controls and full-text search, NDPA-compliant metadata.',
+            'Document vault — version history, access controls and full-text search across every filing.',
             'Deal checklists — preset engagement checklists keep every closing item owned and dated.',
-            'Billing on the Scale — land-documentation fee notes computed under the Remuneration Order 2023.',
+            'Billing on the Scale — land-documentation fee notes computed under the Remuneration Order 2023, with the derivation shown on each fee note.',
             'Retainers that renew — retainer billing cycles and outstanding balances tracked per client.',
         ],
     },
@@ -77,8 +81,9 @@ export const VegaTrust: React.FC = () => (
                     <span className="text-[#1E3A8A]">how you practise.</span>
                 </h2>
                 <p className="text-base md:text-lg leading-[1.75] text-slate-600">
-                    Verifiable statements only — every claim below is something the
-                    shipping system does today.
+                    Every statement below describes a capability that is live
+                    in Vega today — stated as the system runs it, with
+                    nothing promised beyond that.
                 </p>
             </div>
 

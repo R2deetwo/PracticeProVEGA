@@ -12,9 +12,13 @@ import { VEGA_TIERS, formatTierPrice, type TierId } from '../../../constants/tie
  * the navy border ring.
  *
  * The FAQ band (VegaFAQInk, retired as a standalone section in the R56
- * consolidation) folds in here in compact form — the cost answer carries
- * the 30-day money-back guarantee promise (pinned by refunds.test.ts),
- * the reminder cadence and the security answer.
+ * consolidation) folds in here — expanded 2026-11-22 to nine practical
+ * questions (cost/tiers, onboarding, workflows, data-in, security/NDPA,
+ * exit, support), each grounded in what the system does today (WhatsApp
+ * reminder channel, the ingestion wizard, in-app feedback with replies,
+ * the 60-day export window in the Privacy Policy). The cost answer
+ * carries the 30-day money-back guarantee promise (pinned by
+ * refunds.test.ts).
  */
 
 const ORDER: TierId[] = ['Core', 'Growth', 'Pro', 'Enterprise'];
@@ -25,12 +29,36 @@ const FAQS = [
         a: 'Vega for law firms starts free — the Free plan carries the core practice management. Paid plans start at \u20A645,000/mo (annual saves 20%), and every paid plan includes a 30-day money-back guarantee.',
     },
     {
+        q: 'What does the free plan include?',
+        a: 'Core practice management for a sole practitioner: up to 10 active matters, 1 GB of case-file storage, legal billing and ledger record-keeping, and the standard DraftPro contract analyzer. Move up as the practice grows.',
+    },
+    {
+        q: 'How long does it take to get started?',
+        a: 'You can be working in the app the same day. Create the firm, open the first matter, and the in-app Getting Started checklist walks documents, billing and team setup step by step. Existing files come along through the matter ingestion wizard — drop your folders and Vega reads them in.',
+    },
+    {
         q: 'How do court date reminders reach me?',
-        a: 'Automated reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers by email and in-app notification. Client-facing reminders are opt-in per matter.',
+        a: 'On paid plans, automated reminders go out 7, 3, and 1 day before each hearing to the lawyers assigned to the matter, delivered on WhatsApp. Clients are not reminded of court dates — they are sensitive — while client-facing milestones, documents and KYC ride the client portal.',
+    },
+    {
+        q: 'Does Vega handle litigation and transactional work alike?',
+        a: 'Yes. Litigation matters run on court-rule deadlines, the hearing diary, and pleading and motion practice; transactional matters run on preset engagement checklists — CAC incorporation, share-purchase due diligence, Governor\u2019s consent — with deal events and closing dates on the firm calendar.',
+    },
+    {
+        q: 'Can I bring my existing matters and documents?',
+        a: 'Yes. Upload your files — PDF, Word, Excel, images — to each matter\u2019s vault, and the matter ingestion wizard reads dropped folders into matters, parties and documents. Version history starts from the first upload.',
     },
     {
         q: 'Is my data secure?',
-        a: 'Yes — NDPA 2023 compliant, TLS 1.3 in transit, data encrypted at rest, and client data never trains a model.',
+        a: 'Yes — NDPA 2023-aligned safeguards, TLS 1.3 in transit, encryption at rest, firm-level data isolation with role-based access controls, and client data never trains a model. The full commitments are in our Privacy Policy and Terms of Service.',
+    },
+    {
+        q: 'What happens to my data if I leave?',
+        a: 'Your data stays yours. If you close your account you can export it within 60 days; after that it is permanently deleted, except records we are legally required to keep. Data protection questions go to dpo@practicepro.ng.',
+    },
+    {
+        q: 'How do support and updates work?',
+        a: 'Support runs in-app — send feedback from the app and receive replies — plus email for account and privacy matters (dpo@practicepro.ng). Product updates arrive continuously, and the Resources page carries the changelog.',
     },
 ];
 
@@ -68,7 +96,7 @@ export const VegaPricing: React.FC<{
                     <p className="text-base md:text-lg leading-[1.75] text-slate-600 max-w-2xl">
                         Every plan carries the core: full practice management, billing, case
                         tracking — and standard AI contract analysis. The Regulatory
-                        Cross-Referencing engine rides with Enterprise, or as an add-on.
+                        Cross-Referencing engine rides with the Enterprise plan.
                     </p>
                 </div>
 
@@ -126,11 +154,14 @@ export const VegaPricing: React.FC<{
                         <span className="text-indigo-400">·</span>
                         <span className="font-semibold">Regulatory Compliance Cross-Referencing</span>
                         <span className="text-indigo-400">·</span>
-                        <span>Included with Enterprise. Available as an add-on.</span>
+                        <span>Included with the Enterprise plan.</span>
                     </p>
                 </div>
 
-                {/* The compact FAQ — the retired FAQ band's load-bearing answers. */}
+                {/* The FAQ — practical questions prospective firms ask
+                    (2026-11-22 expansion): cost/tiers, onboarding,
+                    workflows, bringing data in, security/NDPA, exit,
+                    support. Every answer describes the system as it runs. */}
                 <div className="max-w-3xl">
                     <h3 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 mb-6">
                         Questions? Answered.

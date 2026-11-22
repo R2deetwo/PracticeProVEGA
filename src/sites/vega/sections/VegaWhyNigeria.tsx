@@ -23,21 +23,21 @@ const PILLARS = [
     {
         id: 'court-rules',
         title: 'The firm diary that keeps itself.',
-        body: 'The Court Rules Agent calculates filing and service deadlines from the Civil Procedure Rules of the correct state — 36 states and the FCT — and keeps a provisional chronology per matter, updated as filings land and dates move.',
+        body: 'For every matter, the Court Rules Agent cites the governing Civil Procedure Rules of the matter\u2019s state — all 36 states and the FCT — computes the filing and service windows under the matter\u2019s court, and keeps a provisional chronology updated as filings land and dates move. Where a period varies between states, the entry says so and asks you to confirm your division\u2019s rules.',
         points: [
             'Deadlines under the right state\u2019s rules — HCCPR 2019 and its siblings',
             'The chronology, kept per matter',
-            'Reminders on the 7 · 3 · 1 cadence, by email and in-app',
+            'Reminders on the 7 · 3 · 1 cadence to assigned counsel, by WhatsApp',
         ],
     },
     {
         id: 'regulatory',
         title: 'Stop manual statutory checks. Cross-reference every draft.',
-        body: 'The compliance engine runs deterministic checks on every draft — jurisdiction routing, limitation periods, frontloading and signature requirements — and verifies citations against the legal corpus, returning “unverifiable” rather than a guess when a source is not yet in it. Included with Enterprise, available as an add-on.',
+        body: 'The compliance engine runs deterministic checks on every draft — jurisdiction routing, limitation periods, frontloading and signature requirements — and verifies citations against the legal corpus, returning “unverifiable” rather than a guess when a source is not yet in it. Included with the Enterprise plan.',
         points: [
             'Jurisdiction routing · limitation periods · frontloading · signature compliance',
             'Citation checks against the legal corpus — no invented sections',
-            'Included with Enterprise. Available as an add-on.',
+            'Included with the Enterprise plan.',
         ],
     },
     {
