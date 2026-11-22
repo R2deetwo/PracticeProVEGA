@@ -31,6 +31,15 @@ import {
   type CaptureKind,
   type OutputMode,
 } from "./voiceCaptureService";
+// Vox Session Capture (Mode B, owner spec 2026-11-22) rides the SAME
+// offline queue: kind "session" uploads route to the voxSessions backend
+// (diarized transcription + session finalize) instead of the quick-capture
+// pipeline. The never-lose-a-recording guarantee carries over unchanged.
+import {
+  uploadVoxSegment,
+  finalizeVoxSession,
+  type VoxSessionType,
+} from "./voxSessionService";
 
 // ─── IndexedDB schema ──────────────────────────────────────────────────────
 
@@ -67,6 +76,15 @@ export interface QueuedCapture {
   shorthandText?: string;
   /** Conversation mode (multi-speaker diarization, 2026-11-20). */
   multiSpeaker?: boolean;
+  /** Session-mode context (owner spec 2026-11-22): rides the queue row so
+   *  an OFFLINE finalize still carries the session's title/type/matter. */
+  sessionMeta?: {
+    title?: string;
+    sessionType?: VoxSessionType;
+    matterId?: string;
+    captureSource?: "mic" | "system_audio" | "upload";
+    retentionDays?: number;
+  };
   finalizeAttempts: number;
   finalizeNextAttemptAt: number;
   status: "pending" | "uploading" | "transcribing" | "ready" | "failed";
@@ -260,6 +278,14 @@ export class VoiceSyncManager {
     eventTypeNames?: string[];
     /** Conversation mode (multi-speaker diarization, 2026-11-20). */
     multiSpeaker?: boolean;
+    /** Session-mode context (owner spec 2026-11-22). */
+    sessionMeta?: {
+      title?: string;
+      sessionType?: VoxSessionType;
+      matterId?: string;
+      captureSource?: "mic" | "system_audio" | "upload";
+      retentionDays?: number;
+    };
   }): Promise<void> {
     const existing = await getCapture(meta.clientLocalId).catch(() => undefined);
     await putCapture({
@@ -274,6 +300,7 @@ export class VoiceSyncManager {
       eventTypeNames: meta.eventTypeNames ?? existing?.eventTypeNames,
       shorthandText: existing?.shorthandText ?? "",
       multiSpeaker: meta.multiSpeaker ?? existing?.multiSpeaker,
+      sessionMeta: meta.sessionMeta ?? existing?.sessionMeta,
       finalizeAttempts: existing?.finalizeAttempts ?? 0,
       finalizeNextAttemptAt: existing?.finalizeNextAttemptAt ?? 0,
       status: existing?.status ?? "pending",
@@ -451,25 +478,48 @@ export class VoiceSyncManager {
       this.uploadTarget = cap.clientLocalId;
       this.emit({ type: "upload-started", clientLocalId: cap.clientLocalId, segmentIndex: seg.segmentIndex });
       try {
-        const uploaded = await uploadSegment({
-          clientLocalId: cap.clientLocalId,
-          kind: cap.kind,
-          outputMode: cap.outputMode,
-          segmentIndex: seg.segmentIndex,
-          segmentCount: cap.segmentCount,
-          blob: seg.blob,
-          startMs: seg.startMs,
-          endMs: seg.endMs,
-          startedAt: cap.startedAt,
-          multiSpeaker: cap.multiSpeaker,
-        });
+        // SESSION-MODE ROUTING (owner spec 2026-11-22): kind "session"
+        // uploads go to the voxSessions backend (always diarized, session
+        // context attached) — everything else stays on the quick-capture
+        // pipeline. Same queue, same backoff, same never-lose-a-recording
+        // guarantee.
+        const uploaded =
+          cap.kind === "session"
+            ? await uploadVoxSegment({
+                clientLocalId: cap.clientLocalId,
+                segmentIndex: seg.segmentIndex,
+                blob: seg.blob,
+                startMs: seg.startMs,
+                endMs: seg.endMs,
+                startedAt: cap.startedAt,
+                title: cap.sessionMeta?.title,
+                sessionType: cap.sessionMeta?.sessionType,
+                captureSource: cap.sessionMeta?.captureSource,
+                matterId: cap.sessionMeta?.matterId,
+                retentionDays: cap.sessionMeta?.retentionDays,
+              })
+            : await uploadSegment({
+                clientLocalId: cap.clientLocalId,
+                kind: cap.kind,
+                outputMode: cap.outputMode,
+                segmentIndex: seg.segmentIndex,
+                segmentCount: cap.segmentCount,
+                blob: seg.blob,
+                startMs: seg.startMs,
+                endMs: seg.endMs,
+                startedAt: cap.startedAt,
+                multiSpeaker: cap.multiSpeaker,
+              });
         if (this.isPurged(cap.clientLocalId)) return; // deleted while uploading
         await deleteSegment(seg.key).catch(() => undefined);
         this.emit({
           type: "segment-uploaded",
           clientLocalId: cap.clientLocalId,
           segmentIndex: seg.segmentIndex,
-          verbatimSoFar: uploaded?.verbatimSoFar,
+          // Quick captures report verbatimSoFar; sessions report
+          // transcriptSoFar (this segment's words) — one event shape.
+          verbatimSoFar:
+            (uploaded as any)?.verbatimSoFar ?? (uploaded as any)?.transcriptSoFar,
         });
       } catch (err: any) {
         // Purged mid-flight: the server refused a deleted capture (or the
@@ -512,13 +562,25 @@ export class VoiceSyncManager {
     if (this.isPurged(cap.clientLocalId)) return;
     try {
       await putCapture({ ...cap, status: "transcribing" });
-      const result = await finalizeCapture({
-        clientLocalId: cap.clientLocalId,
-        shorthandText: cap.shorthandText || undefined,
-        eventTypeNames: cap.eventTypeNames,
-        totalDurationMs: cap.totalDurationMs,
-        multiSpeaker: cap.multiSpeaker,
-      });
+      if (cap.kind === "session") {
+        // Session finalize: speaker reconcile + file note / action items /
+        // issue map synthesis + the Ask Vox search chunks.
+        await finalizeVoxSession({
+          clientLocalId: cap.clientLocalId,
+          totalDurationMs: cap.totalDurationMs,
+          title: cap.sessionMeta?.title,
+          sessionType: cap.sessionMeta?.sessionType,
+          matterId: cap.sessionMeta?.matterId,
+        });
+      } else {
+        await finalizeCapture({
+          clientLocalId: cap.clientLocalId,
+          shorthandText: cap.shorthandText || undefined,
+          eventTypeNames: cap.eventTypeNames,
+          totalDurationMs: cap.totalDurationMs,
+          multiSpeaker: cap.multiSpeaker,
+        });
+      }
       if (this.isPurged(cap.clientLocalId)) return; // deleted while finalizing
       const fresh = (await getCapture(cap.clientLocalId).catch(() => undefined)) ?? cap;
       await putCapture({ ...fresh, status: "ready", finalizeError: undefined });
@@ -535,7 +597,6 @@ export class VoiceSyncManager {
       if (rest.length === 0) {
         await deleteCaptureRow(cap.clientLocalId).catch(() => undefined);
       }
-      void result;
     } catch (err: any) {
       const msg = String(err?.message || err || "finalize failed");
       const attempts = (cap.finalizeAttempts ?? 0) + 1;
@@ -546,7 +607,8 @@ export class VoiceSyncManager {
       const giveUp =
         attempts >= 5 ||
         /no speech was detected/i.test(msg) ||
-        /capture not found/i.test(msg);
+        /capture not found/i.test(msg) ||
+        /session not found/i.test(msg);
       const fresh = (await getCapture(cap.clientLocalId).catch(() => undefined)) ?? cap;
       if (giveUp) {
         await purgeQueueRecords(cap.clientLocalId);

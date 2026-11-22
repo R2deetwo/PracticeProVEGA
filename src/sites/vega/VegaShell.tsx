@@ -165,6 +165,20 @@ export const VegaNavBar: React.FC<{
                 >
                     The Suite
                 </button>
+                {/* ALOA Vox (owner spec 2026-11-22): the voice-workspace band
+                    gets its own nav anchor between the suite and the
+                    practice-areas band. */}
+                <button
+                    onClick={() => scrollTo('vox')}
+                    data-nav-id="vox"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+                        activeSection === 'vox'
+                            ? navLinkActiveCls
+                            : navLinkCls
+                    }`}
+                >
+                    Vox
+                </button>
                 <button
                     onClick={() => scrollTo('practice-areas')}
                     data-nav-id="practice-areas"
@@ -251,6 +265,7 @@ export const VegaNavBar: React.FC<{
                         </button>
                     </div>
                     <button onClick={() => handleNavClick(() => scrollTo('suite'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>The Suite</button>
+                    <button onClick={() => handleNavClick(() => scrollTo('vox'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>ALOA Vox</button>
                     <button onClick={() => handleNavClick(() => scrollTo('practice-areas'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Practice Areas</button>
                     <button onClick={() => handleNavClick(onResources)} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>

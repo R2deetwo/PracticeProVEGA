@@ -39,7 +39,7 @@ function readSessionBearer(): string | undefined {
   );
 }
 
-export type CaptureKind = "quick" | "legalpad";
+export type CaptureKind = "quick" | "legalpad" | "session";
 export type OutputMode = "smart-clean" | "verbatim";
 export type CaptureStatus = "recording" | "transcribing" | "ready" | "failed";
 export type TriageIntent = "case_note" | "schedule" | "question" | "share";

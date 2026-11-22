@@ -3485,6 +3485,159 @@ export default defineSchema({
   })
     .index("by_firm_user", ["firmId", "userId"]),
 
+  // ─── VOX SESSION CAPTURE (owner spec 2026-11-22: dual-mode Vox) ───────────
+  // The Plaud-style Session Capture Mode (Mode B) lives in its own clean
+  // tables, separate from the walkie-talkie voiceCaptures rows (Mode A,
+  // quick dictation — untouched, zero regression). One voxSessions row per
+  // recorded/uploaded session; speaker-attributed turns in
+  // voxTranscriptSegments; the structured synthesis outputs in voxOutputs;
+  // and cross-session search chunks in voxChunks (the Ask Aloa Vox index).
+  // House hygiene applies everywhere: session-bearer auth, firm+user
+  // scoping, delete tombstones, and audio retention windows.
+  voxSessions: defineTable({
+    // Idempotency key generated on-device (uuid) — offline replays of the
+    // same session's segments can never double-book the row.
+    clientLocalId: nullableString,
+    firmId: nullableString,
+    userId: nullableString,
+    // Optional link to the Matter / Client File this session belongs to.
+    matterId: nullableString,
+    title: nullableString,
+    // 'intake' | 'interview' | 'debrief' | 'court_note' | 'meeting'
+    sessionType: nullableString,
+    // 'mic' | 'system_audio' | 'upload'
+    captureSource: nullableString,
+    durationSeconds: nullableNumber,
+    // Original timestamped audio — per-segment 16 kHz mono WAV artifacts in
+    // Convex file storage with their wall-clock offsets from session start.
+    segments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.string(),
+          mimeType: v.string(),
+          startMs: v.number(),
+          endMs: v.number(),
+          bytes: v.number(),
+        })
+      )
+    ),
+    segmentCount: v.optional(v.number()),
+    // RAW per-segment diarized turns from the transcriber, parallel to
+    // `segments` by index: [{index, startMs, endMs, turns:[{speaker, text}]}].
+    // finalizeSession flattens + reconciles these into the final
+    // speaker-attributed voxTranscriptSegments rows.
+    segmentTurns: v.optional(v.any()),
+    // Configurable retention window for the archived AUDIO (null = keep).
+    // The daily sweep purges stored audio past this age while the
+    // transcript + outputs remain (the written record is not deleted).
+    retentionDays: v.optional(v.number()),
+    audioPurgedAt: v.optional(v.number()),
+    // 'recording' | 'transcribing' | 'synthesizing' | 'ready' | 'failed'
+    status: nullableString,
+    provider: nullableString,
+    error: nullableString,
+    // Epoch ms when the session started on-device.
+    startedAt: nullableNumber,
+    // Why the synthesis outputs are missing on an otherwise ready session
+    // (no AI key / unparseable result) — the transcript stays usable.
+    synthesisError: nullableString,
+    createdAt: nullableString,
+    updatedAt: nullableString,
+    deleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_client_local_id", ["clientLocalId"])
+    .index("by_firm_user_created", ["firmId", "userId", "createdAt"])
+    .index("by_firm_matter_created", ["firmId", "matterId", "createdAt"]),
+
+  // voxTranscriptSegments — the speaker-attributed transcript, one row per
+  // diarized speaker turn (or per segment for solo sessions). Speaker
+  // labels are user-editable after capture; the text itself is never
+  // edited (verbatim discipline).
+  voxTranscriptSegments: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    sessionId: v.id("voxSessions"),
+    segmentIndex: v.number(),
+    // Display label, default "Speaker 1", "Speaker 2"… — user-editable.
+    speakerLabel: v.string(),
+    // 'counsel' | 'client' | 'witness' | 'other'
+    speakerRole: v.string(),
+    startMs: v.number(),
+    endMs: v.number(),
+    text: v.string(),
+    confidence: v.optional(v.number()),
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_session", ["sessionId", "segmentIndex"])
+    .index("by_firm_user", ["firmId", "userId"]),
+
+  // voxOutputs — the one-click legal synthesis for a session: the file
+  // note, the action & deadline checklist, and the visual issue & fact
+  // map. Regenerated wholesale by finalizeSession; customDrafts append.
+  voxOutputs: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    sessionId: v.id("voxSessions"),
+    fileNoteMarkdown: nullableString,
+    actionItems: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          task: v.string(),
+          owner: v.string(),
+          dueDateText: v.string(),
+          completed: v.boolean(),
+        })
+      )
+    ),
+    // Structured tree: [{ category: 'key_facts'|'admissions_contradictions'|
+    // 'open_questions'|'next_steps', nodes: string[] }]
+    issueMap: v.optional(
+      v.array(v.object({ category: v.string(), nodes: v.array(v.string()) }))
+    ),
+    customDrafts: v.optional(
+      v.array(
+        v.object({
+          // 'client_recap' | 'internal_memo' | 'instruction_confirmation'
+          type: v.string(),
+          content: v.string(),
+          createdAt: v.number(),
+        })
+      )
+    ),
+    generatedAt: nullableNumber,
+    model: nullableString,
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_session", ["sessionId"]),
+
+  // voxChunks — the cross-session search index powering "Ask Aloa Vox":
+  // chunked transcript turns and file notes with their session + timestamp
+  // so every answer can cite Session Title + [MM:SS]. Strictly scoped by
+  // firmId+userId (filter fields on the search index — never leaks across
+  // workspaces).
+  voxChunks: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    matterId: nullableString,
+    sessionId: v.id("voxSessions"),
+    // 'transcript' | 'file_note'
+    kind: v.string(),
+    // Offset of this chunk's first word from session start (citation tag).
+    timestampMs: v.number(),
+    text: v.string(),
+    createdAt: nullableString,
+  })
+    .index("by_firm_user", ["firmId", "userId"])
+    .index("by_session", ["sessionId"])
+    .searchIndex("search_text", {
+      searchField: "text",
+      filterFields: ["firmId", "userId"],
+    }),
+
   // authorityLibrary — the firm's VERIFIED legal authorities (owner spec
   // 2026-11-19, §6.2 "No fabricated citations"): written addresses and
   // briefs may cite ONLY entries from this table. Ships EMPTY; the firm

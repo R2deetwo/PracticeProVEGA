@@ -57,17 +57,19 @@ const Z_INDEX_EXEMPT = /src[\\/]overlays[\\/]constants\.ts$/;
 // UX-47 (loading-state consistency): animate-pulse is reserved for the
 // skeleton family (src/components/ui/Skeleton.tsx — the one home) and
 // for SEMANTIC attention states (live dots, unread badges, recording
-// rings). 83 semantic uses remain (the ALOA/ARIA landing "live AI"
+// rings). 84 semantic uses remain (the ALOA/ARIA landing "live AI"
 // indicator, owner bug report 2026-11-19, is a legitimate live dot;
 // +1 2026-11-19 for the Aloa X watchdog's CRITICAL alert dot in
 // src/admin/views/AloaX.tsx — an attention state, not a loading
 // placeholder; +1 2026-11-20 for the landing ALOA typewriter caret —
-// a blinking text cursor, the streaming-reveal attention state);
+// a blinking text cursor, the streaming-reveal attention state;
+// +1 2026-11-22 for the Vox session-capture recording mic — the
+// live-recording attention ring, same class as the Legal Pad dot);
 // hand-rolled skeleton blocks were migrated to the
 // family. New raw animate-pulse loading placeholders
 // fail this ratchet — use <Skeleton>/<SkeletonList>/composites.
 const ANIMATE_PULSE_RE = /\banimate-pulse\b/g;
-const ANIMATE_PULSE_BASELINE = 83;
+const ANIMATE_PULSE_BASELINE = 84;
 const ANIMATE_PULSE_EXEMPT = /src[\\/]components[\\/]ui[\\/]Skeleton\.tsx$/;
 
 /** Recursively collect .tsx/.ts files under a directory. */

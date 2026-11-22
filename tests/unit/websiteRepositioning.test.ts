@@ -852,12 +852,16 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // 2026-11-22: the Institutional Readiness positioning band joins
     // between trust and pricing (owner spec) — seven bands, one quiet
     // addition, no consolidation undone.
+    // 2026-11-22 (dual-mode Vox): the ALOA Vox voice-workspace band
+    // joins between the suite hub and the Nigeria differentiators
+    // (owner spec) — eight bands, still one quiet addition at a time.
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
     expect(order).toEqual([
       "VegaHero",
       "VegaSuite",
+      "VegaVox",
       "VegaWhyNigeria",
       "VegaTrust",
       "VegaInstitutional",

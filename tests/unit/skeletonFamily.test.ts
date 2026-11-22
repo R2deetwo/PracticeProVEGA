@@ -101,10 +101,12 @@ describe('UX-47: ONE skeleton family', () => {
         PULSING_CARD,
       );
     }
-    // The ratchet baseline in scripts/check-design-tokens.mjs (83 — the
+    // The ratchet baseline in scripts/check-design-tokens.mjs (84 — the
     // landing ALOA/ARIA "live AI" dot AND the landing typewriter caret are
-    // legitimate attention states, and 2026-11-19's Aloa X watchdog
-    // CRITICAL alert dot in src/admin/views/AloaX.tsx is another).
-    expect(semantic).toBeLessThanOrEqual(83);
+    // legitimate attention states, 2026-11-19's Aloa X watchdog
+    // CRITICAL alert dot in src/admin/views/AloaX.tsx is another, and
+    // 2026-11-22's Vox session-capture recording mic is the
+    // live-recording attention ring).
+    expect(semantic).toBeLessThanOrEqual(84);
   });
 });

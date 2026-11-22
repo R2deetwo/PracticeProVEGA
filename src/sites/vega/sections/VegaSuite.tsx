@@ -55,8 +55,8 @@ const TABS: SuiteTab[] = [
                 detail: 'Every case with its client, stage and court — filterable, searchable, always current.',
             },
             {
-                title: 'ALOA Vox™ voice capture',
-                detail: 'Dictate notes, tasks and questions hands-free — captured to a hybrid Legal Pad with each speaker labelled in consultations. Growth tier and above.',
+                title: 'ALOA Vox™ voice workspace',
+                detail: 'Fast dictation for drafting, plus session capture that turns consultations and interviews into speaker-labelled transcripts, file notes, action lists and issue maps. Growth tier and above.',
             },
             {
                 title: 'Deadlines by the right rules',

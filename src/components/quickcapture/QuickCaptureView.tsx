@@ -55,6 +55,7 @@ import {
   SparklesIcon,
   StopIcon,
   TrashIcon,
+  UsersIcon,
   XMarkIcon,
 } from "../../constants";
 import { useUI } from "../../contexts/UIContext";
@@ -86,6 +87,11 @@ import { TriageCard } from "./TriageCard";
 import { QuickAskActions } from "./QuickAskActions";
 import { LegalPadView } from "./LegalPadView";
 import { VoxUpsellModal } from "./VoxUpsellModal";
+// Session Capture (Mode B of the dual-mode Vox, owner spec 2026-11-22): the
+// Plaud-style session workspace — record/upload a full legal session, get
+// the speaker-labelled transcript + file note + action items + issue map
+// + Ask Vox cross-session recall.
+import { SessionCaptureView } from "./SessionCaptureView";
 
 const formatMs = (ms: number) => {
   const total = Math.floor(ms / 1000);
@@ -101,7 +107,7 @@ const INTENT_ICON: Record<string, React.ComponentType<{ className?: string }>> =
   share: ClipboardIcon,
 };
 
-type CaptureMode = "speak" | "pad";
+type CaptureMode = "speak" | "pad" | "session";
 
 /** Which transcript tier the editable draft follows. "clean" now seeds
  *  from the FORMATTED tier (triageMeta.caseNoteText — destination-formatted,
@@ -1490,6 +1496,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </section>
           ) : null}
         </div>
+      ) : mode === "session" ? (
+        /* Session Capture takes over the whole surface */
+        <SessionCaptureView onExit={() => setMode("speak")} />
       ) : (
         /* Legal Pad mode takes over the whole surface */
         <LegalPadView onExit={() => setMode("speak")} />
@@ -1531,6 +1540,21 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             }}
           >
             Legal Pad
+          </Button>
+          <Button
+            variant="segmented"
+            size="md"
+            minTouchTarget
+            fullWidth
+            icon={!canUseVox ? LockClosedIcon : UsersIcon}
+            onClick={() => {
+              guardVox(() => {
+                light();
+                setMode("session");
+              });
+            }}
+          >
+            Session
           </Button>
         </nav>
       ) : null}

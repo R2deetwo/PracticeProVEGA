@@ -454,4 +454,16 @@ crons.interval(
   {}
 );
 
+// ─── VOX SESSION AUDIO RETENTION (owner spec 2026-11-22) ─────────────────────
+// Daily: purge archived AUDIO for sessions past their configured retention
+// window (retentionDays). The transcript, outputs and Ask Vox search chunks
+// REMAIN — only the audio ages out. Sessions without a window keep their
+// audio. See convex/voxSessions.ts purgeExpiredVoxAudioInternal.
+crons.daily(
+  "purgeVoxAudioPastRetention",
+  { hourUTC: 2, minuteUTC: 40 },
+  internal.voxSessions.purgeExpiredVoxAudioInternal,
+  {}
+);
+
 export default crons;

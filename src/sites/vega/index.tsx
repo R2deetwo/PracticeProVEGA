@@ -12,6 +12,7 @@ import { VegaNavBar, VegaFooter, VegaMobileStickyCTA } from './VegaShell';
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaSuite } from './sections/VegaSuite';
+import { VegaVox } from './sections/VegaVox';
 import { VegaWhyNigeria } from './sections/VegaWhyNigeria';
 import { VegaTrust } from './sections/VegaTrust';
 import { VegaInstitutional } from './sections/VegaInstitutional';
@@ -46,7 +47,7 @@ export const VegaSite: React.FC = () => {
     const { openModal } = useUI();
     useSiteChrome('vega');
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'suite', 'practice-areas', 'pricing']
+        ['home', 'suite', 'vox', 'practice-areas', 'pricing']
     );
     const openSignup = useSignupOpener('vega');
     // R64 — the demo entry: "View Live Demo" opens the demo-access modal
@@ -171,6 +172,10 @@ export const VegaSite: React.FC = () => {
                     pricing matrix with its compact FAQ, and the navy
                     final-CTA close. */}
                 <VegaSuite onSignup={openSignup} />
+                {/* The ALOA Vox band (owner spec 2026-11-22): the dual-mode
+                    voice workspace — instant dictation + structured session
+                    capture — with the interactive session preview. */}
+                <VegaVox />
                 <VegaWhyNigeria />
                 <VegaTrust />
                 {/* Institutional & cross-border readiness (2026-11-22): the

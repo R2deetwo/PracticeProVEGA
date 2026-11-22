@@ -1331,7 +1331,7 @@ RULES:
 
 type GeminiKey = { key: string } | null;
 
-async function resolveGeminiKey(
+export async function resolveGeminiKey(
   ctx: any,
   user: any,
   callerKey?: string | null
@@ -1547,8 +1547,10 @@ export async function transcribeSegment(_ctx: any, opts: {
   return { text, provider: "gemini" };
 }
 
-/** Generic Gemini text completion (polish / triage / merge / quick ask). */
-async function geminiText(opts: {
+/** Generic Gemini text completion (polish / triage / merge / quick ask).
+ * Exported for the sibling voxSessions module (session synthesis + Ask
+ * Vox) — one completion helper, one provider chain, no duplication. */
+export async function geminiText(opts: {
   apiKey: string;
   system: string;
   user: string;
