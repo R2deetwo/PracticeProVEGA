@@ -113,7 +113,7 @@ const ContactSalesDrawer: React.FC<{
             setIsSubmitted(true);
         } catch (err) {
             console.error('[ContactSales] Submission failed:', err);
-            setErrors({ submit: 'Something went wrong. Please try again or email us directly at practiceprosystems@gmail.com' });
+            setErrors({ submit: 'Something went wrong. Please try again or email us directly at sales@practicepro.ng' });
         } finally {
             setIsSubmitting(false);
         }
@@ -178,8 +178,8 @@ const ContactSalesDrawer: React.FC<{
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white">{variant === 'assist' ? 'Ask a Question' : 'Contact Sales'}</h2>
                         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                             {variant === 'assist'
-                                ? "No account needed — describe your situation and we'll reply within 24 hours."
-                                : 'No account needed — we will reach out directly.'}
+                                ? "No account needed — describe your situation and we'll reply within one business day."
+                                : 'No account needed — we will reply within one business day.'}
                         </p>
                     </div>
                     <button
@@ -201,7 +201,7 @@ const ContactSalesDrawer: React.FC<{
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Sent</h3>
                             <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-xs">
-                                Thank you. One of our consultants will reach out to you within 24 hours{formData.phone ? ' via WhatsApp or phone' : ' via your email'}.
+                                Thank you. One of our consultants will reach out to you within one business day{formData.phone ? ' via WhatsApp or phone' : ' via your email'}.
                             </p>
                             <button
                                 onClick={handleClose}
@@ -314,9 +314,12 @@ const ContactSalesDrawer: React.FC<{
                                 </div>
                             )}
 
-                            {/* Privacy note */}
+                            {/* Privacy note — 2026-11-23 (owner direction):
+                                aligned with the Privacy Policy's sub-processor
+                                disclosure (§5.2–5.3): never sold; essential
+                                providers only, bound by confidentiality. */}
                             <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
-                                Your information is processed securely in accordance with our Privacy Policy and the Nigeria Data Protection Act 2023. We will never share your data with third parties.
+                                Your information is processed securely in accordance with our Privacy Policy and the Nigeria Data Protection Act 2023. We never sell your data or share it outside essential infrastructure and email delivery providers bound by confidentiality.
                             </p>
 
                             {/* Submit */}

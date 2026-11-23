@@ -28,7 +28,7 @@ const ARIA_CONFIG = {
         },
         {
             title: 'PII Shield',
-            body: 'Resident names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your resident data never trains external models. NDPA 2023 compliant.',
+            body: 'Resident names, phone numbers, NIN, BVN, and bank accounts are automatically stripped before AI processing. Your resident data never trains external models. NDPA 2023-aligned safeguards.',
             features: ['Email & phone stripping', 'NIN/BVN/credit card detection', 'Nigerian bank account masking'],
         },
         {

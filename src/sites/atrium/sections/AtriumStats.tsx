@@ -13,10 +13,16 @@ import React, { useEffect, useRef } from 'react';
  */
 
 const ATRIUM_STATS = [
-    { value: '20–∞', label: 'Managed Units' },
+    // 2026-11-23 claims audit (owner direction): no unproven metrics — the
+    // uptime SLA and the infinite-range unit stat are retired. "Monitored
+    // around the clock" is true (ALOA X and the health watchdog sweep
+    // continuously; an uptime percentage returns when a public status page
+    // is linked). The NDPA line uses the aligned-safeguards phrasing —
+    // no certification is claimed.
+    { value: 'From 20', label: 'Managed Units' },
     { value: 'End-to-End', label: 'Rent Collection' },
-    { value: '99.9%', label: 'Platform Uptime' },
-    { value: 'NDPA 2023', label: 'Data Compliant' },
+    { value: 'Monitored', label: 'Around the Clock' },
+    { value: 'NDPA 2023', label: 'Aligned Safeguards' },
 ];
 
 function useScrollReveal<T extends HTMLElement = HTMLDivElement>(options?: { threshold?: number; rootMargin?: string }) {
@@ -58,7 +64,7 @@ export const AtriumStats: React.FC = () => {
                     {ATRIUM_STATS.map((s, i) => (
                         <div key={i} className="flex flex-col items-center">
                             <p
-                                className="font-mono nums-tabular font-bold mb-2 whitespace-nowrap text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+                                className="font-mono nums-tabular font-bold mb-2 whitespace-nowrap text-2xl sm:text-3xl md:text-4xl"
                                 style={{ color: 'var(--color-ink)' }}
                             >
                                 {s.value}

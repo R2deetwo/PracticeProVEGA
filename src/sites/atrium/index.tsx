@@ -18,17 +18,20 @@ import { AtriumReceipt } from './sections/AtriumReceipt';
 import { AtriumSentryPass } from './sections/AtriumSentryPass';
 import { AtriumHowItWorks } from './sections/AtriumHowItWorks';
 import { AtriumWhyRunOn } from './sections/AtriumWhyRunOn';
+import { AtriumDiaspora } from './sections/AtriumDiaspora';
 import { AtriumFAQ } from './sections/AtriumFAQ';
 import { AtriumFinalCTA } from './sections/AtriumFinalCTA';
 
 import { Z_CLASS } from '../../overlays/constants';
 /**
- * AtriumSite — /atrium, "The Well-Kept Estate" (P0 split). 12 bands, this
+ * AtriumSite — /atrium, "The Well-Kept Estate" (P0 split). 13 bands, this
  * exact order: photo hero → sage stat band → features grid → trust strip →
  * light AI band → estate occupancy grid → resident receipt → gatehouse
- * Sentry Pass → 3-step onboarding → capability attestations → light FAQ →
- * sage close. Zero shared marketing sections below the nav.
- * Behaviour-identical to the pre-split atrium branch.
+ * Sentry Pass → 3-step onboarding → capability attestations → diaspora
+ * owner callout → light FAQ → sage close. Zero shared marketing sections
+ * below the nav.
+ * Behaviour-identical to the pre-split atrium branch (the diaspora callout
+ * was added 2026-11-23 by owner direction — see AtriumDiaspora.tsx).
  */
 export const AtriumSite: React.FC = () => {
     const navigate = useNavigate();
@@ -108,6 +111,7 @@ export const AtriumSite: React.FC = () => {
                 <AtriumSentryPass />
                 <AtriumHowItWorks />
                 <AtriumWhyRunOn />
+                <AtriumDiaspora />
                 <AtriumFAQ />
                 <AtriumFinalCTA
                     onSignup={() => openSignup()}
@@ -136,7 +140,6 @@ export const AtriumSite: React.FC = () => {
                 onUsageClick={() => navigate('/usage-policy')}
                 onResources={() => navigate('/atrium/resources')}
                 onContactSales={() => openContactSales('Footer')}
-                onOpenProduct={openProductPage}
             />
         </div>
     );

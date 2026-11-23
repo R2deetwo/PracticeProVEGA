@@ -258,8 +258,7 @@ export const AtriumFooter: React.FC<{
     onUsageClick: () => void;
     onResources: () => void;
     onContactSales: () => void;
-    onOpenProduct: (p: 'vega' | 'atrium') => void;
-}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, onOpenProduct }) => (
+}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales }) => (
     <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
@@ -275,14 +274,6 @@ export const AtriumFooter: React.FC<{
                         </span>
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
-                    <div className="mt-4 flex items-center gap-3">
-                        <button
-                            onClick={() => onOpenProduct('vega')}
-                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all text-emerald-400 hover:text-emerald-300 border-emerald-400/30 hover:bg-emerald-400/10"
-                        >
-                            Open Vega <span className="text-xs">↗</span>
-                        </button>
-                    </div>
                 </div>
                 {/* Product */}
                 <div>
@@ -315,10 +306,13 @@ export const AtriumFooter: React.FC<{
                     </div>
                 </div>
             </div>
-            <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-400">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
-                <p className="text-xs text-slate-500 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
-                <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
+            {/* The close — mirrors the Vega footer's 2026-11-22 cleanup: one
+                clean © line, no cross-sell button, no built-by line, no
+                NDPA/TLS strip (the product trust bands carry the
+                aligned-safeguards statement; the hub footer keeps the
+                company-level one). */}
+            <div className="flex items-center">
+                <p className="text-xs text-slate-400">© {new Date().getFullYear()} Practice Pro Systems Limited, Lagos, Nigeria</p>
             </div>
         </div>
     </footer>

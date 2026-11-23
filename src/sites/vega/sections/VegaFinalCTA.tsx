@@ -36,10 +36,7 @@ export const VegaFinalCTA: React.FC<{
                         <span className="text-indigo-300">sharper practice?</span>
                     </h2>
                     <p className="text-base md:text-lg leading-[1.7] text-blue-100 mb-10">
-                        Join Nigerian law firms who have already switched to
-                        Vega — matter management, AI drafting, and
-                        court-rule-aware calendaring built for the way you actually
-                        work.
+                        Run a sharper practice — start free, decide in 30 days.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
                         <Button

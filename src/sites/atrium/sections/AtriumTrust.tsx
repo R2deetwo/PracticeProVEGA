@@ -10,9 +10,12 @@ import { ScalesIcon, LockClosedIcon, KeyIcon } from '../../../constants';
  */
 
 const BADGES = [
-    { label: 'NDPA 2023 Compliant', Icon: ScalesIcon },
-    { label: 'TLS 1.3 Encrypted', Icon: LockClosedIcon },
-    { label: 'Data Encrypted at Rest*', Icon: KeyIcon },
+    // 2026-11-23 claims audit (owner direction): no certification claim
+    // ("Compliant") and no orphan asterisk — encryption is stated plainly.
+    // Matches the Vega trust strip's aligned-safeguards phrasing.
+    { label: 'NDPA 2023-Aligned Safeguards', Icon: ScalesIcon },
+    { label: 'TLS 1.3 In Transit', Icon: LockClosedIcon },
+    { label: 'Data Encrypted at Rest', Icon: KeyIcon },
 ];
 
 function useScrollReveal<T extends HTMLElement = HTMLDivElement>() {

@@ -736,7 +736,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <div className="pl-4 border-l-2 border-slate-100 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
-                                    <p><strong>General enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprosystems@gmail.com</a></p>
+                                    <p><strong>General enquiries:</strong> <a href="mailto:hello@practicepro.ng" className="text-primary-600 no-underline hover:underline">hello@practicepro.ng</a></p>
                                     <p><strong>Data protection / privacy:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a></p>
                                 </div>
                                 <p>We aim to respond to all formal notices and complaints within 5 business days.</p>

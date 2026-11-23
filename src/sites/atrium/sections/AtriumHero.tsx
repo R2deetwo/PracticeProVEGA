@@ -74,11 +74,12 @@ export const AtriumHero: React.FC<{
             <div className="relative z-10 container mx-auto px-4 sm:px-6">
                 <div className="-mt-14 md:-mt-16 max-w-3xl rounded-2xl bg-white/95 backdrop-blur-sm border border-white/60 shadow-elevation-2 p-6 md:p-8 flex flex-col sm:flex-row gap-6 sm:gap-10 sm:items-center">
                     <div className="flex-1">
-                        <p className="font-mono nums-tabular text-2xl md:text-3xl font-semibold text-atrium-emerald">
-                            98.2%
-                        </p>
-                        <p className="text-sm text-slate-600 mt-1">
-                            typical first-month collection rate on estates that move to Atrium
+                        {/* 2026-11-23 claims audit: the previous unproven
+                            first-month collections percentage was replaced
+                            with concrete, verifiable product behaviour
+                            (owner direction). */}
+                        <p className="font-mono text-lg md:text-xl font-semibold text-atrium-emerald leading-snug">
+                            Automated receipts, demand notices, and reconciliation — from the first rent cycle.
                         </p>
                     </div>
                     <div className="w-px self-stretch bg-slate-200 hidden sm:block" aria-hidden="true" />

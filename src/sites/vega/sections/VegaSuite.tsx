@@ -130,7 +130,7 @@ const TABS: SuiteTab[] = [
             {
                 src: '/assets/landing/app/documents.jpg',
                 alt: 'Vega document vault — filings and drafts organized by matter',
-                caption: 'THE DOCUMENT VAULT: VERSION HISTORY, ACCESS CONTROLS, NDPA-COMPLIANT METADATA',
+                caption: 'THE DOCUMENT VAULT: VERSION HISTORY, ACCESS CONTROLS, NDPA 2023-ALIGNED METADATA',
                 label: 'Vault',
             },
             {

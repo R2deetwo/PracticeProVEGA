@@ -14,7 +14,7 @@ import React, { useState } from 'react';
 const SHARED_FAQS = [
     {
         q: "Is my data secure?",
-        a: "Yes. Your data is fully isolated and never shared with other firms. We're NDPA 2023 compliant, offer 2FA, and never train AI on your data. All data is encrypted at rest and in transit.",
+        a: "Yes. Your data is fully isolated and never shared with other firms. We maintain NDPA 2023-aligned safeguards, offer 2FA, and never train AI on your data. All data is encrypted at rest and in transit.",
     },
     {
         q: "Can I pay in Naira?",
@@ -30,7 +30,7 @@ const SHARED_FAQS = [
     },
     {
         q: "How much does Atrium cost?",
-        a: "Atrium is priced per portfolio, based on the number of units you manage. Start with the 30-day free trial, or talk to sales for a quote that fits your portfolio. Annual plans include a 30-day money-back guarantee.",
+        a: "Atrium is priced per portfolio, based on the number of units you manage, and is billed annually. Portfolios start at ₦490,000/year for up to 10 units (₦4,083 per unit per month — a framing of the annual price, not a monthly billing option). Start with the 30-day free trial, or talk to sales for a quote that fits your portfolio. Annual plans include a 30-day money-back guarantee.",
     },
 ];
 

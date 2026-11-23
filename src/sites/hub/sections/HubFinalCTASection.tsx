@@ -104,7 +104,7 @@ export const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo
                 </Button>
             </div>
             <p className="text-sm text-slate-500 mt-6">
-                We reply within 24 hours.
+                We reply within one business day.
             </p>
         </div>
     </section>

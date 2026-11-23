@@ -1703,8 +1703,10 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
       expect(hub).not.toContain(`<${s}`);
       expect(hub).not.toContain(`const ${s}`);
     }
-    // The atrium composition: 12 bands, this exact order (R21: the SCE
-    // pricing band was removed by owner direction — pricing is sales-led).
+    // The atrium composition: 13 bands, this exact order (R21: the SCE
+    // pricing band was removed by owner direction — pricing is sales-led;
+    // 2026-11-23: the diaspora owner callout was promoted from the FAQ
+    // into its own band by owner direction).
     // P0 split: the atrium render branch moved verbatim into its own file;
     // bound to the <main> element exactly as the vega pin above.
     const marker = atriumSite.indexOf("<AtriumHero");
@@ -1724,6 +1726,7 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
       "AtriumSentryPass",
       "AtriumHowItWorks",
       "AtriumWhyRunOn",
+      "AtriumDiaspora",
       "AtriumFAQ",
       "AtriumFinalCTA",
     ]);
@@ -1798,6 +1801,104 @@ describe("W3 — honest social proof (P8)", () => {
     expect(vegaCredentials).toContain("Drafted for Nigerian courts");
     expect(atriumWhyRunOn).toContain("WHY_RUN_ON");
     expect(atriumWhyRunOn).toContain("Every state's tenancy law, applied");
+  });
+
+  it("2026-11-23 claims audit: no unproven metrics or social-proof counts", () => {
+    // Owner direction: do not assert unverified percentages, SLAs or
+    // customer counts as measured fact. The Atrium hero's collection
+    // rate, the stat band's uptime SLA and unit range, and both final
+    // CTAs' "firms/managers who have already switched" are all retired.
+    const atriumHero = read("src", "sites", "atrium", "sections", "AtriumHero.tsx");
+    expect(atriumHero).not.toContain("98.2");
+    expect(atriumHero).not.toContain("collection rate");
+    expect(atriumHero).toContain(
+      "Automated receipts, demand notices, and reconciliation — from the first rent cycle."
+    );
+    expect(atriumStats).not.toContain("99.9");
+    expect(atriumStats).not.toContain("Uptime");
+    expect(atriumStats).not.toContain("∞");
+    expect(atriumStats).toContain("{ value: 'From 20', label: 'Managed Units' }");
+    expect(atriumStats).toContain("{ value: 'Monitored', label: 'Around the Clock' }");
+    expect(vegaFinalCTA).not.toContain("already switched");
+    expect(atriumFinalCTA).not.toContain("already switched");
+    expect(vegaFinalCTA).toContain("Run a sharper practice — start free, decide in 30 days.");
+    expect(atriumFinalCTA).toContain("Run a tighter portfolio — start free, decide in 30 days.");
+  });
+
+  it("2026-11-23 claims audit: NDPA phrasing is aligned-safeguards everywhere; no orphan asterisks", () => {
+    // "NDPA 2023 Compliant" claims a certification nobody issued; the
+    // house phrasing is "NDPA 2023-aligned safeguards". Encryption
+    // badges state the fact plainly — no "*" without a footnote.
+    for (const src of [hubShell, atriumShell, atriumTrust, atriumStats, atriumAI, atriumFAQ, vegaCredentials, vegaFAQ, vegaSuite]) {
+      expect(src).not.toContain("NDPA 2023 Compliant");
+      expect(src).not.toContain("NDPA 2023 compliant");
+      expect(src).not.toContain("NDPA-COMPLIANT");
+      expect(src).not.toContain("Data Compliant");
+    }
+    expect(hubShell).toContain("NDPA 2023-aligned safeguards · TLS 1.3 in transit · data encrypted at rest, enforced at the infrastructure layer");
+    expect(atriumTrust).toContain("NDPA 2023-Aligned Safeguards");
+    expect(atriumTrust).not.toContain("at Rest*");
+    expect(atriumStats).toContain("{ value: 'NDPA 2023', label: 'Aligned Safeguards' }");
+    expect(atriumAI).toContain("NDPA 2023-aligned safeguards");
+    expect(atriumFAQ).toContain("NDPA 2023-aligned safeguards");
+    // The product footers end cleanly: no cross-sell button, no built-by
+    // line, no compliance strip — just the © (mirrors the Vega cleanup).
+    expect(atriumShell).not.toContain("Open Vega");
+    expect(atriumShell).not.toContain("Vega &amp; Atrium · Built by PracticePro");
+    expect(atriumShell).not.toContain("*Encryption provided by infrastructure");
+    expect(vegaShell).not.toContain("*Encryption provided by infrastructure");
+    expect(atriumShell).toContain("Practice Pro Systems Limited, Lagos, Nigeria");
+    expect(vegaShell).toContain("Practice Pro Systems Limited, Lagos, Nigeria");
+    expect(hubShell).toContain("Practice Pro Systems Limited, Lagos, Nigeria");
+  });
+
+  it("2026-11-23 commercial copy: money-back surfaced at CTAs; Atrium anchored annual-only", () => {
+    // The guarantee no longer hides in the FAQ: it sits directly under
+    // the paid plan CTAs. "Annual plans" matches ToS §12.3 (as-of-right
+    // on annual; monthly is discretionary) — never "every paid plan".
+    expect(vegaFAQ).toContain("30-day money-back guarantee on annual plans");
+    expect(vegaFAQ).not.toContain("every paid plan includes a 30-day money-back");
+    expect(atriumFinalCTA).toContain("Portfolios start at ₦490,000/year (up to 10 units)");
+    expect(atriumFinalCTA).toContain("30-day money-back guarantee on annual plans");
+    // The Atrium anchor mirrors ATRIUM_TIERS.Core (annual ₦490,000, 10
+    // units; SCE ₦4,083/mo is a framing of the annual price) and the
+    // page copy never offers monthly billing or discounts for Atrium.
+    expect(atriumFAQ).toContain("billed annually");
+    expect(atriumFAQ).toContain("₦490,000/year for up to 10 units");
+    expect(atriumFAQ).toContain("not a monthly billing option");
+    expect(atriumFAQ).not.toContain("₦49,000/mo");
+    expect(atriumFinalCTA).not.toContain("₦49,000/mo");
+  });
+
+  it("2026-11-23: the diaspora owner callout is its own band before the FAQ", () => {
+    const atriumDiaspora = read("src", "sites", "atrium", "sections", "AtriumDiaspora.tsx");
+    expect(atriumSite).toContain("import { AtriumDiaspora } from './sections/AtriumDiaspora'");
+    expect(atriumDiaspora).toContain("Managing Nigerian property from abroad");
+    expect(atriumDiaspora).toContain("without relying on an unverified local proxy");
+    // Grounded in the shipped product — the FAQ answer it promotes.
+    expect(atriumDiaspora).toContain("Residents&rsquo; Portal");
+    expect(atriumDiaspora).toContain("granular access controls");
+  });
+
+  it("2026-11-23 contact copy: response times, data-sharing and the sales address", () => {
+    const drawer = read("src", "sites", "shared", "ContactSalesDrawer.tsx");
+    // "within one business day" everywhere a reply is promised — no
+    // unguaranteed 24-hour (or 24/7) claims.
+    expect(drawer).not.toContain("within 24 hours");
+    expect(drawer).toContain("we'll reply within one business day");
+    expect(drawer).toContain("we will reply within one business day");
+    expect(drawer).toContain("reach out to you within one business day");
+    expect(hubFinalCTA).toContain("We reply within one business day.");
+    const aloaFab = read("src", "sites", "shared", "AloaAssistantFab.tsx");
+    expect(aloaFab).toContain("replies within one business day");
+    // The data-sharing promise matches the Privacy Policy (§5.2–5.3):
+    // never sold; essential providers bound by confidentiality — never
+    // the absolute "never share with third parties".
+    expect(drawer).not.toContain("We will never share your data with third parties");
+    expect(drawer).toContain("We never sell your data or share it outside essential infrastructure and email delivery providers bound by confidentiality");
+    // The Gmail fallback is gone — the sales address is on our domain.
+    expect(drawer).not.toContain("gmail.com");
+    expect(drawer).toContain("sales@practicepro.ng");
   });
 });
 

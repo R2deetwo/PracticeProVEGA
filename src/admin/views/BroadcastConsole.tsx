@@ -485,7 +485,7 @@ export const BroadcastConsole: React.FC = () => {
                                         },
                                         holiday: {
                                             title: 'HOLIDAY / OFFICE HOURS NOTICE',
-                                            message: 'In observance of [HOLIDAY], our support team will be unavailable on [DATE]. Regular office hours resume on [DATE]. For urgent matters, please email practiceprosystems@gmail.com.',
+                                            message: 'In observance of [HOLIDAY], our support team will be unavailable on [DATE]. Regular office hours resume on [DATE]. For urgent matters, please email hello@practicepro.ng.',
                                             theme: 'info',
                                             deepLink: '',
                                         },

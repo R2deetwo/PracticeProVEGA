@@ -305,9 +305,14 @@ export const HubFooter: React.FC<{
                 </div>
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-400">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
+                <p className="text-xs text-slate-400">© {new Date().getFullYear()} Practice Pro Systems Limited, Lagos, Nigeria</p>
                 <p className="text-xs text-slate-500 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
-                <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
+                {/* 2026-11-23 claims audit (owner direction): the old
+                    certification claim overstated a status nobody issued
+                    and the orphan asterisk is gone — infrastructure
+                    encryption is stated plainly, matching the Vega trust
+                    strip. */}
+                <p className="text-xs text-slate-500">NDPA 2023-aligned safeguards · TLS 1.3 in transit · data encrypted at rest, enforced at the infrastructure layer</p>
             </div>
         </div>
     </footer>

@@ -26,7 +26,7 @@ const ORDER: TierId[] = ['Core', 'Growth', 'Pro', 'Enterprise'];
 const FAQS = [
     {
         q: 'How much does Vega cost?',
-        a: 'Vega for law firms starts free — the Free plan carries the core practice management. Paid plans start at \u20A645,000/mo (annual saves 20%), and every paid plan includes a 30-day money-back guarantee.',
+        a: 'Vega for law firms starts free — the Free plan carries the core practice management. Paid plans start at \u20A645,000/mo (annual saves 20%), and annual plans include a 30-day money-back guarantee.',
     },
     {
         q: 'What does the free plan include?',
@@ -145,9 +145,22 @@ export const VegaPricing: React.FC<{
                                             Talk to Sales
                                         </GhostButton>
                                     ) : (
-                                        <PrimaryButton onClick={onSignup} tone="vega" className="w-full text-sm px-6 py-3">
-                                            {id === 'Core' ? 'Start free' : `Choose ${t.label}`}
-                                        </PrimaryButton>
+                                        <>
+                                            <PrimaryButton onClick={onSignup} tone="vega" className="w-full text-sm px-6 py-3">
+                                                {id === 'Core' ? 'Start free' : `Choose ${t.label}`}
+                                            </PrimaryButton>
+                                            {/* 2026-11-23 (owner direction): the money-back
+                                                guarantee surfaced directly beneath the paid
+                                                plan CTAs, not buried in the FAQ. "Annual
+                                                plans" matches Terms of Service §12.3 (the
+                                                guarantee is as-of-right on annual plans;
+                                                monthly refunds are discretionary). */}
+                                            {id !== 'Core' && (
+                                                <p className="mt-3 text-center text-2xs text-slate-500">
+                                                    30-day money-back guarantee on annual plans
+                                                </p>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>

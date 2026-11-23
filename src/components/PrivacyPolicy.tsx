@@ -189,7 +189,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <h3 className="text-xl font-bold">3.3 Information from Third-Party Sources</h3>
                                     <ul className="list-disc pl-8 space-y-6">
                                         <li><strong>Log-in services:</strong> If you sign in using a third-party service (e.g., Google Workspace), we receive basic profile details like name and email, as allowed by your privacy settings with that service.</li>
-                                        <li><strong>Payment processors:</strong> Transaction confirmation and payment status from providers like Paystack or Flutterwave.</li>
+                                        <li><strong>Payment processors:</strong> Transaction confirmation and payment status from providers like Paystack.</li>
                                         <li><strong>Integration partners:</strong> If you connect third-party apps (e.g., Google Drive, calendar systems), we receive the data needed to provide the integration, as authorized by you.</li>
                                     </ul>
                                 </div>
@@ -356,7 +356,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <li><strong>Your own API key:</strong> To use {isVega ? 'ALOA™' : 'ARIA™'}, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. The key is stored in your browser and used to log in directly with the AI provider you choose.</li>
                                         <li><strong>Direct browser-to-provider transfer:</strong> When you submit a query, upload a document, or request AI content, your data goes straight from your browser to the AI provider (Google or OpenAI). PracticePro does not intercept, store, or route your AI queries.</li>
                                         <li><strong>You are the Data Controller for AI inputs:</strong> Because you supply your own API key and your data goes directly to the AI provider, you (not PracticePro) are the Data Controller for what you submit. Your use of the AI provider follows their Terms and Privacy Policy. We do not process your AI data on anyone else's behalf.</li>
-                                        <li><strong>PracticePro does not train models on your data:</strong> We never use your AI inputs or outputs to train any models. Whether the AI provider uses your data for training is governed by your agreement with them. Review their terms and configure data retention in your provider account.</li>
+                                        <li><strong>PracticePro does not train models on your data:</strong> We never use your matters, drafts, documents, voice recordings, portfolio records, or AI inputs and outputs to train any models — including foundation or third-party AI models. Whether the AI provider uses your data for training is governed by your agreement with them. Review their terms and configure data retention in your provider account.</li>
                                         <li><strong>Privacy Shield Agent:</strong> Before sending data to AI, our Privacy Shield Agent finds and flags personal information (also called PII), so you can redact sensitive details first.</li>
                                         <li><strong>API key security:</strong> Your API key is stored in your browser's local storage and sent only to the AI provider's log-in service, never to PracticePro's servers. Keep your browser and device secured (password lock, screen lock).</li>
                                         <li><strong>AI conversation history:</strong> When you chat with {isVega ? 'ALOA™' : 'ARIA™'}, your conversations are saved and only visible within your firm. This lets you review past chats and helps the AI keep context. Conversations are visible to the user who created them and to firm administrators. PracticePro's founder team does NOT have read access — conversations are kept separate from the admin and feedback systems.</li>
@@ -375,16 +375,16 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <div className="space-y-4">
                                             <h4 className="font-bold">5.2.1 Cloud Hosting and Infrastructure</h4>
                                             <ul className="list-disc pl-8 space-y-2">
-                                                <li><strong>Provider:</strong> Google Cloud Platform</li>
-                                                <li><strong>Purpose:</strong> Hosting PracticePro, storing data, providing computing resources</li>
-                                                <li><strong>Security:</strong> Strong infrastructure security, encryption, and compliance certifications (see cloud.google.com/security/compliance)</li>
+                                                <li><strong>Providers:</strong> Convex (application platform and database), Vercel (web hosting), and Cloudflare (content delivery and the mirror site)</li>
+                                                <li><strong>Purpose:</strong> Hosting PracticePro, storing data, providing computing resources, and delivering the web app</li>
+                                                <li><strong>Security:</strong> Encryption in transit and at rest at the infrastructure layer, access controls, and provider-level security programs</li>
                                             </ul>
                                         </div>
 
                                         <div className="space-y-4">
                                             <h4 className="font-bold">5.2.2 Payment Processors</h4>
                                             <ul className="list-disc pl-8 space-y-2">
-                                                <li><strong>Providers:</strong> Paystack, Flutterwave, or other authorized Nigerian payment gateways</li>
+                                                <li><strong>Providers:</strong> Paystack, or other authorized Nigerian payment gateways where used</li>
                                                 <li><strong>Purpose:</strong> Processing subscription payments and managing payment methods</li>
                                                 <li><strong>Note:</strong> We do not store full credit card numbers or sensitive payment credentials</li>
                                             </ul>
@@ -393,9 +393,18 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <div className="space-y-4">
                                             <h4 className="font-bold">5.2.3 Analytics and Performance Monitoring</h4>
                                             <ul className="list-disc pl-8 space-y-2">
-                                                <li><strong>Providers:</strong> Google Analytics, error tracking services, performance monitoring tools</li>
+                                                <li><strong>Providers:</strong> PostHog (product analytics) and Sentry (error monitoring)</li>
                                                 <li><strong>Purpose:</strong> Understanding usage, finding issues, improving performance</li>
-                                                <li><strong>Note:</strong> We anonymize personal data in analytics where possible</li>
+                                                <li><strong>Note:</strong> These tools are optional and configured per deployment; we anonymize personal data in analytics where possible</li>
+                                            </ul>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <h4 className="font-bold">5.2.4 Email, Messaging, and AI Services</h4>
+                                            <ul className="list-disc pl-8 space-y-2">
+                                                <li><strong>Providers:</strong> Brevo (email delivery), Chakra (WhatsApp message delivery), Firebase Cloud Messaging by Google (push notifications), and Google (Gemini API for AI features that run on a platform key, including the website assistant)</li>
+                                                <li><strong>Purpose:</strong> Delivering notifications and powering AI features you or we enable</li>
+                                                <li><strong>Note:</strong> AI features that run on your own API key are covered in Section 5.1 — that data goes directly from your browser to the provider you choose</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -425,7 +434,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <div className="space-y-12">
                                 <p>
                                     We use technical and organizational measures to protect your personal data:
-                                    encryption at rest and in transit, access controls, regular backups, network
+                                    encryption in transit (TLS 1.3) and at rest, access controls, regular backups, network
                                     monitoring, and incident response procedures. If a breach affects your
                                     personal data, we will notify you without undue delay, following the NDPA's
                                     72-hour breach notification principle.

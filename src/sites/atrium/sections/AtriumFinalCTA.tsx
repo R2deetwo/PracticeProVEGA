@@ -23,7 +23,7 @@ export const AtriumFinalCTA: React.FC<{ onSignup: () => void; onContactSales: ()
                     Ready to stop managing chaos?
                 </h2>
                 <p className="text-lg mt-4 max-w-2xl mx-auto text-slate-600">
-                    Join Nigerian property managers who have already switched to Atrium — rent collection, resident portals, and revenue intelligence built for portfolios that scale.
+                    Run a tighter portfolio — start free, decide in 30 days.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                     {/* TASK 54: no-arg invocation — never leak the click event
@@ -43,6 +43,14 @@ export const AtriumFinalCTA: React.FC<{ onSignup: () => void; onContactSales: ()
                 </div>
                 <p className="text-sm mt-6 text-slate-500">
                     No credit card · 30-day trial · Cancel anytime
+                </p>
+                {/* 2026-11-23 (owner direction): the starting-price anchor
+                    (annual-only — no monthly framing, no discounts) and the
+                    money-back line surfaced next to the CTA instead of
+                    buried in the FAQ. Figure mirrors ATRIUM_TIERS.Core in
+                    src/constants/tiers.ts (₦490,000/yr, 10 included units). */}
+                <p className="text-sm mt-2 text-slate-500">
+                    Portfolios start at ₦490,000/year (up to 10 units) · 30-day money-back guarantee on annual plans
                 </p>
             </div>
         </section>

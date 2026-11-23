@@ -418,8 +418,8 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
             reply: 'Four plans, one free tier to start, and setup a firm can finish in an afternoon.',
             steps: [
                 'Free — ₦0: 1 user, 10 active matters, legal billing & ledger record-keeping, and the standard DraftPro contract analyzer. No card needed.',
-                'Growth — ₦45,000/month (₦432,000/year): 5 users, unlimited matters, Vox voice capture, court rules intelligence, Client Portal for up to 20 clients, ALOA copilot, automated retainer billing and court date reminders.',
-                'Pro — ₦80,000/month (₦768,000/year): unlimited users, uncapped Client Portal, priority ALOA copilot, advanced billing analytics and the Billing Monitor.',
+                'Growth — ₦45,000/month (₦432,000/year): 5 users, unlimited matters, court rules intelligence, Client Portal for up to 20 clients, ALOA copilot, automated retainer billing and court date reminders.',
+                'Pro — ₦80,000/month (₦768,000/year): everything in Growth, plus unlimited users, Vox voice capture and the hybrid Legal Pad, uncapped Client Portal, priority ALOA copilot, advanced billing analytics and the Billing Monitor.',
                 'Enterprise — custom: the regulatory cross-referencing engine, custom court document archives, and sales-assisted onboarding.',
                 'Getting started: create the firm workspace, invite your associates and staff, and matters can start the same day.',
             ],
@@ -433,7 +433,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
             steps: [
                 'Client accounts are segregated from the office account, aligned with Nigerian trust-accounting standards (RPC Rule 23) — a corporate lawyer keeping a client’s completion funds apart from the firm’s professional fees is working the standard flow, not being careful.',
                 'Ledgers record every movement against the right matter and the right account, with retainer billing, auto-invoicing and partner-level monitor controls on top.',
-                'Data privacy follows the NDPA — matter records stay inside permissioned workflows, encrypted in transit and at rest.',
+                'NDPA 2023-aligned safeguards — matter records stay inside permissioned workflows, encrypted in transit and at rest.',
             ],
             keywords: ['client account', 'trust', 'trust account', 'accounting', 'ledger', 'funds', 'money', 'compliance', 'rule 23', 'ndpa', 'privacy', 'data protection', 'billing', 'safe', 'security'],
         },
@@ -1328,7 +1328,7 @@ const AloaAssistantFab: React.FC<{
                                                         onClick={() => handoff('Aloa Landing Assistant', { prefill: b.teamPrefill, variant: 'assist' })}
                                                         className="mt-2 block text-2xs font-semibold text-slate-500 underline underline-offset-2 decoration-slate-300 hover:decoration-slate-500 hover:text-slate-700 transition-colors text-left"
                                                     >
-                                                        Prefer a human? Send this to our team — a real person replies within 24 hours.
+                                                        Prefer a human? Send this to our team — a real person replies within one business day.
                                                     </button>
                                                 )}
                                                 {/* Product topics keep their trial CTA; informational
