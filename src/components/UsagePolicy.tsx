@@ -114,7 +114,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>3.4 Data Subject Rights</h3>
                     <p>
-                        As a data controller for your clients' and residents' personal data, you are responsible for responding to data subject requests under the NDPA 2023, including requests for access, rectification, erasure, and data portability. PracticePro, as your data processor, will assist you in fulfilling these requests where technically feasible. Contact our Data Protection Officer at dpo@practicepro.ng for assistance.
+                        As a data controller for your clients' and residents' personal data, you are responsible for responding to data subject requests under the NDPA 2023, including requests for access, rectification, erasure, and data portability. PracticePro, as your data processor, will assist you in fulfilling these requests where technically feasible. Contact our Data Protection Officer at practiceproindex@gmail.com for assistance.
                     </p>
 
                     <h2>4. AI-Powered Features</h2>
@@ -224,7 +224,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>9.3 Support</h3>
                     <p>
-                        PracticePro provides support via email at dpo@practicepro.ng. Response times depend on your subscription tier and the severity of the issue. Critical issues affecting platform access are prioritized.
+                        PracticePro provides support via email at practiceprosystems@gmail.com. Response times depend on your subscription tier and the severity of the issue. Critical issues affecting platform access are prioritized.
                     </p>
 
                     <h2>10. Termination and Suspension</h2>
@@ -265,7 +265,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>12.1 NDPA 2023 Compliance</h3>
                     <p>
-                        PracticePro complies with the Nigeria Data Protection Act 2023 and the Nigeria Data Protection Regulation 2019 as a data processor. We have appointed a Data Protection Officer (DPO) who can be contacted at dpo@practicepro.ng. Our data processing practices are detailed in the Data Processing Agreement (DPA) and Privacy Policy.
+                        PracticePro complies with the Nigeria Data Protection Act 2023 and the Nigeria Data Protection Regulation 2019 as a data processor. We have appointed a Data Protection Officer (DPO) who can be contacted at practiceproindex@gmail.com. Our data processing practices are detailed in the Data Processing Agreement (DPA) and Privacy Policy.
                     </p>
 
                     <h3>12.2 Law Enforcement Requests</h3>
@@ -275,7 +275,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>12.3 Reporting Violations</h3>
                     <p>
-                        To report violations of this Usage Policy, security vulnerabilities, or suspected unauthorized access, contact us at dpo@practicepro.ng. We investigate all reports and take appropriate action, including account suspension and legal action where warranted.
+                        To report violations of this Usage Policy, security vulnerabilities, or suspected unauthorized access, contact us at practiceprosystems@gmail.com. We investigate all reports and take appropriate action, including account suspension and legal action where warranted.
                     </p>
 
                     <h2>13. Modifications to This Policy</h2>
@@ -295,8 +295,8 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <p>
                         <strong>PracticePro Systems Limited</strong><br />
                         No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria<br />
-                        Email: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 underline">dpo@practicepro.ng</a><br />
-                        Data Protection Officer: <a href="mailto:dpo@practicepro.ng" className="text-primary-600 underline">dpo@practicepro.ng</a>
+                        Email: <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 underline">practiceprosystems@gmail.com</a><br />
+                        Data Protection Officer: <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 underline">practiceproindex@gmail.com</a>
                     </p>
 
                 </div>

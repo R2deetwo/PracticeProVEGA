@@ -316,7 +316,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     </ul>
                                     <p>Your consent decision is recorded with a timestamp to your user profile, for audit trail purposes under NDPA 2023 Section 25.</p>
                                     <p>You may withdraw your AI processing consent at any time via the AI Settings panel in your account. Withdrawing consent turns off all AI Agent features for your account.</p>
-                                    <p><strong>AI conversation persistence:</strong> Your interactions with {isVega ? 'ALOA™' : 'ARIA™'} are stored in a database only your firm can see. This keeps conversation context across sessions and improves AI response quality within your firm. These conversations are <strong>not</strong> used to train AI models. You can ask for your AI conversation history to be deleted at any time by contacting your firm administrator or dpo@practicepro.ng.</p>
+                                    <p><strong>AI conversation persistence:</strong> Your interactions with {isVega ? 'ALOA™' : 'ARIA™'} are stored in a database only your firm can see. This keeps conversation context across sessions and improves AI response quality within your firm. These conversations are <strong>not</strong> used to train AI models. You can ask for your AI conversation history to be deleted at any time by contacting your firm administrator or practiceproindex@gmail.com.</p>
                                 </div>
                             </div>
                         </section>
@@ -466,7 +466,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <ul className="list-disc pl-8 space-y-4">
                                         <li>Not sharing your password with anyone;</li>
                                         <li>Logging out when using shared or public devices; and</li>
-                                        <li>Telling us immediately at dpo@practicepro.ng if you suspect unauthorised access to your account.</li>
+                                        <li>Telling us immediately at practiceproindex@gmail.com if you suspect unauthorised access to your account.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -736,8 +736,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <div className="pl-4 border-l-2 border-slate-100 space-y-3">
                                     <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
-                                    <p><strong>General enquiries:</strong> <a href="mailto:hello@practicepro.ng" className="text-primary-600 no-underline hover:underline">hello@practicepro.ng</a></p>
-                                    <p><strong>Data protection / privacy:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a></p>
+                                    <p><strong>General enquiries:</strong> <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprosystems@gmail.com</a></p>
+                                    <p><strong>Data protection / privacy:</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 no-underline hover:underline">practiceproindex@gmail.com</a></p>
                                 </div>
                                 <p>We aim to respond to all formal notices and complaints within 5 business days.</p>
                             </div>

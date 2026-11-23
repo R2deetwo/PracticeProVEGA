@@ -54,11 +54,11 @@ const FAQS = [
     },
     {
         q: 'What happens to my data if I leave?',
-        a: 'Your data stays yours. If you close your account you can export it within 60 days; after that it is permanently deleted, except records we are legally required to keep. Data protection questions go to dpo@practicepro.ng.',
+        a: 'Your data stays yours. If you close your account you can export it within 60 days; after that it is permanently deleted, except records we are legally required to keep. Data protection questions go to practiceproindex@gmail.com.',
     },
     {
         q: 'How do support and updates work?',
-        a: 'Support runs in-app — send feedback from the app and receive replies — plus email for account and privacy matters (dpo@practicepro.ng). Product updates arrive continuously, and the Resources page carries the changelog.',
+        a: 'Support runs in-app — send feedback from the app and receive replies — plus email for account and privacy matters (practiceproindex@gmail.com). Product updates arrive continuously, and the Resources page carries the changelog.',
     },
 ];
 

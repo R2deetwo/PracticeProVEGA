@@ -1033,7 +1033,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             {firmDetails.subscriptionPlan === SubscriptionPlan.Enterprise && (
                 <p className="text-center text-sm text-slate-500 dark:text-zinc-400 py-4 border-t border-slate-200 dark:border-zinc-700">
                     Your firm is on a custom Enterprise plan. Contact{' '}
-                    <a href="mailto:sales@practicepro.ng" className="text-primary-600 font-semibold hover:underline">sales@practicepro.ng</a>
+                    <a href="mailto:practiceprosystems@gmail.com" className="text-primary-600 font-semibold hover:underline">practiceprosystems@gmail.com</a>
                     {' '}to change billing or modalities.
                 </p>
             )}
@@ -1615,7 +1615,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                         </p>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                                onClick={() => addToast('To subscribe, contact practiceprosystems@gmail.com to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
                                 className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                             >
                                 Subscribe
@@ -1650,7 +1650,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                             Your VMS add-on has expired. Residents cannot generate new visitor codes.
                         </p>
                         <button
-                            onClick={() => addToast('To re-subscribe, contact founder@practicepro.ng to arrange payment. The founder will reactivate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                            onClick={() => addToast('To re-subscribe, contact practiceprosystems@gmail.com to arrange payment. The founder will reactivate the add-on for your firm.', { type: 'info', duration: 7000 })}
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors flex items-center gap-2 shadow-sm"
                         >
                             Re-subscribe
@@ -1817,7 +1817,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
                         </p>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                                onClick={() => addToast('To subscribe, contact practiceprosystems@gmail.com to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
                                 className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                             >
                                 Subscribe
@@ -1852,7 +1852,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
                             Trial expired. Subscribe to reactivate Estate Community.
                         </p>
                         <button
-                            onClick={() => addToast('To subscribe, contact founder@practicepro.ng to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
+                            onClick={() => addToast('To subscribe, contact practiceprosystems@gmail.com to arrange payment. The founder will activate the add-on for your firm.', { type: 'info', duration: 7000 })}
                             className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors"
                         >
                             Subscribe
@@ -1865,7 +1865,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
             {status !== 'included' && (
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                     <p className="text-2xs text-slate-500 dark:text-zinc-500 leading-relaxed">
-                        💡 <strong>Bundle tip:</strong> Add both Sentry Pass (VMS) and Estate Community for ₦10,000/mo and save ₦2,500/mo. Contact founder@practicepro.ng to arrange the bundle.
+                        💡 <strong>Bundle tip:</strong> Add both Sentry Pass (VMS) and Estate Community for ₦10,000/mo and save ₦2,500/mo. Contact practiceprosystems@gmail.com to arrange the bundle.
                     </p>
                 </div>
             )}

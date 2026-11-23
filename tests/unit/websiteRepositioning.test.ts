@@ -1913,9 +1913,11 @@ describe("W3 — honest social proof (P8)", () => {
     // the absolute "never share with third parties".
     expect(drawer).not.toContain("We will never share your data with third parties");
     expect(drawer).toContain("We never sell your data or share it outside essential infrastructure and email delivery providers bound by confidentiality");
-    // The Gmail fallback is gone — the sales address is on our domain.
-    expect(drawer).not.toContain("gmail.com");
-    expect(drawer).toContain("sales@practicepro.ng");
+    // 2026-11-24 (owner direction): the practicepro.ng addresses were
+    // fictitious — every contact surface now carries the real inboxes.
+    // The sales fallback in the drawer is the company Gmail.
+    expect(drawer).toContain("practiceprosystems@gmail.com");
+    expect(drawer).not.toContain("sales@practicepro.ng");
   });
 });
 

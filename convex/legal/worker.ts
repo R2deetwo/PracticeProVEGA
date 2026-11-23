@@ -63,7 +63,7 @@ import {
  */
 
 const ENGINE_UA =
-  "PracticePro-LegalKB-Engine/1.0 (+autonomous in-app crawler; contact: founders@practicepro.ng)";
+  "PracticePro-LegalKB-Engine/1.0 (+autonomous in-app crawler; contact: practiceprosystems@gmail.com)";
 const FETCH_TIMEOUT_MS = 15_000;
 const ROBOTS_TIMEOUT_MS = 8_000;
 const MAX_BODY_BYTES = 2_000_000;

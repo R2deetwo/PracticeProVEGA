@@ -330,7 +330,7 @@ export const VegaFooter: React.FC<{
                         <span onClick={onCookieClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Cookie Policy</span>
                         <span onClick={onUsageClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Usage Policy</span>
                         <span onClick={onContactSales} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Contact Sales</span>
-                        <a href="mailto:dpo@practicepro.ng" className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
+                        <a href="mailto:practiceprovega@gmail.com" className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
                         <span onClick={onResources} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Security</span>
                     </div>
                 </div>

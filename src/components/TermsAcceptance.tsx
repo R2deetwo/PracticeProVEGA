@@ -65,13 +65,15 @@ const ROLE_TERMS_VERSIONS: Record<string, string> = {
 /**
  * Resolve the user's role context for terms acceptance.
  * Portal users (Tenant/Client) → 'portal_user'.
- * Firm Founder role → 'founder' (if @practicepro.ng) or 'admin'.
+ * Firm Founder role → 'founder' (if @practicepro.ng or the owner's real
+ * founder inbox) or 'admin'.
  * Other roles → lowercase role name.
  */
 function resolveRoleContext(user: any): string {
     if (!user) return 'unknown';
     const email = (user.email || '').toLowerCase();
-    if (email.endsWith('@practicepro.ng')) return 'founder';
+    // 2026-11-24: the owner's real founder inbox also resolves to 'founder'.
+    if (email.endsWith('@practicepro.ng') || email === 'practiceprosystems@gmail.com') return 'founder';
     const role = (user.role || '').toLowerCase();
     if (role === 'client' || role === 'tenant') return 'portal_user';
     if (role === 'founder') return 'admin';

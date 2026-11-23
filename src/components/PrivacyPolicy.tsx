@@ -146,8 +146,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <strong>Company Name:</strong> PracticePro Systems Limited<br />
                                     <strong>Products:</strong> PracticePro Vega (legal practice) and PracticePro Atrium (property management)<br />
                                     <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State<br />
-                                    <strong>Email:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a><br />
-                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>
+                                    <strong>Email:</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 no-underline hover:underline">practiceproindex@gmail.com</a><br />
+                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 no-underline hover:underline">practiceproindex@gmail.com</a>
                                 </p>
                                 <p>
                                     For your account, billing, and platform usage, PracticePro is the Data
@@ -463,7 +463,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     delete, limit, move, or stop us using your personal data. You can also
                                     withdraw consent and make a complaint to the Nigeria Data Protection
                                     Commission (NDPC). To use any of these rights, contact our Data Protection
-                                    Officer at dpo@practicepro.ng.
+                                    Officer at practiceproindex@gmail.com.
                                 </p>
                             </div>
                         </section>
@@ -522,8 +522,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-6">
                                     <p>
                                         <strong>PracticePro Systems Limited</strong><br />
-                                        <strong>Data Protection Officer:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a><br />
-                                        <strong>General Inquiries:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a>
+                                        <strong>Data Protection Officer:</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 hover:underline">practiceproindex@gmail.com</a><br />
+                                        <strong>General Inquiries:</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 hover:underline">practiceproindex@gmail.com</a>
                                     </p>
                                 </div>
                             </div>

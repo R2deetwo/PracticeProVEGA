@@ -179,7 +179,11 @@ export const generateVisitorToken = mutation({
       const vmsAddon = (firm.subscriptionAddons as any)?.vms;
       if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
         // Allow if founder firm (practicepro.ng) for testing
-        const isFounderFirm = (firm.email || '').toLowerCase().endsWith('@practicepro.ng')
+        // 2026-11-24: the owner's real inbox (practiceprosystems@gmail.com)
+        // also clears the founder-firm check.
+        const founderEmail = (firm.email || '').toLowerCase();
+        const isFounderFirm = founderEmail.endsWith('@practicepro.ng')
+          || founderEmail === 'practiceprosystems@gmail.com'
           || firm.id === 'practicepro'
           || (firm.name || '').toLowerCase().includes('practicepro');
         if (!isFounderFirm) {

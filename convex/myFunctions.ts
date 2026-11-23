@@ -2235,7 +2235,10 @@ export const updateUserSecurity = mutation({
 // to, firm scope is enforced with assertSameFirm, and attribution is
 // written from the session-derived email. The two activate* add-on
 // mutations had NO session resolution at all — they now require one.
-const PLATFORM_FOUNDER_EMAILS = new Set(['founder@practicepro.ng', 'admin@practicepro.ng']);
+// 2026-11-24 (owner direction): practiceprosystems@gmail.com added as the
+// real founder identity — the two legacy addresses stay for any existing
+// production account, but the owner's real inbox now clears the gate.
+const PLATFORM_FOUNDER_EMAILS = new Set(['founder@practicepro.ng', 'admin@practicepro.ng', 'practiceprosystems@gmail.com']);
 
 function isPlatformFounder(user: { email?: string | null }): boolean {
   return PLATFORM_FOUNDER_EMAILS.has(String(user.email || '').toLowerCase());

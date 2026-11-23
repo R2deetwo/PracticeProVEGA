@@ -39,7 +39,7 @@ export const vegaSiteConfig: VegaSiteConfig = {
     },
     contact: {
         whatsapp: '',
-        email: 'dpo@practicepro.ng',
+        email: 'practiceprovega@gmail.com',
     },
     portal: {
         client: '/portal/client/login',

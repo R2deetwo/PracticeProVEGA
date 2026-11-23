@@ -44,7 +44,7 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
  * Clauses for international transfers, the dual-role acknowledgement, Founder
  * administrative access (role-restricted, audit-logged, not for reading user
  * content), the emergency data purge right (with 24-hour post-notification),
- * the dpo@practicepro.ng contact, and the "no manual signature required"
+ * the practiceproindex@gmail.com contact, and the "no manual signature required"
  * auto-effect rule.
  */
 
@@ -320,7 +320,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                                     </p>
                                 </div>
                             </div>
-                            <p className="mt-6">For any questions about this DPA, contact our Data Protection Officer at <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>.</p>
+                            <p className="mt-6">For any questions about this DPA, contact our Data Protection Officer at <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 no-underline hover:underline">practiceproindex@gmail.com</a>.</p>
                         </section>
 
                     </div>

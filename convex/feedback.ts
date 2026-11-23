@@ -365,7 +365,8 @@ export const deleteFeedbackThread = mutation({
     // AUTH CHECK (R16 strict) — resolve the caller from the verified bearer
     // session. The previous check trusted caller-supplied emails (spoofable
     // — anyone could delete any thread by passing its owner's email).
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
+    // 2026-11-24: practiceprosystems@gmail.com added (owner's real inbox).
+    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng', 'practiceprosystems@gmail.com'];
     let callerEmailLower: string | undefined;
     let isFounder = false;
     if (args.sessionToken) {

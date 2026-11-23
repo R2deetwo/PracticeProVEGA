@@ -956,7 +956,8 @@ export const App: React.FC = () => {
     const roleContext = (() => {
         if (!currentUser) return 'unknown';
         const email = (currentUser.email || '').toLowerCase();
-        if (email.endsWith('@practicepro.ng')) return 'founder';
+        // 2026-11-24: the owner's real founder inbox also resolves to 'founder'.
+        if (email.endsWith('@practicepro.ng') || email === 'practiceprosystems@gmail.com') return 'founder';
         const role = (currentUser.role || '').toLowerCase();
         if (role === 'client' || role === 'tenant') return 'portal_user';
         if (role === 'founder') return 'admin';

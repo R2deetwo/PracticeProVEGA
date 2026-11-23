@@ -165,8 +165,8 @@ export const COMPANY = {
   name: 'PracticePro Systems Limited',
   shortName: 'PracticePro',
   location: 'Lagos, Nigeria',
-  email: 'hello@practicepro.ng',
-  founderEmail: 'founder@practicepro.ng',
+  email: 'practiceprosystems@gmail.com',
+  founderEmail: 'practiceprosystems@gmail.com',
   website: 'https://practice-pro-vega.vercel.app',
   established: '2026',
 };

@@ -602,7 +602,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
                         <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                             All <strong className="text-slate-700 dark:text-zinc-300">Active</strong> modules are included in your Enterprise plan.
                             Additional court rules and case law databases can be added as licensed modules.
-                            Contact your account manager or email <span className="text-primary-600 dark:text-primary-400">enterprise@practicepro.ng</span> to enquire.
+                            Contact your account manager or email <span className="text-primary-600 dark:text-primary-400">practiceprosystems@gmail.com</span> to enquire.
                         </p>
                     </div>
                 </>
