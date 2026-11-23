@@ -234,15 +234,14 @@ export const HubNavBar: React.FC<{
     );
 };
 
-/** Hub footer — the W18 dark colophon (hub columns, no product branches). */
+/** Hub footer — the dark colophon (brand + company columns). */
 export const HubFooter: React.FC<{
     onPrivacyClick: () => void;
     onTermsClick: () => void;
     onCookieClick: () => void;
     onUsageClick: () => void;
     onContactSales: () => void;
-    onStartKomplete: () => void;
-}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onContactSales, onStartKomplete }) => (
+}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onContactSales }) => (
     <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
@@ -256,37 +255,14 @@ export const HubFooter: React.FC<{
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
                 </div>
-                {/* Products & work — real anchors, new tabs (R21 routing keep). */}
-                <div>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products &amp; Work</p>
-                    <div className="flex flex-col gap-2.5">
-                        <a href="/vega" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                            Vega — Legal Practice OS
-                        </a>
-                        <a href="/atrium" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                            Atrium — Property Management OS
-                        </a>
-                        {/* UX-13 (Komplete acquisition funnel): the footer's
-                            Komplete entry previously opened Contact Sales — a
-                            visitor who had already decided to BUY the unified
-                            product was handed a form to talk about it. It now
-                            opens the signup flow with Komplete preselected
-                            ('komplete' normalizes to unified); sales stays one
-                            click away under Company → Contact Sales. */}
-                        <button onClick={onStartKomplete} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
-                            Komplete — both, for real-estate attorneys
-                        </button>
-                        <a href="https://kozycare.ng" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                            Kozy Care — a client build ↗
-                        </a>
-                        <a href="https://woosh.dpdns.org" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                            Woosh — free temp email ↗
-                        </a>
-                        <button onClick={onContactSales} className="text-primary-400 hover:text-primary-300 text-sm text-left font-semibold transition-colors min-h-[2rem] flex items-center">
-                            Custom systems — built to order →
-                        </button>
-                    </div>
-                </div>
+                {/* 2026-11-23 (owner direction): the "Products & Work"
+                    column that sat here is RETIRED — "get rid of the
+                    products and work section. i think it is a little too
+                    much". The systems are already showcased in the
+                    Our-work section on the page, and the nav's Products
+                    dropdown opens each product's own page, so the footer
+                    column was repetition. The footer keeps the brand
+                    column and the Company column. */}
                 {/* Company — far right column. */}
                 <div className="md:col-start-4">
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>

@@ -119,7 +119,7 @@ Deploy model: **a push to `main` auto-deploys staging; production changes are pr
 |----------|---------|--------------|
 | `tests.yml` | every push + PRs to `main` | Quality gate: Convex typecheck (0 errors), root typecheck (0 errors), identity audit, design-token + UI-primitives ratchets, Vitest |
 | `staging-deploy.yml` | push to `main` | Quality gate → deploy the staging Convex backend + Vercel staging frontend (stable alias `https://staging-practice-pro-vega.vercel.app`); verifies the bundle points at the staging backend, never production |
-| `e2e-smoke.yml` | push + PRs to `main` | Playwright smoke: public hub landing + ALOA panel against production; signup/login gating against staging (only when the `STAGING_URL` secret is set — not set as of 2026-11-23, so CI does not yet exercise logged-in in-app flows) |
+| `e2e-smoke.yml` | push + PRs to `main` | Playwright smoke: public hub landing + ALOA panel against production; signup + login-gating smoke against staging (the `STAGING_URL` secret, set 2026-11-23 — the staging suite pins its own baseURL to the staging origin and refuses to run if the secret points at production) |
 | `codeql.yml` | push + PRs, weekly Monday | CodeQL static analysis (javascript-typescript) |
 | `build-apk.yml` | push to `main` | Quality gate → bump patch version → build and release-sign the universal Android APK → GitHub Releases (tag `build-N`) + `version.json` update |
 | `build-admin-apk.yml` | push to `main` (admin paths changed) | Founder/admin APK — artifacts are login-gated, never a public release asset |

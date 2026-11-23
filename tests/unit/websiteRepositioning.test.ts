@@ -63,6 +63,11 @@
  *     catalogue; and a new "Sound familiar?" section mirrors the visitor's
  *     daily friction first, because people who need a system don't know
  *     they want one yet.
+ *   - 2026-11-23 (owner direction): the hub FOOTER's "Products & Work"
+ *     column is retired ("get rid of the products and work section. i
+ *     think it is a little too much") — the Our-work section stays as the
+ *     one showcase; product links live in the nav's Products dropdown and
+ *     the portfolio cards' Explore CTAs.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -222,10 +227,11 @@ describe("W6 — the portfolio: products + client commissions", () => {
   });
 
   it("Vega and Atrium link to their product pages", () => {
-    expect(hub).toContain("Vega — Legal Practice OS");
-    expect(hub).toContain("Atrium — Property Management OS");
-    expect(hub).toContain('href="/vega"');
-    expect(hub).toContain('href="/atrium"');
+    // 2026-11-23: the footer's Products & Work column is retired; the
+    // product links live in the nav's Products dropdown (new tabs) and
+    // the portfolio cards' Explore CTAs.
+    expect(hub).toContain("label: 'Explore Vega', href: '/vega', external: true");
+    expect(hub).toContain("label: 'Explore Atrium', href: '/atrium', external: true");
   });
 
   it("Kozy Care joins the portfolio, live at kozycare.ng", () => {
@@ -237,9 +243,20 @@ describe("W6 — the portfolio: products + client commissions", () => {
     expect(hub).toContain("Built by PracticePro");
   });
 
-  it("the hub footer sells the custom-systems line of business", () => {
-    expect(hub).toContain("Custom systems — built to order");
-    expect(hub).toContain("Kozy Care — a client build");
+  it("2026-11-23: the footer's Products & Work column is retired — \"a little too much\"", () => {
+    // Owner direction: "get rid of the products and work section. i think
+    // it is a little too much." The hub footer's middle column (Vega /
+    // Atrium / Komplete / Kozy Care / Woosh / Custom systems) is gone —
+    // the Our-work section on the page already showcases the systems and
+    // the nav's Products dropdown opens each product's page, so the
+    // column was repetition. The brand and Company columns survive.
+    expect(hubShell).not.toContain("Products &amp; Work");
+    expect(hubShell).not.toContain("Custom systems — built to order");
+    expect(hubShell).not.toContain("Kozy Care — a client build");
+    expect(hubShell).not.toContain("Woosh — free temp email");
+    expect(hubShell).not.toContain("onStartKomplete");
+    expect(hubShell).toContain("two products, Vega and Atrium");
+    expect(hubShell).toContain(">Company</p>");
   });
 });
 
@@ -642,8 +659,9 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
     expect(tour).toContain("woosh-api.jpg");
   });
 
-  it("the footer lists Woosh alongside the products and the client build", () => {
-    expect(hub).toContain("Woosh — free temp email");
+  it("Woosh stays in the portfolio; the footer column is retired (2026-11-23)", () => {
+    expect(hubWork).toContain("name: 'Woosh'");
+    expect(hubShell).not.toContain("Woosh — free temp email");
   });
 });
 
@@ -685,10 +703,9 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     // Every product-selection surface opens the new tab.
     expect(hub).toContain("onOpenProduct('vega')");
     expect(hub).toContain("onOpenProduct('atrium')");
-    // The footer's product entries are real anchors that open in new tabs.
-    expect(hub).toContain('href="/vega" target="_blank" rel="noopener noreferrer"');
-    expect(hub).toContain('href="/atrium" target="_blank" rel="noopener noreferrer"');
-    // The work cards' Explore CTAs are external links now.
+    // The work cards' Explore CTAs are external links now (2026-11-23:
+    // the footer's product column is retired — the cards and the nav
+    // dropdown carry the product links).
     expect(hub).toContain("label: 'Explore Vega', href: '/vega', external: true");
     expect(hub).toContain("label: 'Explore Atrium', href: '/atrium', external: true");
   });

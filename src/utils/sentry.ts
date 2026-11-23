@@ -5,15 +5,26 @@
  * what's breaking for real users. In development mode, Sentry is disabled
  * (errors show in the browser console instead).
  *
- * SETUP:
+ * SETUP (verified 2026-11-23 — the variable names below are exact):
  * 1. Create a free account at https://sentry.io
  * 2. Create a new project → select "React" → get the DSN
- * 3. Set the DSN as a Vercel/env variable: SENTRY_DSN
- *    (or hardcode it below if you prefer — DSNs are safe to expose)
+ * 3. Set the DSN as VITE_SENTRY_DSN (Vite only exposes VITE_-prefixed
+ *    vars to import.meta.env — a plain SENTRY_DSN env var is silently
+ *    ignored by this file). For Vercel/CI builds, set it as a project
+ *    environment variable BEFORE the build: the value is inlined into
+ *    the bundle at build time, so it must be present when `vite build`
+ *    runs, not just at runtime. DSNs are safe to expose.
+ *    Backend errors are a SEPARATE var: set SENTRY_BACKEND_DSN on the
+ *    Convex deployment (npx convex env set) — see convex/observability.ts.
  * 4. Errors will now flow to your Sentry dashboard automatically
+ *    (STATUS 2026-11-23: neither DSN is configured on production yet —
+ *    the frontend bundle carries no DSN and the Convex deployment has
+ *    no SENTRY_BACKEND_DSN, so crash reporting is effectively OFF and
+ *    backend errors land only in the error_events table.)
  *
- * The GlobalErrorBoundary will also report to Sentry automatically via
- * the componentDidCatch lifecycle (wired below in ErrorBoundary integration).
+ * The GlobalErrorBoundary (src/components/GlobalErrorBoundary.tsx) reports
+ * render crashes automatically via captureError in its componentDidCatch;
+ * AuthContext sets/clears the Sentry user on login/logout.
  */
 
 import * as Sentry from '@sentry/react';
