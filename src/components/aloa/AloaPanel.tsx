@@ -11,6 +11,9 @@ import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 // Quick Capture surface used full-screen (embedded, with a back-to-chat
 // button and the persistent Full Office button).
 import { QuickCaptureView } from '../quickcapture/QuickCaptureView';
+// 7-day Vox-card rule (owner brief 2026-11-24): entering capture mode =
+// "launched Aloa Vox" — stamp the usage timestamp.
+import { stampVoxUsedAt } from '../../utils/voxUsageTracking';
 
 import { Z_CLASS } from '../../overlays/constants';
 const AloaPanel: React.FC = () => {
@@ -35,12 +38,21 @@ const AloaPanel: React.FC = () => {
     React.useEffect(() => {
         if (isPanelOpen && !wasOpenRef.current) {
             setMode(panelInitialMode);
+            // Launching straight into capture = launching Aloa Vox.
+            if (panelInitialMode === 'capture') stampVoxUsedAt();
         }
         if (!isPanelOpen && wasOpenRef.current) {
             setMode('chat');
         }
         wasOpenRef.current = isPanelOpen;
     }, [isPanelOpen, panelInitialMode]);
+
+    // AloaChat's "use voice instead" hand-off also enters Vox — stamp
+    // that as a launch too (7-day card rule).
+    const openCaptureMode = React.useCallback(() => {
+        stampVoxUsedAt();
+        setMode('capture');
+    }, []);
 
     const isShifted = isPanelOpen && dockedModalType && window.innerWidth >= 1280;
 
@@ -100,7 +112,7 @@ const AloaPanel: React.FC = () => {
                         <AloaChat
                             onClose={handleClose}
                             isMobile={isMobile}
-                            onOpenCapture={() => setMode('capture')}
+                            onOpenCapture={openCaptureMode}
                         />
                     )}
                 </div>

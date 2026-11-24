@@ -14,6 +14,7 @@ import { useIsProperty, useProduct } from '../../contexts/ProductContext';
 import { ModalType } from '../../types';
 import { DismissIcon } from '../../constants';
 import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
+import { dismissVirtualEvent } from '../../utils/virtualEventDismissals';
 
 // Import forms directly
 import { MatterForm } from '../forms/MatterForm';
@@ -502,6 +503,25 @@ export const DockedModal: React.FC = () => {
           content = <EventDetailModal
             event={event}
             readOnly={isVirtualEvent}
+            isRecurringVirtual={isVirtualEvent && !!(event as any).recurrence}
+            // HIDE auto-generated reminders (owner brief 2026-11-24) —
+            // anchored dismissal; renewed leases re-surface their reminders.
+            onDismissVirtual={isVirtualEvent ? () => {
+              closeModal();
+              setTimeout(() => openModal('deleteConfirmation', null, {
+                title: (event as any).recurrence ? 'Hide rent series?' : 'Hide lease reminder?',
+                message: (event as any).recurrence
+                  ? 'This reminder is generated from the tenancy on the property record. Hiding it removes the whole rent-due series from your calendar — rent still tracks in the ledger. Renew or edit the lease and the series re-appears with the new dates. Continue?'
+                  : 'This reminder is generated from the lease on the property record — it is not a deletable event. Hiding it removes just this reminder from your calendar. Renew or edit the lease and the reminder re-appears with the new dates. Continue?',
+                onConfirm: () => {
+                  dismissVirtualEvent(event as any);
+                  closeModal();
+                  addToast('Hidden from your calendar — it returns automatically if the lease changes.', { type: 'success' });
+                },
+                confirmText: (event as any).recurrence ? 'Hide Series' : 'Hide Reminder',
+                confirmButtonClass: 'bg-slate-700 hover:bg-slate-800'
+              }), 100);
+            } : undefined}
             matters={matterState.matters}
             users={coreState.users}
             eventTypes={coreState.eventTypes}

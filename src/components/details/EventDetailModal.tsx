@@ -3,6 +3,7 @@ import React from 'react';
 import { CalendarEvent, CustomEventType, Matter, User } from '../../types';
 import { getEventTypeBadgeClass, getInitials, getUserColor } from '../../utils/colorUtils';
 import { PlusIcon, CalendarIcon, ClockIcon, WarningIcon } from '../../constants';
+import { Button } from '../ui';
 
 interface EventDetailModalProps {
   event: CalendarEvent;
@@ -21,6 +22,15 @@ interface EventDetailModalProps {
    * rows to the events table for data that actually lives on the property
    * record. (Calendar round.) */
   readOnly?: boolean;
+  /** HIDE the auto-generated reminder from every calendar surface (owner
+   * brief 2026-11-24: "one of the lease expiry… I can't get rid of it").
+   * Only meaningful in readOnly mode — wired by ModalLayer/DockedModal to
+   * virtualEventDismissals (anchor-aware: a renewed lease re-surfaces the
+   * reminder with its new dates). */
+  onDismissVirtual?: () => void;
+  /** True when the read-only event is a recurring rent-due series — the
+   * confirm copy hides the WHOLE series, not one instance. */
+  isRecurringVirtual?: boolean;
 }
 
 const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
@@ -56,7 +66,7 @@ const safeFormatTime = (date: string | Date, options: Intl.DateTimeFormatOptions
     return d.toLocaleTimeString('en-US', options);
 }
 
-export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matters, users, eventTypes, onEdit, onDelete, onAssign, onNavigateToMatter, onNavigateToCalendar, openedFrom, hasConflict, readOnly }) => {
+export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matters, users, eventTypes, onEdit, onDelete, onAssign, onNavigateToMatter, onNavigateToCalendar, openedFrom, hasConflict, readOnly, onDismissVirtual, isRecurringVirtual }) => {
     
   const getColorForEventType = (typeName: string) => {
     return eventTypes.find(et => et.name === typeName)?.color || 'gray';
@@ -205,9 +215,25 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
        
         <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:flex-nowrap justify-between gap-3">
             {readOnly ? (
-                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest self-center">
-                    Auto-generated from lease data — manage it on the property record.
-                </p>
+                <div className="min-w-0 flex-1">
+                    <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
+                        Auto-generated from lease data — manage it on the property record.
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 leading-snug">
+                        Renew or edit the lease and this reminder re-computes to the new dates automatically.
+                    </p>
+                    {onDismissVirtual && (
+                        <Button
+                            variant="bare"
+                            size="sm"
+                            onClick={onDismissVirtual}
+                            aria-label={isRecurringVirtual ? 'Hide this rent-due series from the calendar' : 'Hide this auto-generated reminder from the calendar'}
+                            className="mt-2.5 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm"
+                        >
+                            {isRecurringVirtual ? 'Hide rent series from calendar' : 'Hide from calendar'}
+                        </Button>
+                    )}
+                </div>
             ) : (
                 <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
             )}

@@ -165,7 +165,14 @@ const MatterCardItem: React.FC<{
     return (
         <div
             onClick={() => selectionMode && onSelect ? onSelect(matter.id, !isSelected) : navigateTo('matterDetail', matter.id)}
-            className={`group relative p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${
+                // UNIFORM SELECTION (owner brief 2026-11-24): selected rows
+                // share the Documents-list treatment (primary highlight +
+                // primary border) — previously Matters used indigo.
+                isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30'
+                : isSelected ? 'border-l-primary-500 bg-primary-50 dark:bg-primary-950/30 ring-1 ring-primary-400/40 dark:ring-primary-700/60'
+                : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'
+            }`}
         >
             {/* SLIM FORM FACTOR (owner direction 2026-11-20): "the Matters
                 cards look kind of off — they don't have the same slim factor
@@ -249,14 +256,11 @@ const MatterCardItem: React.FC<{
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <InlineMatterReview matter={matter} />
-                            {/* V3 (V-MATTER-3): close/reopen reachable from the
-                                card itself — reopening previously had NO UI.
-                                SLIM: hover-revealed on md like the delete
-                                button, so the resting card shows only the
-                                chips (Properties grammar). Always visible on
-                                touch (opacity-100 below md). */}
+                        {/* ACTION GROUP (owner brief 2026-11-24: "group the
+                            review reminder trigger and the delete action
+                            closely together"): close/reopen | review | delete,
+                            one tight gap-1.5 cluster on the right edge. */}
+                        <div className="flex items-center gap-1.5">
                             {isClosed ? (
                                 <Button
                                     variant="bare"
@@ -280,6 +284,7 @@ const MatterCardItem: React.FC<{
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </Button>
                             )}
+                            <InlineMatterReview matter={matter} />
                             <button
                                 onClick={handleDelete}
                                 title={canArchiveMatters ? 'Delete / archive matter' : 'Requires Administrator role'}

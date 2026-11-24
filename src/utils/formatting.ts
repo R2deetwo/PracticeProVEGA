@@ -241,12 +241,60 @@ export const parseFormattedNumber = (value: string): number => {
  * @returns Formatted string.
  */
 export const formatBytes = (bytes: number, decimals = 2): string => {
-  if (!bytes || bytes === 0) return '0 Bytes';
+  if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return '0 Bytes';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+  if (!Number.isFinite(i) || i < 0 || i >= sizes.length) return '0 Bytes';
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
+
+/**
+ * Documents crash-guard (owner brief 2026-11-24): a null/undefined/garbage
+ * dateFiled must never render "Invalid Date"/"1 Jan 1970" (or worse, feed a
+ * NaN into a sort) — legacy and portal-uploaded rows have produced all
+ * three. Returns the formatted date, or `fallback` (default '—').
+ */
+export const formatDateSafe = (
+  value: string | Date | null | undefined,
+  locale: string = 'en-GB',
+  fallback: string = '—',
+  options?: Intl.DateTimeFormatOptions
+): string => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return fallback;
+  return d.toLocaleDateString(locale, options);
+};
+
+/** Same guard for date-time stamps (uploads, activity feeds). */
+export const formatDateTimeSafe = (
+  value: string | Date | null | undefined,
+  locale: string = 'en-GB',
+  fallback: string = '—'
+): string => {
+  if (value === null || value === undefined || value === '') return fallback;
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return fallback;
+  return d.toLocaleString(locale);
+};
+
+/** Sort key that survives null dates: NaN-safe epoch millis (0 for null). */
+export const dateSortKeySafe = (value: string | Date | null | undefined): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const d = value instanceof Date ? value : new Date(value);
+  const t = d.getTime();
+  return Number.isFinite(t) ? t : 0;
+};
+
+/** File extension guard: a null/undefined name never reaches .split(). */
+export const fileExtensionSafe = (fileName: string | null | undefined, fallback: string = 'doc'): string => {
+  if (!fileName || typeof fileName !== 'string') return fallback;
+  const parts = fileName.split('.');
+  if (parts.length < 2) return fallback;
+  const ext = parts.pop();
+  return ext && ext.trim() ? ext.trim().toLowerCase() : fallback;
 };
 
 /**

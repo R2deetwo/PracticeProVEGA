@@ -1,4 +1,12 @@
 import { CalendarEvent } from '../types';
+// Lease/rent reminder dismissal (owner brief 2026-11-24: "one of the lease
+// expiry… I can't get rid of it"). Filtering HERE means every consumer —
+// calendar month/week/diary, the dashboard mini-calendar, the modal
+// resolvers — honours hide-requests through the single choke point. The
+// filter is anchor-aware: a renewed lease (new dates) re-surfaces its
+// reminders; in node/test environments localStorage is unavailable and
+// the guard degrades to "nothing dismissed".
+import { filterDismissedVirtualEvents } from './virtualEventDismissals';
 
 const MAX_OCCURRENCES = 366; // Safeguard against infinite loops, roughly one year of daily events
 export const timelineStartHour = 0; // The timeline starts at 00:00 (midnight) for a full 24-hour view
@@ -386,5 +394,7 @@ export const computeAtriumVirtualEvents = (properties: any[]): CalendarEvent[] =
         }
     });
 
-    return virtualEvents;
+    // Dismissed lease/rent reminders (per firm, per anchor date) never reach
+    // any calendar surface. See virtualEventDismissals.ts for the model.
+    return filterDismissedVirtualEvents(virtualEvents as any) as CalendarEvent[];
 };

@@ -18,6 +18,7 @@ import { useConvex, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
+import { useSessionLockSettings, resolveIdleTimeoutMs } from '../utils/sessionLockSettings';
 // REMINDERS & NOTIFICATION CENTER (owner direction 2026-11-22): fires event
 // reminders as persistent Notification Center rows + device notifications.
 import { useReminderEngine } from '../hooks/useReminderEngine';
@@ -197,6 +198,7 @@ import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
 import { Button } from './ui'; // ADR-0004: the overflow banner's dismiss control uses the ui primitive
+import { SectionErrorBoundary } from './ui'; // Documents crash-guard boundary (2026-11-24)
 import { useContentProtection } from '../hooks/useContentProtection';
 import { isNativePlatform } from '../utils/capacitor';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
@@ -213,7 +215,10 @@ import { getStartupViewPreference } from '../utils/startupViewPreference';
 // matter list was exactly the exposure the owner reported. 15 minutes is
 // the OWASP-recommended idle window for confidential business apps; the
 // lock screen unlock is a password re-verification, not a full login.
-const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes — all staff sessions
+// 2026-11-24 (configurable session lock): the 15-minute figure is now the
+// DEFAULT of a user-configurable policy (Settings → Security, stored by
+// src/utils/sessionLockSettings.ts) — 1/5/15/30/60 min or Never/Off.
+// resolveIdleTimeoutMs returns null when disabled.
 
 type FlowState = 'splash' | 'setup' | 'app' | 'pending_approval';
 
@@ -506,7 +511,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                                 else navigateTo('documents');
                             }}
                             sidebarContent={
-                                <React.Suspense fallback={<DocumentsSkeleton />}><DocumentList isCompact={true} onPreviewLocalFile={setLocalPreviewDoc} /></React.Suspense>
+                                // Documents crash guard (owner brief 2026-11-24):
+                                // a single malformed legacy record can no longer
+                                // blank the whole screen — the section boundary
+                                // shows a retry card instead, and the rest of the
+                                // app stays alive.
+                                <SectionErrorBoundary sectionName="Documents">
+                                    <React.Suspense fallback={<DocumentsSkeleton />}><DocumentList isCompact={true} onPreviewLocalFile={setLocalPreviewDoc} /></React.Suspense>
+                                </SectionErrorBoundary>
                             }
                             detailContent={
                                 selectedId ? (
@@ -1076,10 +1088,15 @@ export const App: React.FC = () => {
 
 
     // 2026-11-22: the idle policy no longer depends on Remember Me — every
-    // staff session locks on idle (see IDLE_TIMEOUT_DEFAULT above). The
-    // useIdleTimer hook is now CROSS-TAB: activity in any tab keeps every
-    // tab alive, and true idle locks all of them together.
-    const idleTimeout = IDLE_TIMEOUT_DEFAULT;
+    // staff session locks on idle by default. The useIdleTimer hook is now
+    // CROSS-TAB: activity in any tab keeps every tab alive, and true idle
+    // locks all of them together. 2026-11-24: the timeout is the USER'S
+    // choice (Settings → Security → Session Auto-Lock) — null disables the
+    // idle lock entirely (Never / Off) at the user's own risk.
+    const [sessionLockSettings] = useSessionLockSettings();
+    // null = auto-lock off (Never / Off in Settings → Security) — useIdleTimer
+    // then installs nothing. Any number = the user's chosen idle window.
+    const idleTimeout = resolveIdleTimeoutMs(sessionLockSettings);
 
     useIdleTimer(() => {
         if (!isAuthenticated || isSessionLocked) return;

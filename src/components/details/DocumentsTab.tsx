@@ -3,14 +3,18 @@ import React, { useState, DragEvent } from 'react';
 import { Document, Matter, FileDetails, User, ModalType, UserRole } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
-import { formatBytes } from '../../utils/formatting';
 import { UploadIcon, UserUploadIcon, ShareIcon, DocumentIcon, EyeIcon, EditIcon, TrashIcon, DownloadIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import Tooltip from '../Tooltip';
-
+// Crash guards (owner brief 2026-11-24): a null file name used to reach
+// `.split('.')` and a null dateFiled fed NaN into the sort — both crashed
+// the tab. formatDateSafe/dateSortKeySafe/fileExtensionSafe keep the view
+// alive on legacy/portal records.
+import { formatBytes, formatDateSafe, dateSortKeySafe, fileExtensionSafe } from '../../utils/formatting';
+import { SectionErrorBoundary } from '../ui';
 import { Z_CLASS } from '../../overlays/constants';
 interface DocumentsTabProps {
     documents: Document[];
@@ -144,8 +148,9 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     };
 
     // Show all documents, ensuring no filtering hides items from teammates
-    const sharedDocuments = documents
-        .sort((a, b) => new Date(b.dateFiled).getTime() - new Date(a.dateFiled).getTime());
+    // (null dates sort last instead of poisoning the comparator).
+    const sharedDocuments = (Array.isArray(documents) ? documents : [])
+        .sort((a, b) => dateSortKeySafe(b.dateFiled) - dateSortKeySafe(a.dateFiled));
 
     const isEmbedded = variant === 'embedded';
     const containerClasses = isEmbedded
@@ -155,7 +160,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     // --- RENDER GRID ITEM (Embedded View) ---
     const renderGridItem = (doc: Document) => {
         const isNew = new Date(doc.dateFiled).getTime() > lastViewedAt && doc.uploadedBy !== currentUser?.id;
-        const extension = doc.file?.name.split('.').pop() || 'doc';
+        const extension = fileExtensionSafe(doc.file?.name, 'doc');
 
         return (
             <div
@@ -305,6 +310,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 </div>
             </div>
 
+            {/* Documents crash guard (owner brief 2026-11-24): one malformed
+                legacy record can no longer take the whole matter page down —
+                the section boundary degrades to a retry card. */}
+            <SectionErrorBoundary sectionName="Documents">
             <div>
                 {sharedDocuments.length > 0 ? (
                     isEmbedded ? (
@@ -350,7 +359,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                                                         </Tooltip>
                                                     </div>
                                                 </td>
-                                                <td onClick={() => onViewDocumentDetails(doc.id)} className="py-3 px-4 text-slate-500 dark:text-zinc-400 cursor-pointer">{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</td>
+                                                <td onClick={() => onViewDocumentDetails(doc.id)} className="py-3 px-4 text-slate-500 dark:text-zinc-400 cursor-pointer">{formatDateSafe(doc.dateFiled)}</td>
                                                 <td className="py-3 px-4 text-slate-500 dark:text-zinc-400">
                                                     {uploader ? uploader.name : 'Unknown'}
                                                 </td>
@@ -398,6 +407,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                     </div>
                 )}
             </div>
+            </SectionErrorBoundary>
         </div>
     );
 };

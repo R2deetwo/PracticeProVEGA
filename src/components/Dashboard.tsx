@@ -35,6 +35,9 @@ import TrialNudgeBanner from './TrialNudgeBanner';
 import { useAloa } from '../contexts/AloaProvider';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { Button } from './ui/Button';
+// 7-day Vox-card rule (owner brief 2026-11-24): the Overview card can be
+// dismissed; it only re-surfaces after 7 days AND 7 days without Vox use.
+import { shouldShowVoxCard, dismissVoxCard, stampVoxUsedAt } from '../utils/voxUsageTracking';
 
 
 
@@ -154,6 +157,11 @@ const Dashboard: React.FC = () => {
     const { light: hapticLight } = useHapticFeedback();
     const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
+    // Dismissible Vox card (owner brief 2026-11-24): hidden after dismissal;
+    // re-evaluated on every mount against the 7-day rule (dismissed ≥7 days
+    // ago AND Vox unused ≥7 days). Local state only flips to false — the
+    // re-surface decision comes from storage, so it holds across reloads.
+    const [voxCardVisible, setVoxCardVisible] = useState(() => shouldShowVoxCard());
     
     // De-structure state
     const { matters, contacts } = matterState;
@@ -356,32 +364,67 @@ const Dashboard: React.FC = () => {
                     mobile Dashboard… jump straight into recording in 1 tap").
                     Phones only — desktop keeps the compact mic button in the
                     top navigation bar. Opens the ALOA panel directly in
-                    Quick Capture mode (one unified voice + AI home). */}
+                    Quick Capture mode (one unified voice + AI home).
+                    DISMISSIBLE (owner brief 2026-11-24): a × on the card hides
+                    it for good — the top header mic control and the
+                    bottom-right FAB are untouched and always available. The
+                    card re-surfaces only if it has been hidden ≥7 days AND
+                    Aloa Vox hasn't been used for ≥7 days. */}
                 <div className="md:hidden">
-                    <Button
-                        variant="bare"
-                        size="md"
-                        fullWidth
-                        aria-label="ALOA Vox — start recording"
-                        className="flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6"
-                        onClick={() => {
-                            hapticLight();
-                            openAloaCapture();
-                        }}
-                    >
-                        <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-md shrink-0">
-                            <MicrophoneIcon className="w-6 h-6" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-black text-slate-900 dark:text-white">
-                                ALOA <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Vox</span>
+                    {voxCardVisible && (
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            aria-label="ALOA Vox — dictate a note, task or question, 1 tap to record"
+                            className="relative flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 pr-12 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6 cursor-pointer"
+                            onClick={() => {
+                                hapticLight();
+                                stampVoxUsedAt();
+                                openAloaCapture();
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    hapticLight();
+                                    stampVoxUsedAt();
+                                    openAloaCapture();
+                                }
+                            }}
+                        >
+                            <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-md shrink-0">
+                                <MicrophoneIcon className="w-6 h-6" />
                             </span>
-                            <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
-                                Dictate a note, task or question — 1 tap to record
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-black text-slate-900 dark:text-white">
+                                    ALOA <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Vox</span>
+                                </span>
+                                <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
+                                    Dictate a note, task or question — 1 tap to record
+                                </span>
                             </span>
-                        </span>
-                        <ChevronRightIcon className="w-5 h-5 text-primary-500 shrink-0" />
-                    </Button>
+                            <ChevronRightIcon className="w-5 h-5 text-primary-500 shrink-0" />
+                            {/* Dismiss — persists the timestamp; the 7-day
+                                re-surface rule lives in voxUsageTracking. */}
+                            <Button
+                                variant="bare"
+                                size="sm"
+                                iconOnly
+                                aria-label="Dismiss Aloa Vox card"
+                                title="Hide this prompt"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    hapticLight();
+                                    dismissVoxCard();
+                                    setVoxCardVisible(false);
+                                }}
+                                className="absolute top-2.5 right-2.5 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-white/70 dark:hover:bg-zinc-700/60 transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">

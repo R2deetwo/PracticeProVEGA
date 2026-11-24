@@ -11,6 +11,12 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { Button, Select } from '../ui';
+import {
+    SESSION_LOCK_TIMEOUT_OPTIONS,
+    useSessionLockSettings,
+    type SessionLockTimeout,
+} from '../../utils/sessionLockSettings';
 
 interface SecuritySettingsProps {
     activities: FirmActivity[];
@@ -248,6 +254,10 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                 )}
             </div>
 
+            {/* SESSION AUTO-LOCK (2026-11-24 owner brief: replace the rigid
+                15-minute lock with user-configurable settings). */}
+            <SessionLockSection />
+
             {/* CONTENT PROTECTION */}
             <ContentProtectionSection />
 
@@ -385,6 +395,104 @@ const ContentProtectionSection: React.FC = () => {
                     <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer dark:bg-dim-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-dim-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-dim-600 peer-checked:bg-teal-600"></div>
                 </label>
             </div>
+        </div>
+    );
+};
+
+// ─── Session Auto-Lock Section ────────────────────────────────────────────────
+// The idle lock used to be a hardcoded 15 minutes with no opt-out. This
+// card exposes the policy: a master toggle (Off) plus the timeout choices
+// 1 / 5 / 15 / 30 / 60 minutes or Never. Stored per device (localStorage —
+// the right scope for a lock policy: a phone and a shared chambers desktop
+// legitimately want different timeouts).
+const SessionLockSection: React.FC = () => {
+    const { addToast } = useUI();
+    const [settings, updateSettings] = useSessionLockSettings();
+
+    const setTimeoutChoice = (value: string) => {
+        const t: SessionLockTimeout = value === 'never' ? 'never' : (Number(value) as SessionLockTimeout);
+        updateSettings({ ...settings, timeoutMinutes: t });
+        addToast(
+            t === 'never'
+                ? 'Auto-lock set to Never. Lock manually from your profile menu when you leave your desk.'
+                : `Session will lock after ${t} minute${t === 1 ? '' : 's'} of inactivity.`,
+            { type: 'success' }
+        );
+    };
+
+    const toggleAutoLock = () => {
+        const next = { ...settings, enabled: !settings.enabled };
+        updateSettings(next);
+        addToast(
+            next.enabled
+                ? `Auto-lock on — locks after ${next.timeoutMinutes === 'never' ? 'Never (no timeout)' : `${next.timeoutMinutes} minute${next.timeoutMinutes === 1 ? '' : 's'}`} of inactivity.`
+                : 'Auto-lock off. Lock manually from your profile menu when you leave your desk.',
+            { type: 'info' }
+        );
+    };
+
+    const off = !settings.enabled || settings.timeoutMinutes === 'never';
+
+    return (
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 bg-primary-50 dark:bg-primary-900/30 rounded-lg shrink-0">
+                        <LockClosedIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Session Auto-Lock</h3>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">
+                            Lock this app automatically after a period of inactivity on this device.
+                        </p>
+                    </div>
+                </div>
+                {/* Switch built on the Button primitive (role=switch) — no raw
+                    checkbox elements (UI-primitives ratchet). */}
+                <Button
+                    variant="bare"
+                    role="switch"
+                    aria-checked={settings.enabled}
+                    aria-label="Toggle session auto-lock"
+                    onClick={toggleAutoLock}
+                    className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${
+                        settings.enabled ? 'bg-primary-600' : 'bg-slate-200 dark:bg-zinc-700'
+                    }`}
+                >
+                    <span
+                        className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                            settings.enabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                    />
+                </Button>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                    <Select
+                        styleVariant="settings"
+                        aria-label="Inactivity timeout before the session locks"
+                        value={String(settings.timeoutMinutes)}
+                        onChange={(e) => setTimeoutChoice(e.target.value)}
+                        disabled={!settings.enabled}
+                        options={SESSION_LOCK_TIMEOUT_OPTIONS.map((t) => ({
+                            value: String(t),
+                            label: t === 'never' ? 'Never (no auto-lock)' : `${t} minute${t === 1 ? '' : 's'}`,
+                        }))}
+                    />
+                </div>
+                <p className="text-xs text-slate-400 dark:text-zinc-500 sm:max-w-[16rem]">
+                    The countdown pauses while the app is backgrounded and resets on taps, typing and navigation.
+                </p>
+            </div>
+
+            {off && (
+                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
+                    <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                        <strong>Auto-lock is off on this device.</strong> Anyone with access to this browser stays signed in until the token expires. Lock manually from your profile menu when you step away, or pick a timeout above.
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

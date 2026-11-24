@@ -1,14 +1,32 @@
-import React, { useState } from 'react';
-import { NotePage, User, ModalType, UserRole } from '../../types';
-import { getInitials, getUserColor, timeAgo } from '../../utils/colorUtils';
-import { CalendarIcon, TasksIcon, TrashIcon, PlusIcon, EditIcon, CheckIcon, XIcon } from '../../constants';
+import React, { useMemo, useState } from 'react';
+import { NotePage, User, ModalType, UserRole, TaskStatus, TaskPriority } from '../../types';
+import { getInitials, getUserColor } from '../../utils/colorUtils';
+import { CalendarIcon, TasksIcon, TrashIcon, PlusIcon, EditIcon, CheckIcon, XIcon, MicrophoneIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useCoreState } from '../../contexts/CoreContext';
+import { useDataActions } from '../../contexts/DataContext';
+import { useMatterState } from '../../contexts/MatterContext';
 import { sanitize } from '../../utils/sanitization';
+import { useFieldDictation } from '../../hooks/useFieldDictation';
+import { extractDatedMention, formatDatedMention, endorsementTitleFrom } from '../../utils/endorsementDateParser';
+import { Button } from '../ui';
 
 /** Notes authored elsewhere (DraftPro, ALOA drafts) can carry rich HTML.
  *  Rendered as sanitized rich text in the timeline — raw tags never show. */
 const looksLikeHtml = (s: string) =>
     /<\/(p|h[1-6]|ol|ul|li|strong|em|b|i|div|blockquote|table)\s*>|<br\s*\/?>/i.test(s || '');
+
+/** Coerce a spoken/event type against the firm's real event-type names —
+ *  same rules as TriageCard's identical helper. */
+function coerceEventType(type: string | undefined, eventTypeNames: string[]): string {
+    if (!type) return eventTypeNames[0] || 'Meeting';
+    const exact = eventTypeNames.find((t) => t.toLowerCase() === type.toLowerCase());
+    if (exact) return exact;
+    const partial = eventTypeNames.find(
+        (t) => t.toLowerCase().includes(type.toLowerCase()) || type.toLowerCase().includes(t.toLowerCase())
+    );
+    return partial || eventTypeNames[0] || 'Meeting';
+}
 
 interface TeamDiscussionTabProps {
     matterId: string;
@@ -137,31 +155,124 @@ const EndorsementTimelineItem: React.FC<{
 const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, users, currentUser, onAddNote, onUpdateNote, openModal, onDeleteNote, filterType = 'user' }) => {
     const [content, setContent] = useState('');
     const { addToast } = useUI();
+    const { coreState } = useCoreState();
+    const { matterState } = useMatterState();
+    const { addItem, handleAddTask } = useDataActions();
+
+    // ── ALOA VOX in the composer (owner brief 2026-11-24: "when you say
+    //    post endorsement… we should have the ability to use Aloa Vox").
+    //    The mic dictates straight into the endorsement box — the same
+    //    Whisper→Gemini transcription engine the rest of the app uses,
+    //    appending near-live every ~10 seconds.
+    const dictation = useFieldDictation({
+        onAppend: (text) => {
+            setContent((prev) => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n${text}` : text));
+        },
+        onError: (message, opts) => addToast(message, opts),
+    });
+
+    const eventTypeNames = useMemo(
+        () => (coreState.eventTypes || []).map((t: any) => t.name).filter(Boolean) as string[],
+        [coreState.eventTypes]
+    );
+    const matter = useMemo(
+        () => (matterState.matters || []).find((m: any) => m.id === matterId || m._id === matterId),
+        [matterState.matters, matterId]
+    );
+    const matterTitle: string | undefined = matter?.title;
+
+    const postEndorsementNote = () => {
+        onAddNote(matterId, `Endorsement by ${currentUser.name}`, content, 'endorsement');
+    };
 
     const handlePost = () => {
         if (!content.trim()) return;
-        onAddNote(matterId, `Endorsement by ${currentUser.name}`, content, 'endorsement');
+        postEndorsementNote();
         setContent('');
     };
 
-    const handleCreateTask = () => {
+    // ── ONE-CLICK TASK (owner brief 2026-11-24: "Should this not be
+    //    automatically recorded? Must there be some extra step… before it
+    //    can be logged as something that will enter the calendar…?").
+    //    The endorsement is posted AND the task is created directly — no
+    //    form round-trip. The first line becomes the task title; a spoken
+    //    date ("file before 12/03/2026") becomes the due date. No date →
+    //    no due date (never fabricate a legal deadline). handleAddTask is
+    //    the same pipeline TaskForm uses (offline queue, notifications).
+    const handleCreateTask = async () => {
         if (!content.trim()) {
-            addToast(`Please type the endorsement first to convert it to a task.`, { type: 'error' });
+            addToast(`Please type or dictate the endorsement first to convert it to a task.`, { type: 'error' });
             return;
         }
-        onAddNote(matterId, `Endorsement by ${currentUser.name}`, content, 'endorsement');
-        openModal('newTask', null, { matterId, description: content, openedFrom: 'matterDetail' });
-        setContent('');
+        const dated = extractDatedMention(content);
+        const title = endorsementTitleFrom(content);
+        try {
+            await handleAddTask({
+                title,
+                description: content,
+                status: TaskStatus.Todo,
+                dueDate: dated ? dated.date.toISOString() : null,
+                assignedUsers: [currentUser.id],
+                assigneeType: 'team',
+                isSharedWithPortal: false,
+                matterId,
+                priority: TaskPriority.Medium,
+            });
+            postEndorsementNote();
+            setContent('');
+            if (dated) {
+                addToast(`Task due ${formatDatedMention(dated)} — read from the endorsement.`, { type: 'success', duration: 6000 });
+            } else if (matterTitle) {
+                addToast(`Task created for ${matterTitle} (no date in the endorsement — open it in Tasks to add a due date).`, { type: 'info', duration: 6000 });
+            }
+        } catch (e: any) {
+            addToast(e?.message || 'Could not create the task — the endorsement was not posted.', { type: 'error' });
+        }
     };
 
-    const handleCreateEvent = () => {
+    // ── ONE-CLICK EVENT: posted + on the calendar immediately. A spoken
+    //    date lands the event on that date (time-of-day if spoken, else
+    //    09:00 — the court convention); no date → today 09:00, stated
+    //    plainly in the toast so nothing happens silently.
+    const handleCreateEvent = async () => {
         if (!content.trim()) {
-            addToast(`Please type the endorsement first to convert it to an event.`, { type: 'error' });
+            addToast(`Please type or dictate the endorsement first to convert it to an event.`, { type: 'error' });
             return;
         }
-        onAddNote(matterId, `Endorsement by ${currentUser.name}`, content, 'endorsement');
-        openModal('newEvent', null, { matterId, fromNoteContent: content, openedFrom: 'matterDetail' });
-        setContent('');
+        const dated = extractDatedMention(content);
+        const title = endorsementTitleFrom(content);
+        const base = dated ? dated.date : new Date();
+        const timeMinutes = dated?.timeMinutes ?? 9 * 60;
+        const hours = Math.floor(timeMinutes / 60);
+        const minutes = timeMinutes % 60;
+        const start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), hours, minutes, 0, 0);
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+        try {
+            await addItem('events', {
+                title,
+                description: content,
+                matterTitle,
+                type: coerceEventType('Mention', eventTypeNames),
+                date: start.toISOString(),
+                endDate: end.toISOString(),
+                matterId,
+                status: 'Active',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                assignedUsers: [currentUser.id],
+            }, `Event: ${title}`);
+            postEndorsementNote();
+            setContent('');
+            const when = start.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+            addToast(
+                dated
+                    ? `Added to the diary for ${formatDatedMention(dated)} — tap it on the calendar to adjust.`
+                    : `No date found in the endorsement — added for ${when}. Tap it on the calendar to move it.`,
+                { type: 'success', duration: 6000 }
+            );
+        } catch (e: any) {
+            addToast(e?.message || 'Could not create the event — the endorsement was not posted.', { type: 'error' });
+        }
     };
 
     const filteredNotes = (Array.isArray(notes) ? notes : [])
@@ -176,7 +287,7 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
                     <textarea
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
-                        placeholder="Write a case endorsement or update..."
+                        placeholder="Write a case endorsement or update… (or tap the mic below to dictate)"
                         className="w-full border-none focus:ring-0 resize-none p-4 text-sm text-slate-700 dark:text-zinc-200 placeholder-slate-400 bg-transparent min-h-[120px]"
                     />
                 </div>
@@ -184,16 +295,53 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
                 {/* Toolbar */}
                 <div className="bg-slate-50 dark:bg-zinc-900/50 px-3 py-2 flex flex-wrap gap-3 items-center justify-between border-t border-slate-100 dark:border-zinc-700">
                     <div className="flex gap-1 flex-wrap items-center">
+                        {/* ALOA VOX mic — dictates into this box. Recording
+                            state is unmistakable (red pulse + timer). */}
+                        {dictation.supported ? (
+                            <Button
+                                variant="bare"
+                                size="sm"
+                                onClick={dictation.toggle}
+                                aria-label={dictation.isRecording ? 'Stop dictation' : 'Dictate endorsement with Aloa Vox'}
+                                title={dictation.isRecording ? 'Stop dictation' : 'Dictate with Aloa Vox'}
+                                aria-pressed={dictation.isRecording}
+                                className={`flex items-center gap-1.5 rounded-lg p-2 text-xs font-semibold transition-all ${
+                                    dictation.isRecording
+                                        ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                        : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-700'
+                                }`}
+                            >
+                                <span className="relative flex items-center justify-center">
+                                    {dictation.isRecording && (
+                                        <span
+                                            className="absolute inset-0 rounded-full bg-red-500/20 animate-ping"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    <MicrophoneIcon className={`w-4 h-4 relative ${dictation.isRecording ? 'text-red-500' : ''}`} />
+                                </span>
+                                {dictation.isRecording ? (
+                                    <span className="tabular-nums whitespace-nowrap">
+                                        {dictation.elapsedSeconds >= 60
+                                            ? `${Math.floor(dictation.elapsedSeconds / 60)}:${String(dictation.elapsedSeconds % 60).padStart(2, '0')}`
+                                            : `${dictation.elapsedSeconds}s`}
+                                        {dictation.status === 'processing' ? ' · transcribing…' : ' · recording'}
+                                    </span>
+                                ) : (
+                                    <span className="whitespace-nowrap">Vox</span>
+                                )}
+                            </Button>
+                        ) : null}
                         <button
                             onClick={handleCreateTask}
-                            title="Post & Create Task"
+                            title="Post endorsement & create the task immediately — a spoken date becomes the due date"
                             className="p-2 text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-700 rounded-lg transition-all text-xs font-semibold flex items-center gap-1.5"
                         >
                             <TasksIcon className="w-4 h-4" /> <span>+ Task</span>
                         </button>
                         <button
                             onClick={handleCreateEvent}
-                            title="Post & Create Event"
+                            title="Post endorsement & put it on the calendar immediately — a spoken date becomes the event date"
                             className="p-2 text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-white dark:hover:bg-zinc-700 rounded-lg transition-all text-xs font-semibold flex items-center gap-1.5"
                         >
                             <CalendarIcon className="w-4 h-4" /> <span>+ Event</span>

@@ -796,8 +796,12 @@ const Header: React.FC = React.memo(() => {
                     )}
                 </div>
 
-                {/* Active Peers Display - MOVED HERE */}
-                <div className="flex items-center px-1">
+                {/* Active Peers Display - MOVED HERE.
+                    ANDROID HEADER GUARD (owner brief 2026-11-24): the strip is
+                    a min-w-0 + overflow-hidden flex slot so it can never push
+                    the user menu or search off the narrow mobile viewport;
+                    the moniker + "+N" chip inside are shrink-0. */}
+                <div className="flex items-center min-w-0 overflow-hidden px-1">
                     <PresenceAvatars activePeers={activePeers} currentUser={currentUser} />
                 </div>
 

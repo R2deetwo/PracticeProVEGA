@@ -26,12 +26,22 @@ const writeGlobalActivity = () => {
     } catch { /* storage unavailable — fall back to per-tab timing */ }
 };
 
-export const useIdleTimer = (onIdle: () => void, timeout: number) => {
+/** Mark "the user is active" without resetting any particular tab's timer
+ *  (the storage event + timestamp handle that). Long-running non-pointer
+ *  interactions — a Vox dictation in progress, a document being read aloud
+ *  — call this so the session lock doesn't fire mid-speech. */
+export const markUserActivity = () => writeGlobalActivity();
+
+/** Configurable session lock (owner brief 2026-11-24): timeoutMs = null
+ * means auto-lock is DISABLED (Settings → Security → Never / Off) — the
+ * hook installs nothing and fires nothing. */
+export const useIdleTimer = (onIdle: () => void, timeoutMs: number | null) => {
     const timeoutId = useRef<number | undefined>(undefined);
     const onIdleRef = useRef(onIdle);
     onIdleRef.current = onIdle;
 
     const resetTimer = useCallback(() => {
+        if (timeoutMs == null) return; // auto-lock disabled — nothing to schedule
         if (timeoutId.current != null) {
             window.clearTimeout(timeoutId.current);
         }
@@ -41,15 +51,16 @@ export const useIdleTimer = (onIdle: () => void, timeout: number) => {
         // remaining window instead of locking a browser that is in use.
         timeoutId.current = window.setTimeout(() => {
             const idleFor = Date.now() - readGlobalActivity();
-            if (idleFor >= timeout) {
+            if (idleFor >= timeoutMs) {
                 onIdleRef.current();
             } else {
-                timeoutId.current = window.setTimeout(() => onIdleRef.current(), Math.max(timeout - idleFor, 1000));
+                timeoutId.current = window.setTimeout(() => onIdleRef.current(), Math.max(timeoutMs - idleFor, 1000));
             }
-        }, timeout);
-    }, [timeout]);
+        }, timeoutMs);
+    }, [timeoutMs]);
 
     useEffect(() => {
+        if (timeoutMs == null) return; // disabled — no listeners, no timer
         const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
         let lastWrite = 0;
 
@@ -83,6 +94,25 @@ export const useIdleTimer = (onIdle: () => void, timeout: number) => {
             }
         };
     }, [resetTimer]);
+
+    // Backgrounded apps (Android/Capacitor, hidden browser tabs) must not
+    // burn the countdown while invisible — a user who backgrounded the app
+    // for 20 minutes to answer a call has NOT abandoned the session. Pause
+    // the countdown on hidden, resume it on visible (2026-11-24 configurable
+    // session lock brief: "pause/handle cleanly when the app is backgrounded
+    // or resumed").
+    useEffect(() => {
+        if (timeoutMs == null) return;
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                resetTimer();
+            } else if (timeoutId.current != null) {
+                window.clearTimeout(timeoutId.current);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => document.removeEventListener('visibilitychange', onVisibility);
+    }, [resetTimer, timeoutMs]);
 
     return resetTimer;
 };

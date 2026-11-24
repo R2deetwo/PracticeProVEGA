@@ -24,7 +24,6 @@ interface DisplayItem {
     isOnline: boolean;
     lastSeen: number;
     state: PresenceState;
-    wentOfflineAt: number | null;
 }
 
 function formatLastSeen(ts: number): string {
@@ -37,39 +36,33 @@ function formatLastSeen(ts: number): string {
     return new Date(ts).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
 }
 
-const OFFLINE_GRACE_MS = 10_000;
-const MAX_AVATARS = 4;
-
 /**
- * PresenceAvatars — the header's team-presence stack.
+ * PresenceAvatars — the header's team-presence strip, reworked for the
+ * Android/mobile header (owner brief 2026-11-24):
  *
- * R74 (owner direction): "the thing with being able to open to do a drop
- * down and message people directly… that's something that we can
- * implement inside the app. And maybe you can even select multiple
- * people so that you can create a group message." So the stack is now a
- * MESSAGING SURFACE, wired to the real system:
+ *   • ACTIVE/ONLINE ONLY — offline members are filtered out of the strip so
+ *     they never clutter the narrow mobile header (they remain in the +N
+ *     roster, status-dotted, so anyone can still be messaged).
+ *   • ONE moniker + "+N" — a single primary avatar plus a compact counter
+ *     for the other active members, instead of a long row of badges.
+ *   • No horizontal overflow — the wrapper is min-w-0 + overflow-hidden and
+ *     every badge is shrink-0, so the strip can never push controls off-screen.
  *
- *   • click any avatar (or roster row) → the New Direct Message form,
- *     pre-addressed to that teammate — send lands in Messages, with the
- *     notification fired server-side;
- *   • tick several teammates in the roster → "Message N teammates"
- *     opens the SAME form in group mode with everyone preselected —
- *     one name, one message, a group channel is born.
- *
- * The quiet stack styling is untouched — it only gained a pointer
- * cursor and a subtle hover ring, because it finally does something.
+ * Messaging hand-offs (R74, unchanged):
+ *   • tap the moniker → the New Direct Message form pre-addressed to that
+ *     teammate;
+ *   • tap +N → the roster picker (tick several for a group message).
  */
 export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, currentUser, className = '' }) => {
     const { coreState } = useCoreState();
     const { isOnline: deviceOnline, openModal } = useUI();
     const [tick, setTick] = useState(0);
-    const [fadedOut, setFadedOut] = useState<Set<string>>(new Set());
     const [showOverflowList, setShowOverflowList] = useState(false);
     // R74: multi-select for group messages — keyed by member id.
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const overflowRef = useRef<HTMLDivElement>(null);
 
-    // Tick every 2s for grace period logic
+    // Tick every 2s so last-seen labels & status dots stay fresh.
     useEffect(() => {
         const interval = setInterval(() => setTick(t => t + 1), 2000);
         return () => clearInterval(interval);
@@ -115,30 +108,17 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
     const getUser = (id: string) => coreState.users.find(u => u.id === id || u._id === id || String(u._id) === String(id));
 
-    const offlineSinceRef = useRef<Map<string, number>>(new Map());
-
     const displayItems: DisplayItem[] = useMemo(() => {
-        const now = Date.now();
         return teamMembers.map(member => {
             const memberId = String(member.id || member._id || '');
             const peerData = peerMap.get(memberId);
             const isOnline = peerData?.isOnline ?? false;
             const lastSeen = peerData?.lastSeen ?? 0;
 
-            if (isOnline) {
-                offlineSinceRef.current.delete(memberId);
-            } else {
-                if (!offlineSinceRef.current.has(memberId) && lastSeen > 0) {
-                    offlineSinceRef.current.set(memberId, now);
-                }
-            }
-
-            const wentOfflineAt = offlineSinceRef.current.get(memberId) || null;
-
             let state: PresenceState;
             if (isOnline && deviceOnline) {
                 state = 'online';
-            } else if (lastSeen > 0 && (now - lastSeen) < 60_000) {
+            } else if (lastSeen > 0 && (Date.now() - lastSeen) < 60_000) {
                 state = 'inactive';
             } else {
                 state = 'offline';
@@ -151,40 +131,16 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 isOnline,
                 lastSeen,
                 state,
-                wentOfflineAt,
             };
         });
     }, [teamMembers, peerMap, deviceOnline, tick]);
 
-    useEffect(() => {
-        const now = Date.now();
-        const newFaded = new Set(fadedOut);
-        let changed = false;
-        for (const item of displayItems) {
-            if (item.state === 'offline' && item.wentOfflineAt) {
-                if (now - item.wentOfflineAt > OFFLINE_GRACE_MS) {
-                    if (!newFaded.has(item.id)) {
-                        newFaded.add(item.id);
-                        changed = true;
-                    }
-                }
-            } else {
-                if (newFaded.has(item.id)) {
-                    newFaded.delete(item.id);
-                    changed = true;
-                }
-            }
-        }
-        if (changed) setFadedOut(newFaded);
-    }, [displayItems, tick, fadedOut]);
-
-    // Sort: online first, then inactive, then offline
-    const visibleItems = displayItems
-        .filter(item => !fadedOut.has(item.id))
-        .sort((a, b) => {
-            const order = { online: 0, inactive: 1, offline: 2 };
-            return order[a.state] - order[b.state];
-        });
+    // ── THE STRIP: active/online members only ─────────────────────────────
+    // Offline and stale members never render in the header (they'd crowd the
+    // narrow Android viewport); the roster keeps them reachable.
+    const onlineItems = displayItems
+        .filter(item => item.state === 'online')
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     // ── R74: the messaging hand-offs ──────────────────────────────────────
     const startDm = (memberId: string) => {
@@ -212,100 +168,73 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         });
     };
 
-    if (teamMembers.length === 0 || visibleItems.length === 0) return null;
+    if (teamMembers.length === 0 || onlineItems.length === 0) return null;
 
-    const visibleList = visibleItems.slice(0, MAX_AVATARS);
-    const overflowItems = visibleItems.slice(MAX_AVATARS);
-    const overflowCount = overflowItems.length;
+    const primary = onlineItems[0];
+    const primaryUser = getUser(primary.id);
+    if (!primaryUser) return null;
+    const extraOnlineCount = onlineItems.length - 1; // the "+N" on the chip
     const selectedCount = selected.size;
+    // Roster (the +N picker): everyone, active first — so an offline
+    // teammate can still be messaged directly.
+    const rosterItems = displayItems
+        .slice()
+        .sort((a, b) => {
+            const order = { online: 0, inactive: 1, offline: 2 };
+            return order[a.state] - order[b.state] || a.name.localeCompare(b.name);
+        });
 
     return (
-        <div className={`flex items-center -space-x-2 ${className}`}>
-            {visibleList.map((item, index) => {
-                const user = getUser(item.id);
-                if (!user) return null;
+        <div className={`flex items-center gap-1.5 min-w-0 overflow-hidden ${className}`}>
+            {/* THE ONE moniker — tap to open the DM for that teammate. */}
+            <Tooltip text={`${primaryUser.name} (Active now) — click to message`}>
+                <Button
+                    variant="bare"
+                    onClick={() => startDm(primary.id)}
+                    aria-label={`Message ${primaryUser.name}`}
+                    title={`Message ${primaryUser.name}`}
+                    className={`
+                        relative shrink-0 w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800
+                        flex items-center justify-center text-white font-bold text-xs
+                        cursor-pointer hover:scale-110 active:scale-95
+                        ${getUserColor(primaryUser.name)}
+                        ${Z_CLASS.panelTop}
+                    `}
+                >
+                    {getInitials(primaryUser.name)}
+                    <span
+                        className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20"
+                        style={{ transform: 'translate(25%, 25%)' }}
+                    />
+                </Button>
+            </Tooltip>
 
-                const showOnline = item.state === 'online';
-                const showInactive = item.state === 'inactive';
-                const isFading = item.state === 'offline' && item.wentOfflineAt &&
-                    (Date.now() - item.wentOfflineAt > OFFLINE_GRACE_MS * 0.5);
-
-                const statusText = showOnline
-                    ? '(Active now)'
-                    : item.lastSeen > 0
-                        ? `(Last seen ${formatLastSeen(item.lastSeen)})`
-                        : '(Offline)';
-                const tooltipText = `${user.name} ${statusText} — click to message`;
-
-                const zIndex = 100 - index;
-
-                return (
-                    <Tooltip key={item.id} text={tooltipText}>
-                        <Button
-                            variant="bare"
-                            onClick={() => startDm(item.id)}
-                            aria-label={`Message ${user.name}`}
-                            title={`Message ${user.name}`}
-                            className={`
-                                relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800
-                                flex items-center justify-center text-white font-bold text-xs
-                                transition-all duration-700 ease-in-out
-                                ${getUserColor(user.name)}
-                                ${showOnline ? 'ring-2 ring-green-500 opacity-100' : ''}
-                                ${showInactive ? 'ring-2 ring-amber-400 opacity-70' : ''}
-                                ${item.state === 'offline' ? 'opacity-40 grayscale filter ring-0' : ''}
-                                ${isFading ? 'scale-75 opacity-0' : ''}
-                                cursor-pointer hover:scale-110 hover:${Z_CLASS.panelTop} active:scale-95
-                            `}
-                            style={{ zIndex, transition: 'all 0.7s ease-in-out' }}
-                        >
-                            {getInitials(user.name)}
-                            {showOnline && (
-                                <span
-                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20"
-                                    style={{ transform: 'translate(25%, 25%)' }}
-                                />
-                            )}
-                            {showInactive && (
-                                <span
-                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-amber-400 z-20"
-                                    style={{ transform: 'translate(25%, 25%)' }}
-                                />
-                            )}
-                            {item.state === 'offline' && !isFading && item.lastSeen > 0 && (
-                                <span
-                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-slate-400 z-20"
-                                    style={{ transform: 'translate(25%, 25%)' }}
-                                />
-                            )}
-                        </Button>
-                    </Tooltip>
-                );
-            })}
-            {overflowCount > 0 && (
-                <div className="relative" ref={overflowRef}>
+            {/* "+N" — additional ACTIVE members. Tapping opens the roster
+                picker to message anyone directly. */}
+            {extraOnlineCount > 0 && (
+                <div className="relative shrink-0" ref={overflowRef}>
                     <button
                         onClick={() => setShowOverflowList(!showOverflowList)}
-                        className="relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-2xs z-10 cursor-pointer hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
-                        aria-label={`Show ${overflowCount} more team members`}
+                        className="relative shrink-0 w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-slate-600 dark:text-zinc-300 font-bold text-2xs z-10 cursor-pointer hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
+                        aria-label={`${extraOnlineCount} more active team members — open picker to message someone`}
                         aria-expanded={showOverflowList}
                     >
-                        +{overflowCount}
+                        +{extraOnlineCount}
                     </button>
                     {showOverflowList && (
                         <div className={`absolute right-0 top-full mt-2 w-72 max-h-96 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 ${Z_CLASS.panelOverlay} animate-fade-in-up`}>
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700">
-                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Team Members ({visibleItems.length})</p>
+                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Team Members ({rosterItems.length})</p>
                                 <p className="text-2xs text-slate-400">
-                                    {visibleItems.filter(i => i.state === 'online').length} online · {' '}
-                                    {visibleItems.filter(i => i.state !== 'online').length} offline
+                                    {rosterItems.filter(i => i.state === 'online').length} online · {' '}
+                                    {rosterItems.filter(i => i.state !== 'online').length} offline
                                 </p>
                                 <p className="text-2xs text-slate-400 mt-1">
                                     Click a teammate to message them — or tick a few to start a group.
                                 </p>
                             </div>
                             <div className="divide-y divide-slate-50 dark:divide-zinc-700/50">
-                                {visibleItems.map((item) => {
+                                {rosterItems.map((item) => {
                                     const user = getUser(item.id);
                                     if (!user) return null;
                                     const isOnline = item.state === 'online';

@@ -9,7 +9,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useMatterState } from '../contexts/MatterContext';
 import EmptyState from './EmptyState';
-import { formatBytes } from '../utils/formatting';
+import { formatBytes, formatDateSafe, dateSortKeySafe, fileExtensionSafe } from '../utils/formatting';
+// Uniform selection grammar (owner brief 2026-11-24): Documents now shares
+// the exact row-highlight/checkbox treatment with Matters.
+import { ROW_SELECTED, ROW_UNSELECTED, CHECKBOX, CHECKBOX_SELECTED, CHECK_ICON_CLASS, CHECK_ICON_PATH } from '../utils/selectionStyles';
 import Tooltip from './Tooltip';
 import { LocalDocumentManager } from './LocalDocumentManager';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
@@ -30,7 +33,7 @@ interface DocumentListProps {
 }
 
 const getFileIcon = (fileName: string, mimeType?: string) => {
-    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+    const extension = fileExtensionSafe(fileName, '');
 
     if (extension === 'pdf' || mimeType === 'application/pdf') {
         return <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 font-bold text-2xs flex items-center justify-center w-9 h-9">PDF</div>;
@@ -77,16 +80,17 @@ const DocumentRow: React.FC<{
                         onViewDetails(doc.id);
                     }
                 }}
-                className={`flex items-start gap-2 p-3.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border min-h-[48px] ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
+                className={`flex items-start gap-2 p-3.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border min-h-[48px] ${selected ? ROW_SELECTED : ROW_UNSELECTED}`}
             >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {/* Checkbox — visible in selection mode */}
+                    {/* Checkbox — visible in selection mode (shared
+                        selection grammar — same as Matters rows) */}
                     {selectionMode && (
                         <div className="flex-shrink-0 mt-0.5">
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'}`}>
+                            <div className={`${CHECKBOX} ${selected ? CHECKBOX_SELECTED : ''}`}>
                                 {selected && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    <svg className={CHECK_ICON_CLASS} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d={CHECK_ICON_PATH} />
                                     </svg>
                                 )}
                             </div>
@@ -110,7 +114,7 @@ const DocumentRow: React.FC<{
                             <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
                         </Tooltip>
                         <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
-                            <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
+                            <span>{formatDateSafe(doc.dateFiled)}</span>
                             {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                             {doc.isCourtProcess && (
                                 <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
@@ -160,7 +164,7 @@ const DocumentRow: React.FC<{
                         <div className="px-5 py-3 border-b border-slate-100 dark:border-zinc-800">
                             <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{doc.title}</p>
                             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                {new Date(doc.dateFiled).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                {formatDateSafe(doc.dateFiled, 'en-GB', '—', { day: 'numeric', month: 'long', year: 'numeric' })}
                                 {doc.file && <span> • {formatBytes(doc.file.size)}</span>}
                             </p>
                         </div>
@@ -404,9 +408,12 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
         }
         if (searchTerm) {
             const lower = searchTerm.toLowerCase();
-            docs = docs.filter(d => d.title.toLowerCase().includes(lower));
+            docs = docs.filter(d => (d.title || '').toLowerCase().includes(lower));
         }
-        return docs.sort((a, b) => new Date(b.dateFiled).getTime() - new Date(a.dateFiled).getTime());
+        // Crash guard: null/garbage dates sort to the bottom instead of
+        // feeding NaN into the comparator (which made the list order jump
+        // around on legacy records).
+        return docs.sort((a, b) => dateSortKeySafe(b.dateFiled) - dateSortKeySafe(a.dateFiled));
     }, [documents, selectedCategory, searchTerm, assignmentFilter, currentUser?.id, matters]);
 
     const groupedDocuments = useMemo(() => {

@@ -77,6 +77,12 @@ import {
   type QuickAskResult,
 } from "../../services/voice/voiceCaptureService";
 import { voiceSync } from "../../services/voice/audioQueue";
+// 7-day Vox-card rule: an actual recording = "used Aloa Vox" — stamps
+// the usage timestamp so the Overview prompt card stays hidden for a week.
+import { stampVoxUsedAt } from "../../utils/voxUsageTracking";
+// Keeps the session-lock countdown alive while the user dictates (taps
+// stop during a take; the global activity heartbeat must not).
+import { markUserActivity } from "../../hooks/useIdleTimer";
 import {
   getStartupViewPreference,
   setStartupViewPreference,
@@ -359,6 +365,16 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       addToast("Voice note ready — tap to review it.", { type: "success" });
     },
   });
+
+  // Session-lock heartbeat: while a take is live the user is working — they
+  // just aren't tapping anything. Publish the global activity timestamp
+  // every 30s so a long dictation never trips the idle lock mid-speech.
+  useEffect(() => {
+    if (qc.phase !== "recording") return;
+    markUserActivity();
+    const heartbeat = setInterval(markUserActivity, 30_000);
+    return () => clearInterval(heartbeat);
+  }, [qc.phase]);
 
   const toggleWhisperMode = useCallback(() => {
     setWhisperMode((prev) => {
@@ -1381,6 +1397,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     onClick={() => {
                       guardVox(() => {
                         medium();
+                        stampVoxUsedAt();
                         void qc.startRecording();
                       });
                     }}
