@@ -352,6 +352,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         inviteCode={(coreState.firmDetails as any).inviteCode}
                         inviterName={currentUser.name || currentUser.email || ''}
                         isLegal={isLegal}
+                        dismissKey={String(currentUser.firmId)}
                     />
                 </React.Suspense>
             )}

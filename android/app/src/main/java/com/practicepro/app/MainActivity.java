@@ -8,6 +8,9 @@ import android.view.WindowManager;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.practicepro.app.plugins.ContentProtectionPlugin;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 /**
  * MainActivity — PracticePro Android entry point.
@@ -85,6 +88,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ContentProtectionPlugin.class);
         super.onCreate(savedInstanceState);
         applyFlagSecure();
+        bridgeSystemBarInsetsToWebView();
 
         // Create notification channel BEFORE any notification could arrive.
         // Must run in onCreate so the channel exists before the first FCM
@@ -123,6 +127,67 @@ public class MainActivity extends BridgeActivity {
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
             }
         });
+    }
+
+    /**
+     * SAFE-AREA INSET BRIDGE (owner bug report 2026-11-24).
+     *
+     * On Android 15+ (targetSdk 35+) the window is edge-to-edge, but the
+     * WebView frequently resolves env(safe-area-inset-*) to 0 — only the
+     * DISPLAY CUTOUT is mapped, not the system bars. Web content that pads
+     * itself with env() alone then renders UNDER the status bar (its clock
+     * and notification icons collide with the ALOA Vox back button) and
+     * UNDER the bottom gesture bar.
+     *
+     * This bridge reads the REAL system-bar insets and publishes them to the
+     * web layer as CSS custom properties on the document element:
+     *   --native-safe-top: <n>px   (status bar)
+     *   --native-safe-bottom: <n>px (gesture navigation bar)
+     *
+     * The web CSS uses them as a fallback floor:
+     *   padding-top: max(env(safe-area-inset-top), var(--native-safe-top, 0px))
+     * so whichever source reports the correct inset wins. When the vars are
+     * absent (browser, older APK, native side not yet run) everything
+     * falls back to env() exactly as before — no regression.
+     *
+     * The listener re-fires on inset changes (rotation, keyboard, immersive
+     * toggles), re-publishing the current values. Idempotent JS assignments.
+     */
+    private void bridgeSystemBarInsetsToWebView() {
+        try {
+            ViewCompat.setOnApplyWindowInsetsListener(
+                getWindow().getDecorView(),
+                (v, insets) -> {
+                    try {
+                        Insets bars = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                | WindowInsetsCompat.Type.displayCutout()
+                        );
+                        final int top = bars.top;
+                        final int bottom = bars.bottom;
+                        runOnUiThread(() -> {
+                            try {
+                                WebView wv = (bridge != null) ? bridge.getWebView() : null;
+                                if (wv != null) {
+                                    String js =
+                                        "try{document.documentElement.style.setProperty('--native-safe-top','" + top + "px');"
+                                        + "document.documentElement.style.setProperty('--native-safe-bottom','" + bottom + "px');}catch(e){}";
+                                    wv.evaluateJavascript(js, null);
+                                }
+                            } catch (Exception ignored) {
+                                // WebView not ready yet — insets re-dispatch on
+                                // the next layout pass and retry.
+                            }
+                        });
+                    } catch (Exception ignored) {
+                        // Never let an insets read crash the activity.
+                    }
+                    return insets;
+                }
+            );
+        } catch (Exception ignored) {
+            // Older devices / exotic OEMs — env() fallback still applies.
+        }
     }
 
     @Override

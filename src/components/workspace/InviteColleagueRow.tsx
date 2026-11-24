@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useUI } from '../../contexts/UIContext';
 import { Button } from '../ui';
+import { CheckIcon, ClipboardIcon, DismissIcon } from '../../constants';
 import { whatsappShareUrl } from '../../utils/whatsappShare';
 import { buildColleagueInviteText, colleagueInviteUrl } from '../../utils/colleagueInvite';
+import { copyToClipboard } from '../../utils/clipboard';
 
 /**
  * InviteColleagueRow — the understated colleague invitation surface
@@ -21,8 +23,47 @@ import { buildColleagueInviteText, colleagueInviteUrl } from '../../utils/collea
  * a pre-written WhatsApp message that opens in the inviter's WhatsApp
  * for review before sending. Nothing auto-sends; nothing pops up.
  *
+ * OWNER BUG REPORT (2026-11-24, this session) — three repairs:
+ *   1. DISMISSIBLE: the sidebar instance can be dismissed (× on the
+ *      card, aria-labelled), persisted in localStorage keyed by the
+ *      firm so it never comes back on refresh. Access survives in
+ *      Settings → Team (the FirmSettings instance has no dismissKey
+ *      and therefore no dismiss control).
+ *   2. OBVIOUS COPY TARGET: the field next to COPY shows the actual
+ *      value it copies — the firm access code (INV-XXXX) sits in the
+ *      field, fully visible, labelled; the join link gets its own row
+ *      with its own Copy-link affordance. No blank/truncated mystery
+ *      box, no ambiguity about what COPY copies.
+ *   3. RELIABLE CLIPBOARD: both copy actions route through
+ *      utils/clipboard (Clipboard API → hidden-textarea execCommand
+ *      fallback — the Android APK WebView path). Success shows a
+ *      "Copied ✓" state on the button for 2s; failure surfaces an
+ *      explicit error (toast + inline note), never a silent no-op.
+ *
  * UI primitives (ADR-0004): Button — no raw form elements (ratchet).
  */
+
+/** Feedback state for the two copy actions. */
+type CopyState = 'idle' | 'copied' | 'error';
+
+/** localStorage marker: the sidebar card was dismissed for this key. */
+const dismissedStorageKey = (key: string) => `pp_invite_colleague_dismissed:${key}`;
+
+const readDismissed = (key: string): boolean => {
+    try {
+        return localStorage.getItem(dismissedStorageKey(key)) === '1';
+    } catch {
+        return false; // storage unavailable — treat as not dismissed
+    }
+};
+
+const writeDismissed = (key: string, dismissed: boolean): void => {
+    try {
+        if (dismissed) localStorage.setItem(dismissedStorageKey(key), '1');
+        else localStorage.removeItem(dismissedStorageKey(key));
+    } catch { /* storage unavailable — dismissal just won't persist */ }
+};
+
 const UserPlusIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M15 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1" />
@@ -37,6 +78,74 @@ const WhatsAppGlyph: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+/** One labelled copy row: a fully-visible value + the COPY button that
+ *  copies exactly that value, with 2s "Copied ✓" feedback or an explicit
+ *  error. Shared by the access-code row and the join-link row so the
+ *  "what does COPY copy" answer is structural, not copywriting. */
+const CopyRow: React.FC<{
+    label: string;
+    value: string;
+    title?: string;
+    /** Full value too long for the field (join link) — truncate with the
+     *  full text in the tooltip + selectable for manual copy. */
+    truncate?: boolean;
+    copyLabel: string;
+    onToast: (msg: string, type: 'success' | 'error') => void;
+}> = ({ label, value, title, truncate, copyLabel, onToast }) => {
+    const [state, setState] = useState<CopyState>('idle');
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => () => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+    }, []);
+
+    const handleCopy = async () => {
+        const ok = await copyToClipboard(value);
+        if (ok) {
+            setState('copied');
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => setState('idle'), 2000);
+        } else {
+            setState('error');
+            onToast(
+                `Could not copy — long-press or select the ${label.toLowerCase()} to copy it manually.`,
+                'error'
+            );
+        }
+    };
+
+    return (
+        <div>
+            <p className="text-2xs font-semibold uppercase tracking-wide text-slate-400 dark:text-zinc-500 mb-1">
+                {label}
+            </p>
+            <div className="flex items-center gap-2">
+                <code
+                    className={`selectable flex-1 min-w-0 rounded-md border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-2 py-1.5 text-2xs font-mono font-semibold text-slate-700 dark:text-zinc-200 ${truncate ? 'truncate' : 'text-center tracking-wider'}`}
+                    title={title || value}
+                >
+                    {value}
+                </code>
+                <Button
+                    variant={state === 'copied' ? 'success' : 'secondary'}
+                    size="sm"
+                    icon={state === 'copied' ? CheckIcon : ClipboardIcon}
+                    onClick={() => { void handleCopy(); }}
+                    aria-label={`Copy ${label}`}
+                    className="!px-2.5 !py-1.5 text-2xs font-bold uppercase flex-shrink-0"
+                >
+                    {state === 'copied' ? 'Copied' : copyLabel}
+                </Button>
+            </div>
+            {state === 'error' ? (
+                <p className="text-3xs text-rose-600 dark:text-rose-400 mt-1" role="alert">
+                    Copy failed on this device — select the value and copy manually.
+                </p>
+            ) : null}
+        </div>
+    );
+};
+
 export const InviteColleagueRow: React.FC<{
     /** The firm/workspace display name (shown in the share message). */
     firmName: string;
@@ -46,25 +155,37 @@ export const InviteColleagueRow: React.FC<{
     inviterName: string;
     /** true on legal (Vega) workspaces — picks the message's platform line. */
     isLegal: boolean;
-}> = ({ firmName, inviteCode, inviterName, isLegal }) => {
+    /** Dismissal scope (e.g. the firmId). Present → the sidebar's
+     *  dismissible card (persisted in localStorage). Absent (FirmSettings'
+     *  Team card) → always available, no dismiss control — the fallback
+     *  access point the owner asked to keep. */
+    dismissKey?: string;
+}> = ({ firmName, inviteCode, inviterName, isLegal, dismissKey }) => {
     const { addToast } = useUI();
     const [open, setOpen] = useState(false);
+    const [dismissed, setDismissed] = useState(() =>
+        dismissKey ? readDismissed(dismissKey) : false
+    );
+
+    const toast = (message: string, type: 'success' | 'error') =>
+        addToast(message, { type });
 
     // No code yet (older workspaces mid-boot, or generation still running)
     // — the row renders nothing rather than a broken promise.
     if (!inviteCode) return null;
 
+    // Dismissed (sidebar only): the whole row goes away until the firm's
+    // key is cleared; Settings → Team keeps the same panel.
+    if (dismissKey && dismissed) return null;
+
     const joinLink = colleagueInviteUrl(inviteCode);
     const shareText = buildColleagueInviteText({ firmName, inviterName, inviteCode, isLegal });
     const whatsappHref = whatsappShareUrl(null, shareText);
 
-    const handleCopyLink = async () => {
-        try {
-            await navigator.clipboard.writeText(joinLink);
-            addToast("Invite link copied to clipboard!", { type: 'success' });
-        } catch {
-            addToast("Could not copy — long-press or select the link below instead.", { type: 'error' });
-        }
+    const handleDismiss = () => {
+        if (!dismissKey) return;
+        writeDismissed(dismissKey, true);
+        setDismissed(true);
     };
 
     return (
@@ -86,22 +207,43 @@ export const InviteColleagueRow: React.FC<{
                     role="group"
                     aria-label="Invite a colleague to this workspace"
                 >
-                    <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                        A chambers colleague or co-counsel joins this workspace with the firm's access code.
-                    </p>
-
-                    {/* The join link — the value copied to the clipboard. */}
-                    <div className="flex items-center gap-2">
-                        <code
-                            className="flex-1 min-w-0 truncate rounded-md border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 px-2 py-1.5 text-2xs font-mono text-slate-600 dark:text-zinc-300"
-                            title={joinLink}
-                        >
-                            {joinLink}
-                        </code>
-                        <Button variant="secondary" size="sm" onClick={handleCopyLink} className="!px-2.5 !py-1.5 text-2xs font-bold uppercase flex-shrink-0">
-                            Copy
-                        </Button>
+                    {/* Card header — the explanatory line + (sidebar only)
+                        the dismiss control. Access stays in Settings →
+                        Team after dismissal. */}
+                    <div className="flex items-start justify-between gap-2">
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-relaxed flex-1">
+                            A chambers colleague or co-counsel joins this workspace with the firm's access code.
+                        </p>
+                        {dismissKey ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                iconOnly
+                                icon={DismissIcon}
+                                aria-label="Dismiss invite colleague card"
+                                title="Dismiss — invite stays available in Settings → Team"
+                                onClick={handleDismiss}
+                                className="flex-shrink-0 !-mt-1 !-mr-1"
+                            />
+                        ) : null}
                     </div>
+
+                    {/* What COPY copies, made structural: two labelled
+                        rows, each showing its full value in the field. */}
+                    <CopyRow
+                        label="Firm access code"
+                        value={inviteCode}
+                        copyLabel="Copy"
+                        onToast={toast}
+                    />
+                    <CopyRow
+                        label="Join link"
+                        value={joinLink}
+                        title={joinLink}
+                        truncate
+                        copyLabel="Copy link"
+                        onToast={toast}
+                    />
 
                     {/* WhatsApp handoff — the pre-written message opens in the
                         inviter's WhatsApp (chat picker; nothing sends itself). */}
@@ -117,7 +259,7 @@ export const InviteColleagueRow: React.FC<{
                     </a>
 
                     <p className="text-3xs text-slate-400 dark:text-zinc-500 leading-relaxed">
-                        Access code <span className="font-mono font-bold tracking-wide">{inviteCode}</span> — rotate it any time in Settings → Team. The message is editable before you send it.
+                        Colleagues enter <span className="font-mono font-bold tracking-wide">{inviteCode}</span> when they sign up, or tap the join link. Rotate the code any time in Settings → Team. The WhatsApp message is editable before you send it.
                     </p>
                 </div>
             )}

@@ -752,7 +752,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-slate-50">
+    /* VOX MOBILE SHELL (owner bug report 2026-11-24): a strict
+       full-viewport flex column — header pinned to the top edge, bottom
+       tab bar pinned to the bottom edge, stage flex-1 between them.
+       overflow-hidden here + on the App-shell wrapper (no
+       overflow-y-auto) so the global mobile "bottom nav spacing" CSS
+       rule can never lift this shell off the viewport bottom again. */
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-slate-50">
       {/* Top bar — THREE CLEAN SLOTS (owner directive 2026-11-19): back on
           the left, ONE compact title in the centre, Full Office + ⚙ on the
           right. The old header stacked a mic badge, a two-line "ALOA ·
@@ -760,9 +766,18 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           the same row — on a phone every element collided. The giant mic
           button below is the only voice affordance the eye needs; the gear
           folds Quiet Mode, the startup preference and the tips guide away.
-          Safe-area padded so nothing crowds the Android status bar. */}
-      <header className="bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-        <div className="relative flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+
+          SAFE AREAS (owner bug report 2026-11-24): the shell-level pt-safe
+          is REMOVED for this view (App.tsx) — the header now owns the ONE
+          top inset: max(env(safe-area-inset-top), --native-safe-top) so it
+          clears the Android status bar both when the WebView resolves env()
+          and when it does not (the MainActivity inset bridge sets the
+          --native-safe-* vars on the APK). The old code stacked the
+          shell inset + calc(0.75rem + env(...)) + inner pt-3 — the giant
+          white gap under the status bar. Inner row padding is the compact
+          py-2.5. */}
+      <header className="bg-white border-b border-slate-200 pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]">
+        <div className="relative flex items-center justify-between gap-2 px-4 py-2.5">
           {/* LEFT SLOT — the single back affordance: `< ALOA`. Embedded
               panes return to the chat; standalone phones open ALOA over the
               office. One line, never truncated, no badge stacking. */}
@@ -1116,9 +1131,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       ) : null}
 
       {mode === "speak" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col">
           {/* Search / ask bar */}
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-3">
             <form
               className="flex gap-2"
               onSubmit={(e) => {
@@ -1207,9 +1222,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </div>
           ) : null}
 
-          {/* The walkie-talkie launcher — generous vertical breathing room
-              on phones so the mic circle owns the visual centre. */}
-          <div className="flex flex-col items-center gap-4 px-4 pt-10 pb-8">
+          {/* The walkie-talkie launcher — centred in the leftover stage
+              space (flex-1 + justify-center): no dead vertical void above
+              or below the mic; compact breathing room replaces the old
+              pt-10/pb-8 dead bands. */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 px-4 pt-6 pb-6">
             {/* CONVERSATION MODE (owner spec 2026-11-20): solo dictation vs
                 multi-speaker capture. A segmented pair ABOVE the mic — the
                 next recording round picks the mode (live-ref, same as Quiet
@@ -1509,11 +1526,19 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           a dead button or a backend error. */}
       {showVoxUpsell ? <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} /> : null}
 
-      {/* Mode toggle — thumb-reachable at the bottom, lifted clear of the
-          Android gesture bar by the safe-area inset. */}
+      {/* Mode toggle — thumb-reachable at the bottom, pinned flush to the
+          viewport bottom edge. SAFE AREAS (owner bug report 2026-11-24):
+          the ONE bottom inset is here — max(0.5rem + env(safe-area-
+          inset-bottom), --native-safe-bottom) — inside the white bar so
+          the bar's background extends cleanly down to the screen edge
+          while the buttons clear the Android gesture bar. The old
+          calc(0.75rem + env(...)) stacked on top of the shell wrapper's
+          CSS-injected 56px and floated the whole bar high above the
+          gesture bar. Labels never wrap (whitespace-nowrap) — "Legal Pad"
+          used to break onto two lines on narrow phones. */}
       {mode === "speak" ? (
         <nav
-          className="border-t border-slate-200 bg-white px-4 py-2.5 flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          className="border-t border-slate-200 bg-white px-4 py-2.5 flex gap-2 pb-[max(calc(0.5rem+env(safe-area-inset-bottom,0px)),var(--native-safe-bottom,0px))]"
           aria-label="Capture mode"
         >
           <Button
@@ -1522,6 +1547,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             minTouchTarget
             fullWidth
             icon={MicrophoneIcon}
+            className="whitespace-nowrap"
             onClick={() => setMode("speak")}
           >
             Speak
@@ -1532,6 +1558,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             minTouchTarget
             fullWidth
             icon={!canUseVox ? LockClosedIcon : DocumentTextIcon}
+            className="whitespace-nowrap"
             onClick={() => {
               guardVox(() => {
                 light();
@@ -1547,6 +1574,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             minTouchTarget
             fullWidth
             icon={!canUseVox ? LockClosedIcon : UsersIcon}
+            className="whitespace-nowrap"
             onClick={() => {
               guardVox(() => {
                 light();

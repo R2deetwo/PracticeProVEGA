@@ -16,6 +16,7 @@ import ProTip from '../ProTip';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
 import EstateCommunitySettings from './EstateCommunitySettings';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, onTitleClick?: () => void }> = ({ title, children, id, className, onTitleClick }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-slate-200 dark:border-dim-700 rounded-lg shadow-md p-6 ${className || ''}`}>
@@ -258,10 +259,17 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
         }
     };
 
-    const handleCopyInviteCode = () => {
+    // Robust clipboard path (utils/clipboard: Clipboard API → execCommand
+    // fallback) — the raw navigator.clipboard call fails silently in the
+    // Android APK WebView.
+    const handleCopyInviteCode = async () => {
         if (firmDetails.inviteCode) {
-            navigator.clipboard.writeText(firmDetails.inviteCode);
-            addToast("Invite code copied to clipboard!", { type: 'success' });
+            const ok = await copyToClipboard(firmDetails.inviteCode);
+            if (ok) {
+                addToast("Invite code copied to clipboard!", { type: 'success' });
+            } else {
+                addToast("Could not copy — select the code and copy it manually.", { type: 'error' });
+            }
         }
     };
 

@@ -679,7 +679,16 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }
 
     return (
-        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 pt-safe`}>
+        <div
+            // SAFE-AREA OWNERSHIP (owner bug report 2026-11-24): the ALOA Vox
+            // full-screen capture view owns its own safe-area insets (its header
+            // carries pt-[env(safe-area-inset-top)], its bottom tab bar
+            // pb-[calc(...+env(safe-area-inset-bottom))]) — the shell-level
+            // pt-safe would DOUBLE the top inset on the APK and stack the
+            // giant white gap under the status bar. Every other view keeps the
+            // shell-level pt-safe (single inset).
+            className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 ${isQuickCapture ? '' : 'pt-safe'}`}
+        >
             {/* Skip-to-main link: visually hidden until focused. Lets keyboard
                 + screen-reader users jump straight to the primary content area
                 instead of tabbing through the entire sidebar/header each time. */}
@@ -710,7 +719,23 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     screens < 768px (md breakpoint) and 0 on desktop. */}
                 <main id="main-content" className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
-                        <div key={product} className={`flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto ${isQuickCapture ? '' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0'} min-h-0`}>
+                        /* VOX SHELL (owner bug report 2026-11-24): the capture
+                           view is a fixed full-viewport shell — its own header,
+                           stage and bottom tab bar with their own safe-area
+                           insets and its own internal scrolling. Two critical
+                           differences from every other view:
+                           1. overflow-hidden (NOT overflow-y-auto): the
+                              mobile "bottom nav spacing" CSS rule in index.css
+                              targets .overflow-y-auto with
+                              padding-bottom: 3.5rem !important on <768px — that
+                              hijacked this wrapper and lifted the ENTIRE Vox
+                              screen (tab bar included) 56px off the bottom
+                              edge, the "large white gap above the gesture bar".
+                              no-nav-pad is the CSS rule's own opt-out class,
+                              kept as belt-and-braces.
+                           2. no pb-* at all: the Vox view renders its own
+                              bottom tab bar flush to the bottom edge. */
+                        <div key={product} className={`flex-1 h-full w-full relative animate-fade-in flex flex-col isolate ${isQuickCapture ? 'overflow-hidden no-nav-pad' : 'overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0'} min-h-0`}>
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>
@@ -754,6 +779,10 @@ export const App: React.FC = () => {
     const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout, bearerToken } = useAuth();
     const convex = useConvex();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo, showTermsBar, setShowTermsBar } = useUI();
+    // Same flag the memoized shell computes (its own copy lives inside the
+    // memo body): the capture view also hides app-level overlays that are
+    // calibrated to the office chrome (the What's New floater below).
+    const isQuickCapture = view === 'quickCapture';
     const { light } = useHapticFeedback();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
@@ -2023,8 +2052,13 @@ export const App: React.FC = () => {
             )}
             {/* Onboarding Tour only shown for non-portal users; portal users get a simpler experience */}
             {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
-            {/* What's New only for admin/firm users, not portal users */}
-            {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <React.Suspense fallback={null}><WhatsNew /></React.Suspense>}
+            {/* What's New only for admin/firm users, not portal users.
+                Hidden in the ALOA Vox capture view: the floater is
+                position-fixed bottom-20 (calibrated to sit above the
+                office BottomNav) — over the Vox view's own tab bar it
+                floats oddly above the gesture bar and clutters the
+                uncluttered capture screen. It reappears back in the office. */}
+            {flowState === 'app' && !isQuickCapture && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <React.Suspense fallback={null}><WhatsNew /></React.Suspense>}
             {/* Cookie banner — LANDING PAGE ONLY (unauthenticated visitors).
                 Suppressed for signed-in users: they explicitly accepted the
                 ToS + Privacy Policy at signup (checkboxes) and the DPA in
