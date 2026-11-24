@@ -1150,6 +1150,9 @@ export const createVegaTemplates = internalAction({
         try {
           const delUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(def.name)}`;
           await fetch(delUrl, { method: "DELETE", headers });
+          // Meta frees the name asynchronously — give it a beat before the
+          // recreate, or the POST races the delete and 400s.
+          await new Promise((r) => setTimeout(r, 1500));
         } catch { /* best-effort — the POST below reports if the name is still taken */ }
       }
       if (args.dryRun) {
@@ -1197,7 +1200,10 @@ export const createVegaTemplates = internalAction({
             outcome: "failed",
             httpStatus: res.status,
             error: explainWhatsAppError(parsedErr) || (raw ? raw.slice(0, 300) : `HTTP ${res.status} with empty body`),
-          });
+            // Meta's full error body — error_data says exactly which
+            // parameter was invalid (not surfaced by extractWaError).
+            rawResponse: raw.slice(0, 600),
+          } as any);
         }
       } catch (e: any) {
         results.push({ name: def.name, outcome: "failed", error: `Request failed: ${e?.message || e}` });
