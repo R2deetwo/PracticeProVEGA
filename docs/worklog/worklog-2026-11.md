@@ -3550,3 +3550,35 @@ Deployment: Convex production deploy (the new action) + Vercel frontend
 + a new APK build (`npm run apk:release`) — the outer-gap fix lives in
 the native/config layer, so the APK rebuild is the load-bearing step;
 web-only deploys will not fix the bands on device.
+
+### Task 90 — production verification addendum (2026-11-25)
+
+- PUSHED 2205d3ca (Task 90, after rebase over the build-1301 churn). CI on
+  2205d3ca: Tests, E2E smoke, Deploy to Staging, CodeQL, Build Admin APK —
+  SUCCESS. Build Android APK failed ONCE on transient infrastructure —
+  Maven Central returned HTTP 429 (Too Many Requests) while resolving
+  error_prone_annotations / kotlin-stdlib for the lint-vital tasks in the
+  plugin modules; re-run → SUCCESS (build-1302 / v1.0.891 auto-committed:
+  39bbf455 + 48af9913). No code cause.
+- Production promotes (pinned to 2205d3ca): Convex production backend —
+  "✔ Deployed Convex functions to https://gregarious-malamute-537.convex.cloud"
+  (formatEndorsement live server-side) + live probe ok:true. Vercel
+  production frontend — SUCCESS.
+- LIVE PROBE: https://practice-pro-vega.vercel.app → HTTP 200, version.json
+  healthy at sha 2205d3ca. BUNDLE MARKERS VERIFIED in the deployed assets:
+  the native-floor max(env, var(--native-safe-*)) in the CSS, "Endorsement
+  formatted — check it before posting." + the guarded "too short" toast in
+  the MatterDetailView chunk, the guarded "too short" toast in the
+  SaveToNoteForm chunk, and the fresh-buffer decodeAudioData retry in the
+  voiceCaptureService chunk.
+- ON-DEVICE VERIFICATION (owner, needs the new APK — build-1302): the outer
+  gaps live in the native/config layer, so the APK rebuild is load-bearing —
+  web-only deploys do not fix the bands. Install build-1302 on the phone and
+  check: the ALOA Vox header touches the screen's top edge with the status
+  bar over its white area (no dead band above), the bottom tab bar's white
+  runs to the gesture lip (no dead band below), and every other view's
+  header clears the status bar (the native-floor safe areas). Then a live
+  dictation take in the endorsement composer: text appending every ~10s
+  across batch boundaries, no "Transcription error"/false "No speech
+  detected" toasts, and the auto-format firing on stop (Format button
+  duplicates the same engine).
