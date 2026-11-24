@@ -60,19 +60,32 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
     }
   }, [paystackConfig, paystackActive, paymentMethod]);
 
-  // ─── Dynamic bank details from organization_payout_details ────────
-  // Fetches the active corporate bank account configured by the Founder
-  // App. NO hardcoded mock data — if no config exists, shows clean
-  // placeholders ([Bank Name] / 0000000000) instead of real bank entities.
-  // V1-B (SEC-12): forward the verified bearer — bank details are
-  // authenticated-only server-side now (portal checkout is signed in).
-  const orgPayoutDetails = useQuery(api.myFunctions.getOrgPayoutDetails, { sessionToken: (bearerToken ?? undefined) });
+  // ─── Dynamic bank details — the FIRM'S OWN DEFAULT ACCOUNT ───────────
+  // 2026-11-24 owner directive: "for the bank details, it should carry
+  // the firm's own default account from settings." Rent and service
+  // charges are paid to the FIRM (the property manager reviews the
+  // payment proof), NOT to PracticePro — the old query read
+  // organization_payout_details (the platform's corporate account used
+  // for subscription checkout). Now the transfer instructions are the
+  // firm's default account (isDefault first) from Settings → Financial
+  // Configuration, fetched through an authenticated portal query. When
+  // the firm has not published any account, residents see a clear
+  // "contact your property manager" notice — never a fake account
+  // number (the old placeholders were literally "[Bank Name]" and
+  // "0000000000").
+  // V1-B (SEC-12): forward the verified bearer — transfer details are
+  // authenticated-only server-side.
+  const firmTransferDetails = useQuery(
+    api.portals.getFirmTransferDetails,
+    { firmId: firmId || ' ', sessionToken: (bearerToken ?? undefined) },
+  );
   const BANK_DETAILS = {
-    bankName: orgPayoutDetails?.bankName || '[Bank Name]',
-    accountName: orgPayoutDetails?.accountName || 'PracticePro Systems Limited',
-    accountNumber: orgPayoutDetails?.accountNumber || '0000000000',
+    bankName: firmTransferDetails?.bankName || '',
+    accountName: firmTransferDetails?.accountName || '',
+    accountNumber: firmTransferDetails?.accountNumber || '',
     referenceCode: `PP-${(resolvedTenantId || 'GUEST').slice(-6).toUpperCase()}-${String(Date.now()).slice(-4)}`,
   };
+  const firmHasTransferDetails = !!(firmTransferDetails?.accountNumber);
 
   const handlePaystack = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -399,7 +412,16 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
                     </svg>
                   </div>
                 </button>
-                {showBankDetails && (
+                {showBankDetails && !firmHasTransferDetails && (
+                  <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800/40 p-4">
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Transfer details not published yet</p>
+                    <p className="text-2xs text-amber-600 dark:text-amber-500 mt-1">
+                      Your property manager has not added a bank account yet. Please contact them directly for transfer instructions —
+                      you can still upload a payment proof below once you have paid.
+                    </p>
+                  </div>
+                )}
+                {showBankDetails && firmHasTransferDetails && (
                   <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-slate-500 dark:text-zinc-400">Bank:</span>

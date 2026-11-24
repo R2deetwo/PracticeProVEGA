@@ -59,6 +59,52 @@ export const DEFAULT_SNIPPETS: { trigger: string; content: string }[] = [
   },
 ];
 
+/** The trigger whose content is bank-details-aware. */
+export const PAYMENT_INSTRUCTIONS_TRIGGER = "insert standard payment instructions";
+
+/**
+ * Fill the payment-instructions snippet with the firm's OWN DEFAULT bank
+ * account (Settings → Financial Configuration) — owner directive
+ * 2026-11-24: "for the bank details, it should carry the firm's own
+ * default account from settings … what happens if they have not set the
+ * account?" When no account is set, the placeholder line is replaced with
+ * an explicit configure-it instruction instead of a fake bank/number —
+ * the user immediately sees WHY the details are missing.
+ */
+export function fillPaymentInstructions(
+  content: string,
+  acct: { bankName: string; accountName: string; accountNumber: string } | null,
+  firmName: string,
+): string {
+  if (!acct || !acct.accountNumber) {
+    return (
+      "All payments should be made to the firm's designated account.\n" +
+      "(No bank account configured yet — add the firm's default account in " +
+      "Settings → Financial Configuration, and this snippet will carry it " +
+      "automatically.)\n" +
+      "Kindly forward the payment receipt to chambers for reconciliation and record-keeping."
+    );
+  }
+  return content
+    .replace(/\[Firm Name\]/g, acct.accountName || firmName)
+    .replace(/\[Bank Name\]/g, acct.bankName)
+    .replace(/\[Account Number\]/g, acct.accountNumber);
+}
+
+/** Resolve the firm's default bank account from a firms row (isDefault
+ * first, then the first listed account, else null). Shared by the snippet
+ * fill below. */
+function defaultAccountOf(firm: any): { bankName: string; accountName: string; accountNumber: string } | null {
+  const accounts: any[] = Array.isArray(firm?.bankAccounts) ? firm.bankAccounts : [];
+  const acct = accounts.find((a: any) => a && a.isDefault) || accounts[0] || null;
+  if (!acct || !acct.accountNumber) return null;
+  return {
+    bankName: String(acct.bankName || ""),
+    accountName: String(acct.accountName || firm?.name || ""),
+    accountNumber: String(acct.accountNumber || ""),
+  };
+}
+
 /** listDictionary — the user's personal vocabulary, newest first. */
 export const listDictionary = query({
   args: {
@@ -153,7 +199,11 @@ export const removeDictionaryTerm = mutation({
   },
 });
 
-/** listSnippets — the user's snippets + firm defaults, seeded lazily. */
+/** listSnippets — the user's snippets + firm defaults, seeded lazily.
+ * The payment-instructions default is DYNAMIC: its content is filled with
+ * the firm's own default bank account at read time (2026-11-24), so it
+ * never inserts stale "[Bank Name]" placeholders into dictated text and
+ * picks up an account the moment one is configured. */
 export const listSnippets = query({
   args: {
     sessionToken: v.optional(v.string()),
@@ -161,6 +211,14 @@ export const listSnippets = query({
   },
   handler: async (ctx, args) => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // The firm row carries the default bank account for the payment snippet.
+    const firm: any = await ctx.db.get(auth.firmId as any).catch(() => null);
+    const acct = defaultAccountOf(firm);
+    const firmName = String(firm?.name || "");
+    const fillIfPayment = (s: { trigger: string; content: string }) =>
+      s.trigger === PAYMENT_INSTRUCTIONS_TRIGGER
+        ? { ...s, content: fillPaymentInstructions(s.content, acct, firmName) }
+        : s;
     // Lazy seed: firm-wide default rows are created on first read.
     const firmDefaults: any[] = await ctx.db
       .query("voiceSnippets")
@@ -174,8 +232,7 @@ export const listSnippets = query({
       // We still return the in-code defaults so the UI never blocks.
       return DEFAULT_SNIPPETS.map((s, i) => ({
         id: `default-${i}`,
-        trigger: s.trigger,
-        content: s.content,
+        ...fillIfPayment(s),
         isDefault: true,
       }));
     }
@@ -192,7 +249,14 @@ export const listSnippets = query({
       isDefault: !!r.isDefault,
     });
     return [
-      ...firmDefaults.map(map),
+      // Seeded default rows get the same dynamic payment-instructions fill
+      // (they were seeded with static placeholders before 2026-11-24).
+      ...firmDefaults.map((r: any) => fillIfPayment({ trigger: r.trigger, content: r.content })).map((s, i) => ({
+        id: firmDefaults[i]._id,
+        trigger: s.trigger,
+        content: s.content,
+        isDefault: !!firmDefaults[i].isDefault,
+      })),
       ...userRows.sort((a, b) =>
         String(a.createdAt || "").localeCompare(String(b.createdAt || ""))
       ).map(map),

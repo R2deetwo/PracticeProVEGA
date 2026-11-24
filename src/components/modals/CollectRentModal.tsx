@@ -300,12 +300,13 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           total: feeAmount
         };
 
-        const defaultAccount: BankAccount = coreState.firmDetails?.bankAccounts?.[0] || {
-          id: '1',
-          bankName: 'Firm Account (configure in Settings)',
-          accountName: coreState.firmDetails?.name || 'Firm',
-          accountNumber: '0000000000'
-        };
+        // 2026-11-24: the firm's DEFAULT account is the one flagged
+        // isDefault (not just the first listed). When the firm has not
+        // configured any account, the fee invoice carries NO payment
+        // details — a fake "0000000000" account never lands on a PDF.
+        const allAccounts: BankAccount[] = coreState.firmDetails?.bankAccounts || [];
+        const defaultAccount: BankAccount | undefined =
+          allAccounts.find((a) => a.isDefault) || allAccounts[0];
 
         // Generate the management fee invoice — NOT marked as paid (landlord pays agent separately)
         // K-4: explicitly attributed to the PROPERTY business operation so
@@ -451,11 +452,12 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         issueDate: receiptDate,
         dueDate: receiptDate,
         paidDate: receiptDate,
-        paymentDetails: coreState.firmDetails?.bankAccounts?.[0] || { 
-          bankName: 'Firm Account (configure in Settings)', 
-          accountNumber: '0000000000',
-          accountName: coreState.firmDetails?.name || 'Firm'
-        },
+        // 2026-11-24: same default-account rule as the fee invoice —
+        // isDefault first, then the first listed; a receipt for a firm
+        // with no configured account simply has no payment-details block.
+        paymentDetails: (coreState.firmDetails?.bankAccounts || []).find((a) => a.isDefault)
+          || (coreState.firmDetails?.bankAccounts || [])[0]
+          || undefined,
         subTotal: receiptAmount,
         taxAmount: 0,
         total_amount: receiptAmount

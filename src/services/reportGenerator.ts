@@ -292,6 +292,12 @@ const populateInvoicePdf = (autoTable: AutoTableFn, doc: JsPDFDoc, y: number, in
     // Matches the gray box in UI
     y += 10;
 
+    // 2026-11-24: the box renders ONLY when the invoice actually carries
+    // bank details. Invoices generated for a firm that has not configured
+    // any bank account (Settings → Financial Configuration) have no
+    // paymentDetails — printing the old fake "Default / 0000000000"
+    // account on a client-facing PDF was worse than printing nothing.
+    if (invoice.paymentDetails?.bankName) {
     // Check if we have space, else new page
     if (y > A4_HEIGHT - 60) {
         doc.addPage();
@@ -340,8 +346,11 @@ const populateInvoicePdf = (autoTable: AutoTableFn, doc: JsPDFDoc, y: number, in
     doc.setFont('helvetica', 'bold');
     doc.text(invoice.paymentDetails.accountName || firmDetails.name, MARGIN + 5, boxContentY + 17);
 
-    // Footer Message
+    // Advance past the box (only when the box was drawn).
     y += boxHeight + 15;
+    } // end payment-details box (skipped when no bank details on the invoice)
+
+    // Footer Message
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(150);

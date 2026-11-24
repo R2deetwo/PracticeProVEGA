@@ -65,7 +65,16 @@ export const useFinance = (appState: AppState, actions: any) => {
             status: details?.status || InvoiceStatus.Sent,
             issueDate: details?.issueDate || new Date().toISOString(),
             dueDate: details?.dueDate || new Date().toISOString(),
-            paymentDetails: payment || appState.firmDetails?.bankAccounts?.[0] || { bankName: 'Default', accountNumber: '0000000000' },
+            // 2026-11-24 (owner directive: bank details carry the firm's
+            // own default account): the DEFAULT account is the one flagged
+            // isDefault (not just the first listed), and when the firm has
+            // not set ANY account the invoice simply has NO payment details
+            // — the fake "Default / 0000000000" account is gone (the PDF
+            // and portal renderers skip the block when it's absent).
+            paymentDetails: payment
+              || (appState.firmDetails?.bankAccounts || []).find((a: any) => a?.isDefault)
+              || (appState.firmDetails?.bankAccounts || [])[0]
+              || undefined,
             subTotal: totals.subTotal,
             taxAmount: totals.taxAmount,
             total_amount: totals.total_amount,

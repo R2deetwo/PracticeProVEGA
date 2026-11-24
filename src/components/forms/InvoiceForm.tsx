@@ -141,7 +141,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       setInvoiceNumber(invoiceToEdit.invoiceNumber);
       setIssueDate(invoiceToEdit.issueDate);
       setDueDate(invoiceToEdit.dueDate);
-      setPaymentAccountId(invoiceToEdit.paymentDetails.id);
+      setPaymentAccountId(invoiceToEdit.paymentDetails?.id || '');
       setApplyVat(invoiceToEdit.taxApplicable !== undefined ? invoiceToEdit.taxApplicable : (invoiceToEdit.taxAmount !== undefined && invoiceToEdit.taxAmount > 0));
       setApplyWht(!!(invoiceToEdit as any).withholdingApplicable);
     } else if (clients.length > 0) {

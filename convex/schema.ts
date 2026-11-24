@@ -2362,7 +2362,16 @@ export default defineSchema({
         v.literal("address"),
         v.literal("firmName"),
         v.literal("dueDate"),
-        v.literal("messageText")
+        v.literal("messageText"),
+        // 2026-11-24 payment slots — bank details carry the firm's own
+        // default account (Settings → Financial Configuration);
+        // paymentKind = "rent"/"service charge"/"invoice" label slot;
+        // daysOverdue = the "{{n}} days overdue" slot on late templates.
+        v.literal("bankName"),
+        v.literal("accountName"),
+        v.literal("accountNumber"),
+        v.literal("paymentKind"),
+        v.literal("daysOverdue")
       )
     )),
     updatedBy: v.optional(v.string()),

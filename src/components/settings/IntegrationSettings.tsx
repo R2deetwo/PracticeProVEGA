@@ -17,21 +17,35 @@ const WhatsAppIcon = ({ className = "w-4 h-4" }) => (
 
 // Message types that make sense to map to a WhatsApp template. `custom` is
 // excluded — a custom message has no stable content to map variables to.
+// The Vega (legal practice) types (2026-11-24) ride the same registry:
+// their templates are created on the platform WABA by createVegaTemplates
+// and auto-mapped like the Atrium ones. court_reminder is already a live
+// server flow (proactive.ts schedules it for matters with a hearing date).
 const MAPPABLE_TYPES = [
   'rent_reminder', 'late_notice', 'payment_receipt', 'service_charge_alert',
   'access_restriction', 'penalty_notice', 'lease_renewal', 'welcome_note',
   'promotion', 'vendor_update', 'general_announcement', 'maintenance_update',
+  // Vega (legal):
+  'court_reminder', 'invoice_reminder', 'document_ready',
+  'appointment_reminder', 'engagement_followup',
 ] as const;
 
 const VAR_FIELD_LABELS: Record<string, string> = {
-  tenantName: 'Tenant name',
-  amount: 'Rent amount',
+  tenantName: 'Tenant / client name',
+  amount: 'Amount',
   totalPayable: 'Total payable',
   serviceCharge: 'Service charge',
   address: 'Unit / address',
   firmName: 'Firm name',
   dueDate: 'Due date',
   messageText: 'Message text',
+  // Payment slots (2026-11-24) — filled at send time with the firm's
+  // DEFAULT bank account from Settings → Financial Configuration.
+  bankName: 'Bank name (firm default account)',
+  accountName: 'Account name (firm default account)',
+  accountNumber: 'Account number (firm default account)',
+  paymentKind: 'Payment kind (rent / service charge / invoice)',
+  daysOverdue: 'Days overdue',
 };
 
 const LANGUAGES = ['en', 'en_US', 'en_GB', 'fr', 'pt_BR', 'es', 'hi', 'id', 'pt'];
@@ -236,10 +250,22 @@ const IntegrationSettings: React.FC = () => {
     try {
       const tpl = selectedTemplateFor(type);
       const varCount = tpl?.variableCount ?? edit.varOrder.length;
+      // The firm's DEFAULT bank account (isDefault first, then the first
+      // listed) — exactly what the server injects at send time, so the
+      // test send shows a recipient-true preview. When the firm has NOT
+      // set an account, the same "contact the office" copy the server
+      // would send fills the slots — the test is honest about that too.
+      const firmAccounts = coreState.firmDetails?.bankAccounts || [];
+      const defaultAccount = firmAccounts.find((a: any) => a?.isDefault) || firmAccounts[0] || null;
       const sample: Record<string, string> = {
         tenantName: 'Chigozie', amount: '1,400,000', totalPayable: '1,780,000',
         serviceCharge: '40,000', address: 'Unit 1', firmName: coreState.firmDetails?.name || 'Management',
         dueDate: '01/10/2026', messageText: 'This is a test message.',
+        bankName: defaultAccount?.bankName || 'Not yet set',
+        accountName: defaultAccount?.accountName || 'Please contact the office',
+        accountNumber: defaultAccount?.accountNumber || 'for transfer details',
+        paymentKind: 'payment',
+        daysOverdue: '7',
       };
       const vars = edit.varOrder.slice(0, Math.max(varCount, 0)).map((f) => sample[f] ?? '');
       const res = await convex.action(api.whatsappTemplates.testWhatsAppTemplate, {

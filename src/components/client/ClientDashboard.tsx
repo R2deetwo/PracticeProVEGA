@@ -2043,8 +2043,8 @@ const ClientDashboard: React.FC = () => {
                                                     {inv.paymentDetails?.accountNumber ? (
                                                         <div className="space-y-1 text-slate-600 dark:text-zinc-400">
                                                             <p>Transfer {formatNaira(invTotal(inv))} to:</p>
-                                                            <p className="font-semibold text-slate-800 dark:text-zinc-200">{inv.paymentDetails.bankName || '—'} · {inv.paymentDetails.accountNumber}</p>
-                                                            {inv.paymentDetails.accountName && <p className="text-slate-500 dark:text-zinc-500">{inv.paymentDetails.accountName}</p>}
+                                                            <p className="font-semibold text-slate-800 dark:text-zinc-200">{inv.paymentDetails?.bankName || '—'} · {inv.paymentDetails?.accountNumber}</p>
+                                                            {inv.paymentDetails?.accountName && <p className="text-slate-500 dark:text-zinc-500">{inv.paymentDetails.accountName}</p>}
                                                         </div>
                                                     ) : (
                                                         <p className="text-slate-600 dark:text-zinc-400">

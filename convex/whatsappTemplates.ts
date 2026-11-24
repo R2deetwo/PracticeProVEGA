@@ -107,6 +107,25 @@ export const syncWhatsAppTemplates = action({
 // strongest signal; body text single), pick the best, and build a default
 // variable order sized to the template's {{n}} count. The mapping is
 // marked autoMapped so the UI can invite review without nagging.
+//
+// 2026-11-24 — TWO hardening rules (owner directive: "for the bank
+// details, it should carry the firm's own default account from settings"):
+//   1. A mapping requires at least ONE NAME-TOKEN hit. Body-only hits
+//      proved too weak: the shared footer "Please use your property
+//      address as the payment reference" matched the `payment` keyword,
+//      so payment_receipt (and general_announcement) auto-mapped to
+//      semantically wrong templates.
+//   2. varOrder is BODY-AWARE: slots preceded by "Bank:" / "Account
+//      Name:" / "Account Number:" / "… days overdue" / "Due Date:" /
+//      "of NGN {{n}}" labels are pinned to bankName/accountName/
+//      accountNumber/daysOverdue/dueDate/amount — never guessed from the
+//      generic pad list. Before this, the six-slot atrium_rent_reminder
+//      mapped [tenantName, amount, address, firmName, dueDate,
+//      messageText] — so a resident's reminder read "Bank: <firm name>…
+//      Account Number: <message text>". The bank slots now carry the
+//      FIRM'S OWN DEFAULT ACCOUNT (Settings → Financial Configuration),
+//      resolved at send time in communications.ts (fallback copy when
+//      the firm has not set an account — never a fake number).
 export const TYPE_KEYWORDS: Record<string, string[]> = {
   rent_reminder: ["rent", "rental", "reminder", "payment", "due"],
   late_notice: ["late", "overdue", "arrears", "default", "demand", "notice"],
@@ -120,6 +139,17 @@ export const TYPE_KEYWORDS: Record<string, string[]> = {
   vendor_update: ["vendor", "contractor", "supplier"],
   general_announcement: ["announce", "notice", "update", "news", "circular", "general"],
   maintenance_update: ["maintain", "maintenance", "repair", "fix", "inspection", "work"],
+  // ── Vega (legal practice) message types — 2026-11-24. The templates are
+  // created on the platform WABA by createVegaTemplates below; these
+  // keyword sets let the auto-mapper pick them up per firm. court_reminder
+  // is ALREADY a live server flow (proactive.ts schedules it for matters
+  // with a nextAdjournedDate), so mapping it makes that flow
+  // template-capable without any union/type change.
+  court_reminder: ["court", "hearing", "case", "adjourn", "mention", "trial"],
+  invoice_reminder: ["invoice", "bill", "payment"],
+  document_ready: ["document", "ready", "prepared", "draft"],
+  appointment_reminder: ["appointment", "consultation", "meeting"],
+  engagement_followup: ["engagement", "follow", "consulted"],
 };
 
 // Sensible default slot order per type (sliced/padded to the template's
@@ -138,8 +168,97 @@ const TYPE_DEFAULT_VARS: Record<string, string[]> = {
   vendor_update: ["firmName", "messageText", "tenantName"],
   general_announcement: ["tenantName", "firmName", "messageText"],
   maintenance_update: ["tenantName", "address", "firmName"],
+  // ── Vega types — var orders mirror the vega_* template bodies created
+  // by createVegaTemplates below (invoice_reminder's trailing bank slots
+  // are pinned by the "Bank:/Account Name:/Account Number:" labels).
+  court_reminder: ["tenantName", "messageText", "dueDate", "address", "firmName"],
+  invoice_reminder: ["tenantName", "messageText", "amount", "firmName", "dueDate", "bankName", "accountName", "accountNumber"],
+  document_ready: ["tenantName", "messageText", "firmName"],
+  appointment_reminder: ["tenantName", "firmName", "dueDate", "messageText"],
+  engagement_followup: ["tenantName", "firmName"],
 };
 const PAD_FIELDS = ["firmName", "dueDate", "address", "messageText"] as const;
+
+/** Fields that must NEVER be guessed into a varOrder by padding — bank
+ * slots are only ever pinned by body-label inference (or a type's declared
+ * defaults), and their VALUES are resolved at send time from the firm's
+ * default account (Settings → Financial Configuration). */
+const BANK_VAR_FIELDS = ["bankName", "accountName", "accountNumber"] as const;
+
+// ─── BODY-AWARE SLOT INFERENCE ─────────────────────────────────────────────
+// The firm's real Meta templates label their payment slots inline
+// ("Pay to:\nBank: {{6}}\nAccount Name: {{7}}\nAccount Number: {{8}}").
+// Parsing those labels pins each slot to the right app field instead of
+// padding with firmName/dueDate/messageText — the 2026-11-24 fix for
+// bank slots carrying the wrong data.
+export const BODY_SLOT_PATTERNS: { pattern: RegExp; field: string }[] = [
+  { pattern: /bank\s*name\s*:\s*\{\{(\d+)\}\}/i, field: "bankName" },
+  { pattern: /bank\s*:\s*\{\{(\d+)\}\}/i, field: "bankName" },
+  { pattern: /account\s*name\s*:\s*\{\{(\d+)\}\}/i, field: "accountName" },
+  { pattern: /account\s*number\s*:\s*\{\{(\d+)\}\}/i, field: "accountNumber" },
+  { pattern: /\{\{(\d+)\}\}\s*days?\s+overdue/i, field: "daysOverdue" },
+  { pattern: /due\s*date\s*:\s*\{\{(\d+)\}\}/i, field: "dueDate" },
+  { pattern: /(?:of|is)\s+(?:NGN|₦|N)\s*\{\{(\d+)\}\}/i, field: "amount" },
+  { pattern: /your\s+\{\{(\d+)\}\}\s+of\b/i, field: "paymentKind" },
+  { pattern: /\bfor\s+\{\{(\d+)\}\}/i, field: "address" },
+];
+
+/** slot number (1-based) → field name, for every labeled slot found. */
+export function inferLabeledSlots(bodyText?: string): Record<number, string> {
+  const out: Record<number, string> = {};
+  if (!bodyText) return out;
+  for (const { pattern, field } of BODY_SLOT_PATTERNS) {
+    const m = bodyText.match(pattern);
+    if (m) {
+      const slot = parseInt(m[1], 10);
+      if (!Number.isNaN(slot) && slot > 0) out[slot] = field;
+    }
+  }
+  return out;
+}
+
+/**
+ * Body-aware default variable order for a (messageType, template) pair:
+ * labeled slots are pinned exactly, the remaining positions are filled
+ * left-to-right from the type's defaults (then pad fields). Bank fields
+ * only ever enter via labels or the type's declared defaults — never via
+ * padding. Always returns exactly `variableCount` entries so a template
+ * send can never ship fewer params than the body has slots.
+ */
+export function varOrderForTemplate(
+  messageType: string,
+  template: { variableCount?: number; bodyText?: string }
+): string[] {
+  const labeled = inferLabeledSlots(template.bodyText);
+  const count = template.variableCount ?? 0;
+  const size = count > 0
+    ? count
+    : Math.max(
+        ...Object.keys(labeled).map(Number),
+        (TYPE_DEFAULT_VARS[messageType] || ["tenantName", "address", "firmName"]).length,
+        0,
+      );
+  if (size <= 0) return [];
+
+  const base = TYPE_DEFAULT_VARS[messageType] || ["tenantName", "address", "firmName"];
+  const candidates = [...base, ...PAD_FIELDS, "messageText"].filter(
+    (f, i, a) => a.indexOf(f) === i && !(BANK_VAR_FIELDS as readonly string[]).includes(f)
+  );
+
+  const order: string[] = new Array(size).fill("");
+  for (const [slot, field] of Object.entries(labeled)) {
+    const idx = Number(slot) - 1;
+    if (idx >= 0 && idx < size) order[idx] = field;
+  }
+  let ci = 0;
+  for (let i = 0; i < size; i++) {
+    if (order[i]) continue;
+    while (ci < candidates.length && order.includes(candidates[ci])) ci++;
+    order[i] = ci < candidates.length ? candidates[ci] : "messageText";
+    ci++;
+  }
+  return order;
+}
 
 export interface SuggestedMapping {
   messageType: string;
@@ -161,14 +280,37 @@ export function scoreTemplateForType(
 ): number {
   const kws = TYPE_KEYWORDS[messageType];
   if (!kws) return 0;
+  return nameTokenHits(t, messageType) * 2 + bodyTokenHits(t, messageType);
+}
+
+/** How many keywords hit the template NAME tokens (the strong signal). */
+export function nameTokenHits(
+  t: { name: string; bodyText?: string },
+  messageType: string
+): number {
+  const kws = TYPE_KEYWORDS[messageType];
+  if (!kws) return 0;
   const nameTokens = t.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  const bodyTokens = (t.bodyText || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  let score = 0;
+  let hits = 0;
   for (const k of kws) {
-    if (nameTokens.some((w) => w.startsWith(k))) score += 2;
-    else if (bodyTokens.some((w) => w.startsWith(k))) score += 1;
+    if (nameTokens.some((w) => w.startsWith(k))) hits++;
   }
-  return score;
+  return hits;
+}
+
+/** How many keywords hit the template BODY tokens (the weak signal). */
+function bodyTokenHits(
+  t: { name: string; bodyText?: string },
+  messageType: string
+): number {
+  const kws = TYPE_KEYWORDS[messageType];
+  if (!kws) return 0;
+  const bodyTokens = (t.bodyText || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  let hits = 0;
+  for (const k of kws) {
+    if (bodyTokens.some((w) => w.startsWith(k))) hits++;
+  }
+  return hits;
 }
 
 /** Default variable order for a type, sized to the template's slot count. */
@@ -201,6 +343,10 @@ export function suggestMappings(
     if (mapped.has(type)) continue;
     let best: { t: WhatsAppTemplateInfo; score: number } | null = null;
     for (const t of approved) {
+      // 2026-11-24: a NAME-token hit is REQUIRED for eligibility.
+      // Body-only hits matched shared footers ("payment reference") and
+      // produced semantically wrong mappings.
+      if (nameTokenHits(t, type) === 0) continue;
       const score = scoreTemplateForType(t, type);
       if (score <= 0) continue;
       if (
@@ -217,7 +363,10 @@ export function suggestMappings(
         messageType: type,
         templateName: best.t.name,
         templateLanguage: best.t.language,
-        varOrder: defaultVarOrderFor(type, best.t.variableCount),
+        // Body-aware order: labeled slots (Bank:/Account Name:/Account
+        // Number:/days overdue/…) are pinned so bank slots carry the
+        // firm's default account at send time.
+        varOrder: varOrderForTemplate(type, best.t),
         score: best.score,
       });
     }
@@ -529,6 +678,30 @@ export const listFirmIds = internalQuery({
   },
 });
 
+/**
+ * The firm's DEFAULT bank account (Settings → Financial Configuration):
+ * the account flagged isDefault, falling back to the first listed
+ * account. Returns null when the firm has not set ANY account — callers
+ * then use the honest "contact the office" fallback copy instead of a
+ * fake number (2026-11-24 owner directive: "for the bank details, it
+ * should carry the firm's own default account from settings … what
+ * happens if they have not set the account?").
+ */
+export const getFirmDefaultBankAccountInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args): Promise<{ bankName: string; accountName: string; accountNumber: string } | null> => {
+    const firm: any = await ctx.db.get(args.firmId as any).catch(() => null);
+    const accounts: any[] = Array.isArray(firm?.bankAccounts) ? firm.bankAccounts : [];
+    const acct = accounts.find((a: any) => a && a.isDefault) || accounts[0] || null;
+    if (!acct || !acct.accountNumber) return null;
+    return {
+      bankName: String(acct.bankName || ""),
+      accountName: String(acct.accountName || firm?.name || ""),
+      accountNumber: String(acct.accountNumber || ""),
+    };
+  },
+});
+
 // ─── READ: connection snapshot for the settings UI ─────────────────────────
 export const getWhatsAppSettings = query({
   args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
@@ -597,6 +770,11 @@ export const getWhatsAppTemplateMappings = query({
 const VAR_ORDER_FIELDS = [
   "tenantName", "amount", "totalPayable", "serviceCharge",
   "address", "firmName", "dueDate", "messageText",
+  // 2026-11-24 — the payment-slot fields (bank details carry the firm's
+  // own default account from Settings → Financial Configuration;
+  // paymentKind = "rent"/"service charge"/"invoice" style label;
+  // daysOverdue = the "{{n}} days overdue" slot on late templates).
+  "bankName", "accountName", "accountNumber", "paymentKind", "daysOverdue",
 ] as const;
 type VarOrderField = (typeof VAR_ORDER_FIELDS)[number];
 
@@ -728,5 +906,355 @@ export const testWhatsAppTemplate = action({
     } catch (e: any) {
       return { success: false, error: `Request failed: ${e?.message || e}` };
     }
+  },
+});
+
+// ─── VEGA WHATSAPP TEMPLATES — created directly via the API ────────────────
+// Owner directive (2026-11-24): "for the vega templates, try to create them
+// directly via the API on my account." The platform WABA (all firms share
+// it) had exactly three APPROVED templates — all Atrium/property. Vega
+// (legal practice) had NONE, so every business-initiated legal WhatsApp
+// flow outside the 24-hour window (court reminders, invoice chasers,
+// document-ready notes) had no template to fall back on and failed with
+// Meta error 131047.
+//
+// The definitions below are POSTed to Meta through the Chakra pass-through
+// (same surface the sync reads from) by createVegaTemplates. Meta reviews
+// new templates (status PENDING → APPROVED/REJECTED); the daily
+// syncAllFirms cron then lands them in every firm's registry and the
+// auto-mapper (TYPE_KEYWORDS above) maps the Vega message types — the
+// court_reminder flow in proactive.ts becomes template-capable with zero
+// manual configuration.
+//
+// House style mirrors the approved Atrium bodies ("Hello {{1}}, …"), and
+// the invoice reminder carries the same "Pay to: Bank/Account Name/
+// Account Number" block so the body-aware slot inference pins those slots
+// to the FIRM'S OWN default bank account.
+
+export interface VegaTemplateDef {
+  name: string;
+  category: "UTILITY" | "MARKETING";
+  bodyText: string;
+  /** The message type the auto-mapper should map it to. */
+  messageType: string;
+}
+
+export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
+  {
+    name: "vega_invoice_reminder",
+    category: "UTILITY",
+    messageType: "invoice_reminder",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is a friendly reminder that invoice {{2}} of NGN {{3}} from {{4}} is due on {{5}}.\n\n" +
+      "Pay to:\nBank: {{6}}\nAccount Name: {{7}}\nAccount Number: {{8}}\n\n" +
+      "Please use the invoice number as your payment reference. Thank you.",
+  },
+  {
+    name: "vega_court_reminder",
+    category: "UTILITY",
+    messageType: "court_reminder",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is a reminder that the next hearing in {{2}} comes up on {{3}} at {{4}}.\n\n" +
+      "Please be seated before the case is called. Kindly reach out if you need copies of the processes before the date.\n\n" +
+      "— {{5}}",
+  },
+  {
+    name: "vega_document_ready",
+    category: "UTILITY",
+    messageType: "document_ready",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "Your {{2}} has been prepared and is ready for your review in your client portal.\n\n" +
+      "Kindly review and revert with any comments or approvals.\n\n" +
+      "— {{3}}",
+  },
+  {
+    name: "vega_appointment_reminder",
+    category: "UTILITY",
+    messageType: "appointment_reminder",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is a reminder of your consultation with {{2}} on {{3}} at {{4}}.\n\n" +
+      "If you need to reschedule, kindly reply to this message.\n\n" +
+      "— {{2}}",
+  },
+  {
+    name: "vega_engagement_followup",
+    category: "MARKETING",
+    messageType: "engagement_followup",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "Thank you for meeting with {{2}}. If you would like us to proceed with your matter, simply reply to this message and we will send the next steps and our engagement terms.\n\n" +
+      "We look forward to working with you.",
+  },
+];
+
+/**
+ * Create the Vega templates on the platform WABA, directly through the
+ * Chakra pass-through (Meta Graph: POST /{waba-id}/message_templates).
+ *
+ * INTERNAL action — invocable only with the production deploy key (the
+ * same admin trust as whatsappDiagnostics), never from a client. The
+ * Chakra token itself never leaves the Convex environment.
+ *
+ * Idempotent: names that already exist on the account are skipped
+ * (reported as "exists" with their live status). dryRun=true lists what
+ * WOULD be created without POSTing.
+ */
+export const createVegaTemplates = internalAction({
+  args: {
+    dryRun: v.optional(v.boolean()),
+    names: v.optional(v.array(v.string())), // subset filter
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    wabaId?: string;
+    results: Array<{
+      name: string;
+      outcome: "created" | "exists" | "failed" | "dry_run";
+      httpStatus?: number;
+      status?: string; // Meta template status when known
+      error?: string;
+    }>;
+  }> => {
+    const { TOKEN, PLUGIN_ID, PHONE_ID, WA_VER } = chakraCreds();
+    if (!TOKEN || !PHONE_ID) {
+      return {
+        success: false,
+        results: [{ name: "*", outcome: "failed", error: "WhatsApp gateway not configured (missing CHAKRA_ACCESS_TOKEN / CHAKRA_PHONE_NUMBER_ID)." }],
+      };
+    }
+    const headers = {
+      "Authorization": `Bearer ${TOKEN}`,
+      "Accept": "application/json",
+      "Content-Type": "application/json",
+    };
+
+    // 1) Resolve the WABA id (same discovery as the sync).
+    let wabaId: string | undefined;
+    try {
+      const phoneRes = await fetch(`${CHAKRA_BASE}/whatsapp-phone-number`, { headers });
+      const phoneRaw = await phoneRes.text();
+      let phoneData: any = null;
+      try { phoneData = phoneRaw ? JSON.parse(phoneRaw) : null; } catch { phoneData = null; }
+      const list = Array.isArray(phoneData?._data) ? phoneData._data : [];
+      const mine = list.find((p: any) => String(p.id) === String(PHONE_ID)) || list[0];
+      if (mine?.waba) wabaId = String(mine.waba);
+    } catch (e: any) {
+      return { success: false, results: [{ name: "*", outcome: "failed", error: `Phone-number lookup failed: ${e?.message || e}` }] };
+    }
+    if (!wabaId) {
+      return { success: false, results: [{ name: "*", outcome: "failed", error: "Could not resolve the WABA id for the configured phone number." }] };
+    }
+
+    // 2) List existing template names (idempotency check + live status).
+    const existing = new Map<string, string>(); // name(lowercased) → status
+    try {
+      let after: string | undefined;
+      let pages = 0;
+      do {
+        const url = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?limit=100${after ? `&after=${encodeURIComponent(after)}` : ""}`;
+        const res = await fetch(url, { headers });
+        const raw = await res.text();
+        let data: any = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+        if (!res.ok || !data) break;
+        for (const t of (Array.isArray(data?.data) ? data.data : [])) {
+          if (t?.name) existing.set(String(t.name).toLowerCase(), String(t.status || "UNKNOWN"));
+        }
+        after = data?.paging?.cursors?.after;
+        pages++;
+      } while (after && pages < 5);
+    } catch { /* listing is best-effort — creation still attempts */ }
+
+    // 3) POST each missing template through the pass-through.
+    const defs = VEGA_TEMPLATE_DEFS.filter(
+      (d) => !args.names?.length || args.names.includes(d.name)
+    );
+    const results: Array<{ name: string; outcome: "created" | "exists" | "failed" | "dry_run"; httpStatus?: number; status?: string; error?: string }> = [];
+    for (const def of defs) {
+      if (existing.has(def.name.toLowerCase())) {
+        results.push({ name: def.name, outcome: "exists", status: existing.get(def.name.toLowerCase()) });
+        continue;
+      }
+      if (args.dryRun) {
+        results.push({ name: def.name, outcome: "dry_run" });
+        continue;
+      }
+      const payload = {
+        name: def.name,
+        language: "en",
+        category: def.category,
+        components: [{ type: "BODY", text: def.bodyText }],
+      };
+      try {
+        const url = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        });
+        const raw = await res.text();
+        let data: any = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+        const parsedErr = data ? extractWaError(data) : null;
+        // Success shapes: Meta returns { id, status, category } (older) or
+        // { data: [{ id, status }] }; Chakra may wrap in _data.
+        const created = data?.id || data?._data?.id || data?.data?.[0]?.id;
+        if (res.ok && created) {
+          results.push({ name: def.name, outcome: "created", httpStatus: res.status, status: String(data?.status || data?._data?.status || data?.data?.[0]?.status || "PENDING") });
+        } else {
+          results.push({
+            name: def.name,
+            outcome: "failed",
+            httpStatus: res.status,
+            error: explainWhatsAppError(parsedErr) || (raw ? raw.slice(0, 300) : `HTTP ${res.status} with empty body`),
+          });
+        }
+      } catch (e: any) {
+        results.push({ name: def.name, outcome: "failed", error: `Request failed: ${e?.message || e}` });
+      }
+    }
+
+    return { success: results.every((r) => r.outcome !== "failed"), wabaId, results };
+  },
+});
+
+// ─── REMAP: repair the pre-2026-11-24 auto-mapped varOrders ────────────────
+// Every firm's auto-mapped rows were written with the OLD pad-field logic:
+// the bank slots of atrium_rent_reminder / atrium_late_reminder /
+// atrium_service_charge_reminder carried firmName/dueDate/messageText (and
+// the late template shipped 6 params for 8 slots — a guaranteed Meta param
+// mismatch). This one-time internal action converges every firm to exactly
+// what a fresh sync would produce under the new rules:
+//   • autoMapped rows are deleted and re-suggested from the live registry
+//     (body-aware varOrders, name-hit requirement);
+//   • MANUAL mappings (updatedBy a real user) are NEVER touched.
+export const remapAutoMappedTemplates = internalAction({
+  args: {},
+  handler: async (ctx, _args) => {
+    const firmIds: string[] = await ctx.runQuery(internal.whatsappTemplates.listFirmIds, {});
+    let firmsTouched = 0, rowsDeleted = 0, rowsInserted = 0;
+    const errors: string[] = [];
+    for (const firmId of firmIds) {
+      try {
+        const registry: any[] = await ctx.runQuery(internal.whatsappTemplates.getFirmTemplatesInternal, { firmId });
+        const mappings: any[] = await ctx.runQuery(internal.whatsappTemplates.getFirmMappingsInternal, { firmId });
+        const manualTypes = new Set<string>();
+        const autoRows: any[] = [];
+        for (const m of mappings) {
+          if (m.autoMapped) autoRows.push(m);
+          else manualTypes.add(String(m.messageType));
+        }
+        if (autoRows.length === 0 && registry.length > 0) {
+          // Still worth suggesting — a firm that never auto-mapped (or whose
+          // mappings were all manual-deleted) gets the fresh suggestions too.
+        }
+        const deleted = await ctx.runMutation(internal.whatsappTemplates.deleteAutoMappings, { firmId });
+        const suggestions = suggestMappings(
+          registry.map((t: any) => ({
+            name: t.name,
+            language: t.language,
+            status: t.status,
+            category: t.category,
+            bodyText: t.bodyText,
+            variableCount: t.variableCount,
+            metaId: t.metaId,
+          })),
+          manualTypes,
+        );
+        let inserted = 0;
+        if (suggestions.length) {
+          inserted = await ctx.runMutation(internal.whatsappTemplates.insertAutoMappings, {
+            firmId,
+            mappings: suggestions.map((s) => ({
+              messageType: s.messageType,
+              templateName: s.templateName,
+              templateLanguage: s.templateLanguage,
+              varOrder: sanitizeVarOrder(s.varOrder),
+            })),
+          });
+        }
+        if (deleted > 0 || inserted > 0) firmsTouched++;
+        rowsDeleted += deleted;
+        rowsInserted += inserted;
+      } catch (e: any) {
+        errors.push(`${firmId}: ${e?.message || e}`);
+      }
+    }
+    return { success: errors.length === 0, firms: firmIds.length, firmsTouched, rowsDeleted, rowsInserted, errors: errors.slice(0, 5) };
+  },
+});
+
+/** Registry + mapping readers for the remap action (internal, firm-scoped). */
+export const getFirmTemplatesInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("whatsapp_templates")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+  },
+});
+
+export const getFirmMappingsInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("whatsapp_template_mappings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+  },
+});
+
+export const deleteAutoMappings = internalMutation({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("whatsapp_template_mappings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .filter((q) => q.eq(q.field("autoMapped"), true))
+      .collect();
+    await Promise.all(rows.map((r) => ctx.db.delete(r._id)));
+    return rows.length;
+  },
+});
+
+export const insertAutoMappings = internalMutation({
+  args: {
+    firmId: v.string(),
+    mappings: v.array(v.object({
+      messageType: v.string(),
+      templateName: v.string(),
+      templateLanguage: v.string(),
+      // Same literal union as the schema's varOrder (sanitizeVarOrder
+      // guarantees membership before this is called).
+      varOrder: v.optional(v.array(v.union(
+        v.literal("tenantName"), v.literal("amount"), v.literal("totalPayable"),
+        v.literal("serviceCharge"), v.literal("address"), v.literal("firmName"),
+        v.literal("dueDate"), v.literal("messageText"), v.literal("bankName"),
+        v.literal("accountName"), v.literal("accountNumber"),
+        v.literal("paymentKind"), v.literal("daysOverdue"),
+      ))),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    for (const m of args.mappings) {
+      await ctx.db.insert("whatsapp_template_mappings", {
+        firmId: args.firmId,
+        messageType: m.messageType,
+        templateName: m.templateName,
+        templateLanguage: m.templateLanguage,
+        varOrder: m.varOrder,
+        autoMapped: true,
+        updatedBy: "system_auto_map",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    return args.mappings.length;
   },
 });

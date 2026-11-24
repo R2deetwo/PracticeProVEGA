@@ -300,6 +300,16 @@ export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core 
         firmName: v.optional(v.string()),
         dueDate: v.optional(v.string()),
         messageText: v.optional(v.string()),
+        // ── 2026-11-24 payment-slot fields (owner directive: bank details
+        // carry the firm's OWN default account). Callers rarely pass
+        // these — when a mapped template's varOrder needs bank fields,
+        // the send path resolves them from the firm's Settings →
+        // Financial Configuration default account below.
+        bankName: v.optional(v.string()),
+        accountName: v.optional(v.string()),
+        accountNumber: v.optional(v.string()),
+        paymentKind: v.optional(v.string()),   // "rent" / "service charge" / "invoice"
+        daysOverdue: v.optional(v.string()),   // "{{n}} days overdue" slot
       })),
     })),
     // When a template-first send fails with a name+locale lookup miss,
@@ -503,10 +513,36 @@ export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core 
     if (args.fallback && isWhatsAppWindowError(free.error)) {
       const mapping = await resolveFirmTemplateMapping(ctx, args.firmId, args.fallback.messageType);
       if (mapping) {
-        const vars = buildTemplateVarsForOrder(
-          mapping.varOrder,
-          args.fallback.templateVarsData ?? { messageText: args.messageText }
-        );
+        // ── 2026-11-24: BANK DETAILS CARRY THE FIRM'S OWN DEFAULT ACCOUNT.
+        // When the mapped template's varOrder includes bank slots (inferred
+        // from the template body's "Bank:/Account Name:/Account Number:"
+        // labels) and the caller didn't supply them, resolve the firm's
+        // default account (Settings → Financial Configuration; isDefault
+        // first, then the first listed account). When the firm has NOT set
+        // any account, buildTemplateVarsForOrder's honest "contact the
+        // office" copy fills the slots — a fake number never goes out.
+        const varData: any = args.fallback.templateVarsData ?? { messageText: args.messageText };
+        const needsBank = (mapping.varOrder || []).some((f) =>
+          f === "bankName" || f === "accountName" || f === "accountNumber");
+        if (needsBank && !varData.bankName && !varData.accountNumber) {
+          try {
+            const bank = await ctx.runQuery(
+              internal.whatsappTemplates.getFirmDefaultBankAccountInternal,
+              { firmId: args.firmId },
+            );
+            if (bank) {
+              varData.bankName = varData.bankName || bank.bankName;
+              varData.accountName = varData.accountName || bank.accountName;
+              varData.accountNumber = varData.accountNumber || bank.accountNumber;
+            }
+          } catch (e: any) {
+            await logError(ctx, {
+              scope: "messaging", name: "communications:whatsapp:bankLookup",
+              error: e, severity: "warning", firmId: args.firmId,
+            });
+          }
+        }
+        const vars = buildTemplateVarsForOrder(mapping.varOrder, varData);
         const langs = [mapping.templateLanguage || "en", "en", "en_US", "en_GB"]
           .filter((l, i, a) => a.indexOf(l) === i);
         let last: Awaited<ReturnType<typeof doSend>> | null = null;
@@ -580,6 +616,11 @@ async function resolveFirmTemplateMapping(
  * Build ordered template variable values from a varOrder + recipient data.
  * Mirrors buildVarsForOrder in src/utils/deliveryErrors.ts (the Convex
  * bundle can't import client modules — duplicated deliberately).
+ *
+ * 2026-11-24 payment slots: bank fields default to honest "contact the
+ * office" copy when the firm has no default account — NEVER a fabricated
+ * account number. paymentKind defaults to "payment" (reads correctly in
+ * "your {{paymentKind}} of NGN …"), daysOverdue to "several".
  */
 export function buildTemplateVarsForOrder(
   order: string[] | undefined | null,
@@ -587,6 +628,8 @@ export function buildTemplateVarsForOrder(
     tenantName?: string; amount?: number; totalPayable?: number;
     serviceCharge?: number; address?: string; firmName?: string;
     dueDate?: string; messageText?: string;
+    bankName?: string; accountName?: string; accountNumber?: string;
+    paymentKind?: string; daysOverdue?: string;
   }
 ): string[] {
   const naira = (n?: number) => `₦${(n || 0).toLocaleString("en-NG")}`;
@@ -601,13 +644,27 @@ export function buildTemplateVarsForOrder(
   return order.map((f) => {
     switch (f) {
       case "tenantName": return r.tenantName || "Resident";
-      case "amount": return (r.amount || 0).toLocaleString("en-NG");
+      case "amount":
+        // A service-charge alert carries its figure in serviceCharge (and
+        // a receipt in totalPayable) — the "amount" slot must never
+        // render 0 when one of those is present.
+        if (r.amount != null) return r.amount.toLocaleString("en-NG");
+        if (r.totalPayable != null) return r.totalPayable.toLocaleString("en-NG");
+        if (r.serviceCharge != null) return r.serviceCharge.toLocaleString("en-NG");
+        return "0";
       case "totalPayable": return r.totalPayable != null ? r.totalPayable.toLocaleString("en-NG") : naira(r.amount);
       case "serviceCharge": return (r.serviceCharge || 0).toLocaleString("en-NG");
       case "address": return r.address || "your unit";
       case "firmName": return r.firmName || "Management";
       case "dueDate": return r.dueDate || "the due date";
       case "messageText": return r.messageText || "";
+      // ── payment slots (bank details = the firm's default account; the
+      // "contact the office" copy is the unset-account fallback).
+      case "bankName": return r.bankName || "Not yet set";
+      case "accountName": return r.accountName || "Please contact the office";
+      case "accountNumber": return r.accountNumber || "for transfer details";
+      case "paymentKind": return r.paymentKind || "payment";
+      case "daysOverdue": return r.daysOverdue || "several";
       default: return String(f);
     }
   });

@@ -305,3 +305,230 @@ describe('buildTemplateVarsForOrder (server twin) — identical output to the cl
     expect(buildTemplateVarsForOrder(['serviceCharge'], { serviceCharge: 40000 })).toEqual(['40,000']);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-11-24 — THE BANK-DETAILS ROUND (owner directive: "for the bank
+// details, it should carry the firm's own default account from settings …
+// what happens if they have not set the account?")
+//
+// The live platform WABA's three APPROVED templates all label their payment
+// slots inline ("Pay to:\nBank: {{6}}\nAccount Name: {{7}}\nAccount Number:
+// {{8}}"), and the OLD auto-mapper filled those slots with
+// firmName/dueDate/messageText — so a rent reminder read "Bank: <firm name>
+// … Account Number: <due date>". These tests pin the body-aware fix.
+// ═══════════════════════════════════════════════════════════════════════════
+
+import {
+  inferLabeledSlots,
+  varOrderForTemplate,
+  nameTokenHits,
+  VEGA_TEMPLATE_DEFS,
+} from '../../convex/whatsappTemplates';
+import { fillPaymentInstructions, PAYMENT_INSTRUCTIONS_TRIGGER, DEFAULT_SNIPPETS } from '../../convex/voiceTools';
+
+// The three real bodies from the production account (WABA 1365626695350672,
+// phone +234 816 312 2497 — verified via dumpWhatsAppState 2026-11-24).
+const LIVE_ATRIUM_RENT = {
+  name: 'atrium_rent_reminder', language: 'en', status: 'APPROVED', variableCount: 6,
+  bodyText: 'Hello {{1}},\n\nThis is a friendly reminder that your rent of NGN {{2}} for {{3}} is now due.\n\nPay to:\nBank: {{4}}\nAccount Name: {{5}}\nAccount Number: {{6}}\n\nPlease use your property address as the payment reference. Thank you.',
+} as any;
+const LIVE_ATRIUM_LATE = {
+  name: 'atrium_late_reminder', language: 'en', status: 'APPROVED', variableCount: 8,
+  bodyText: 'Hello {{1}},\n\nThis is a reminder that your {{2}} of NGN {{3}} for {{4}} is now {{5}} days overdue.\n\nPay to:\nBank: {{6}}\nAccount Name: {{7}}\nAccount Number: {{8}}\n\nPlease use your property address as the payment reference. Thank you.',
+} as any;
+const LIVE_ATRIUM_SC = {
+  name: 'atrium_service_charge_reminder', language: 'en', status: 'APPROVED', variableCount: 7,
+  bodyText: 'Hello {{1}},\n\nThis is a friendly reminder that your Service Charge of NGN {{2}} for {{3}} is now due (Due Date: {{4}}).\n\nPay to:\nBank: {{5}}\nAccount Name: {{6}}\nAccount Number: {{7}}\n\nPlease use your property address as the payment reference. Thank you.',
+} as any;
+
+describe('inferLabeledSlots — payment-slot labels are detected from the body', () => {
+  it('pins Bank / Account Name / Account Number / days-overdue / Due Date slots', () => {
+    const slots = inferLabeledSlots(LIVE_ATRIUM_LATE.bodyText);
+    expect(slots).toMatchObject({
+      2: 'paymentKind',  // "your {{2}} of"
+      3: 'amount',       // "of NGN {{3}}"
+      4: 'address',      // "for {{4}}"
+      5: 'daysOverdue',  // "{{5}} days overdue"
+      6: 'bankName',
+      7: 'accountName',
+      8: 'accountNumber',
+    });
+    const rent = inferLabeledSlots(LIVE_ATRIUM_RENT.bodyText);
+    expect(rent).toMatchObject({ 4: 'bankName', 5: 'accountName', 6: 'accountNumber' });
+    const sc = inferLabeledSlots(LIVE_ATRIUM_SC.bodyText);
+    expect(sc).toMatchObject({ 2: 'amount', 3: 'address', 4: 'dueDate', 5: 'bankName', 6: 'accountName', 7: 'accountNumber' });
+  });
+
+  it('returns nothing for bodies without labeled slots', () => {
+    expect(inferLabeledSlots('Hi {{1}}, plain {{2}} message.')).toEqual({});
+    expect(inferLabeledSlots(undefined)).toEqual({});
+  });
+});
+
+describe('varOrderForTemplate — the LIVE atrium templates map bank slots to bank fields', () => {
+  it('atrium_rent_reminder: [name, amount, address, bankName, accountName, accountNumber]', () => {
+    expect(varOrderForTemplate('rent_reminder', LIVE_ATRIUM_RENT)).toEqual([
+      'tenantName', 'amount', 'address', 'bankName', 'accountName', 'accountNumber',
+    ]);
+  });
+
+  it('atrium_late_reminder: 8 slots exactly, bank trailing, daysOverdue pinned', () => {
+    expect(varOrderForTemplate('late_notice', LIVE_ATRIUM_LATE)).toEqual([
+      'tenantName', 'paymentKind', 'amount', 'address', 'daysOverdue',
+      'bankName', 'accountName', 'accountNumber',
+    ]);
+  });
+
+  it('atrium_service_charge_reminder: labeled Due Date wins the slot', () => {
+    expect(varOrderForTemplate('service_charge_alert', LIVE_ATRIUM_SC)).toEqual([
+      'tenantName', 'amount', 'address', 'dueDate', 'bankName', 'accountName', 'accountNumber',
+    ]);
+  });
+
+  it('never pads bank fields into unlabeled templates', () => {
+    const order = varOrderForTemplate('rent_reminder', {
+      variableCount: 5, bodyText: 'Dear {{1}}, your rent of {{2}} for {{3}} is due {{4}}. Thanks, {{5}}.',
+    });
+    expect(order).toHaveLength(5);
+    expect(order.some((f) => ['bankName', 'accountName', 'accountNumber'].includes(f))).toBe(false);
+  });
+
+  it('always returns exactly variableCount entries (no short param lists)', () => {
+    expect(varOrderForTemplate('late_notice', LIVE_ATRIUM_LATE)).toHaveLength(8);
+    expect(varOrderForTemplate('rent_reminder', LIVE_ATRIUM_RENT)).toHaveLength(6);
+  });
+});
+
+describe('suggestMappings — a NAME-token hit is required (2026-11-24)', () => {
+  it('a body-only "payment reference" footer hit does NOT map payment_receipt', () => {
+    // This is EXACTLY the production bug: payment_receipt auto-mapped to
+    // atrium_service_charge_reminder because both bodies end with
+    // "…as the payment reference". The name has no receipt keywords.
+    const s = suggestMappings([LIVE_ATRIUM_SC, LIVE_ATRIUM_RENT, LIVE_ATRIUM_LATE], []);
+    expect(s.find((x) => x.messageType === 'payment_receipt')).toBeUndefined();
+    expect(s.find((x) => x.messageType === 'general_announcement')).toBeUndefined();
+  });
+
+  it('the live three templates map with bank-aware varOrders', () => {
+    const s = suggestMappings([LIVE_ATRIUM_SC, LIVE_ATRIUM_RENT, LIVE_ATRIUM_LATE], []);
+    const rent = s.find((x) => x.messageType === 'rent_reminder')!;
+    expect(rent.templateName).toBe('atrium_rent_reminder');
+    expect(rent.varOrder).toEqual(['tenantName', 'amount', 'address', 'bankName', 'accountName', 'accountNumber']);
+    const late = s.find((x) => x.messageType === 'late_notice')!;
+    expect(late.varOrder).toHaveLength(8);
+    expect(late.varOrder.slice(5)).toEqual(['bankName', 'accountName', 'accountNumber']);
+  });
+});
+
+describe('Vega templates — the vega_* set created via createVegaTemplates', () => {
+  const vegaTemplates = VEGA_TEMPLATE_DEFS.map((d) => ({
+    name: d.name, language: 'en', status: 'APPROVED',
+    variableCount: Math.max(...[...d.bodyText.matchAll(/\{\{(\d+)\}\}/g)].map((m) => parseInt(m[1], 10))),
+    bodyText: d.bodyText,
+  })) as any[];
+
+  it('every def has a Meta-legal name (lowercase/underscores, ≤60 chars)', () => {
+    for (const d of VEGA_TEMPLATE_DEFS) {
+      expect(d.name).toMatch(/^[a-z0-9_]+$/);
+      expect(d.name.length).toBeLessThanOrEqual(60);
+      expect(d.name.startsWith('vega_')).toBe(true);
+    }
+  });
+
+  it('each def body slot-count matches its messageType default var order', () => {
+    for (const d of VEGA_TEMPLATE_DEFS) {
+      const order = varOrderForTemplate(d.messageType, {
+        variableCount: Math.max(...[...d.bodyText.matchAll(/\{\{(\d+)\}\}/g)].map((m) => parseInt(m[1], 10))),
+        bodyText: d.bodyText,
+      });
+      expect(order.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('suggestMappings maps every Vega message type to its vega_* template', () => {
+    const s = suggestMappings([...vegaTemplates, LIVE_ATRIUM_RENT, LIVE_ATRIUM_LATE, LIVE_ATRIUM_SC], []);
+    const byType = Object.fromEntries(s.map((x) => [x.messageType, x.templateName]));
+    expect(byType['court_reminder']).toBe('vega_court_reminder');
+    expect(byType['invoice_reminder']).toBe('vega_invoice_reminder');
+    expect(byType['document_ready']).toBe('vega_document_ready');
+    expect(byType['appointment_reminder']).toBe('vega_appointment_reminder');
+    expect(byType['engagement_followup']).toBe('vega_engagement_followup');
+    // The atrium types still map to their own templates (no cross-product theft).
+    expect(byType['rent_reminder']).toBe('atrium_rent_reminder');
+  });
+
+  it('vega_invoice_reminder carries the bank slots at the tail', () => {
+    const s = suggestMappings(vegaTemplates, []);
+    const inv = s.find((x) => x.messageType === 'invoice_reminder')!;
+    expect(inv.varOrder.slice(-3)).toEqual(['bankName', 'accountName', 'accountNumber']);
+  });
+
+  it('the engagement followup is the only MARKETING template', () => {
+    expect(VEGA_TEMPLATE_DEFS.filter((d) => d.category === 'MARKETING').map((d) => d.name))
+      .toEqual(['vega_engagement_followup']);
+  });
+});
+
+describe('buildTemplateVarsForOrder + buildVarsForOrder — bank slots (twins)', () => {
+  const bankOrder = ['tenantName', 'amount', 'address', 'bankName', 'accountName', 'accountNumber'] as const;
+
+  it('renders the firm default account when provided', () => {
+    const data = {
+      tenantName: 'Ada', amount: 150000, address: '12 Marina',
+      bankName: 'Providus Bank', accountName: 'Acme Mgmt Ltd', accountNumber: '1234567890',
+    };
+    const server = buildTemplateVarsForOrder([...bankOrder], data);
+    const client = buildVarsForOrder(bankOrder, data as any);
+    expect(server).toEqual(['Ada', '150,000', '12 Marina', 'Providus Bank', 'Acme Mgmt Ltd', '1234567890']);
+    // The twins must render IDENTICALLY (a resident must never see a
+    // different preview from what the server sends).
+    expect(client).toEqual(server);
+  });
+
+  it('the UNSET-ACCOUNT fallback: honest copy, never a fake number', () => {
+    const data = { tenantName: 'Ada', amount: 150000, address: '12 Marina' };
+    const out = buildTemplateVarsForOrder([...bankOrder], data);
+    expect(out.slice(3)).toEqual(['Not yet set', 'Please contact the office', 'for transfer details']);
+    expect(buildVarsForOrder(bankOrder, data as any)).toEqual(out);
+    // No fabricated 10-digit NUBAN ever ships.
+    expect(out.some((v) => /^\d{10}$/.test(v))).toBe(false);
+  });
+
+  it('paymentKind and daysOverdue defaults read naturally in the late template', () => {
+    const out = buildTemplateVarsForOrder(
+      ['tenantName', 'paymentKind', 'amount', 'address', 'daysOverdue', 'bankName', 'accountName', 'accountNumber'],
+      { tenantName: 'Ada', amount: 150000, address: '12B Admiralty Way' },
+    );
+    expect(out[1]).toBe('payment');      // "your payment of NGN 150,000"
+    expect(out[4]).toBe('several');      // "is now several days overdue"
+    expect(out[5]).toBe('Not yet set');  // no account configured
+  });
+
+  it('the amount slot falls back to serviceCharge when amount is absent', () => {
+    expect(buildTemplateVarsForOrder(['amount'], { serviceCharge: 40000 })).toEqual(['40,000']);
+    expect(buildVarsForOrder(['amount'], { serviceCharge: 40000 })).toEqual(['40,000']);
+  });
+});
+
+describe('voiceTools — the payment-instructions snippet carries the firm default account', () => {
+  const base = DEFAULT_SNIPPETS.find((s) => s.trigger === PAYMENT_INSTRUCTIONS_TRIGGER)!.content;
+
+  it('fills [Firm Name]/[Bank Name]/[Account Number] from the default account', () => {
+    const out = fillPaymentInstructions(base, {
+      bankName: 'GTBank', accountName: 'Ubah & Co', accountNumber: '0123456789',
+    }, 'Ubah & Co');
+    expect(out).toContain('Bank: GTBank');
+    expect(out).toContain('Account Number: 0123456789');
+    expect(out).not.toContain('[Bank Name]');
+    expect(out).not.toContain('[Account Number]');
+    expect(out).not.toContain('[Firm Name]');
+  });
+
+  it('no account set → an explicit configure-it note, never placeholders or a fake number', () => {
+    const out = fillPaymentInstructions(base, null, 'Ubah & Co');
+    expect(out).toContain('Settings → Financial Configuration');
+    expect(out).not.toContain('[Bank Name]');
+    expect(out).not.toContain('[Account Number]');
+    expect(out).not.toMatch(/\d{10}/);
+  });
+});

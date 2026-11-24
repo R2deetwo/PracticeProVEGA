@@ -7667,3 +7667,39 @@ export const sendAdminNotificationEmail = internalAction({
     }
   },
 });
+
+// ─── FIRM TRANSFER DETAILS (resident portal bank-transfer checkout) ────────
+// 2026-11-24 owner directive: "for the bank details, it should carry the
+// firm's own default account from settings." The resident portal's
+// Manual Bank Transfer option used to show the PLATFORM's corporate
+// account (organization_payout_details — PracticePro Systems Limited),
+// which is for subscription/add-on checkout, NOT for rent. Residents pay
+// the FIRM (their property manager reviews the payment proof), so the
+// transfer instructions must be the firm's own DEFAULT account from
+// Settings → Financial Configuration (isDefault first, then the first
+// listed). Returns null when the firm has not published any account —
+// the portal then shows a clear "contact your property manager" notice
+// instead of a fake [Bank Name] / 0000000000 placeholder.
+export const getFirmTransferDetails = query({
+  args: {
+    firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ bankName: string; accountName: string; accountNumber: string } | null> => {
+    const caller = await requirePortalCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
+    assertSameFirm(caller, args.firmId);
+    const firm: any = await ctx.db.get(args.firmId as any).catch(() => null);
+    const accounts: any[] = Array.isArray(firm?.bankAccounts) ? firm.bankAccounts : [];
+    const acct = accounts.find((a: any) => a && a.isDefault) || accounts[0] || null;
+    if (!acct || !acct.accountNumber) return null;
+    return {
+      bankName: String(acct.bankName || ""),
+      accountName: String(acct.accountName || firm?.name || ""),
+      accountNumber: String(acct.accountNumber || ""),
+    };
+  },
+});

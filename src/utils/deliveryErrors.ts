@@ -17,10 +17,14 @@
 
 import { AutomationMessageType } from '../types';
 
-/** App-side fields a template variable slot can be filled from. */
+/** App-side fields a template variable slot can be filled from.
+ * The bank/payment fields (2026-11-24) are pinned by the body-aware
+ * slot inference in convex/whatsappTemplates.ts — their VALUES carry
+ * the firm's own default account (Settings → Financial Configuration). */
 export type TemplateVarField =
   | 'tenantName' | 'amount' | 'totalPayable' | 'serviceCharge'
-  | 'address' | 'firmName' | 'dueDate' | 'messageText';
+  | 'address' | 'firmName' | 'dueDate' | 'messageText'
+  | 'bankName' | 'accountName' | 'accountNumber' | 'paymentKind' | 'daysOverdue';
 
 /**
  * A firm-configured template mapping (whatsapp_template_mappings row).
@@ -38,6 +42,9 @@ export interface FirmTemplateMapping {
 /**
  * Per-recipient data available when composing a WhatsApp template retry.
  * Mirrors the fields ComposeModal already resolves for each recipient.
+ * The bank fields are usually resolved SERVER-SIDE from the firm's
+ * default account (communications.ts) — they exist here so the client
+ * twin renders identically when a caller has them.
  */
 export interface TemplateRecipientData {
   tenantName?: string;
@@ -48,9 +55,16 @@ export interface TemplateRecipientData {
   firmName?: string;
   dueDate?: string;
   messageText?: string;
+  bankName?: string;      // firm's default account (Settings → Financial Configuration)
+  accountName?: string;
+  accountNumber?: string;
+  paymentKind?: string;   // "rent" / "service charge" / "invoice"
+  daysOverdue?: string;   // "{{n}} days overdue" slot
 }
 
-/** Build the ordered variable values from a varOrder + recipient data. */
+/** Build the ordered variable values from a varOrder + recipient data.
+ * Client twin of buildTemplateVarsForOrder in convex/communications.ts —
+ * output must stay IDENTICAL (a pinned unit test enforces it). */
 export function buildVarsForOrder(
   order: readonly (TemplateVarField | string)[] | null | undefined,
   r: TemplateRecipientData
@@ -67,13 +81,24 @@ export function buildVarsForOrder(
   return order.map((f) => {
     switch (f) {
       case 'tenantName': return r.tenantName || 'Resident';
-      case 'amount': return (r.amount || 0).toLocaleString('en-NG');
+      case 'amount':
+        if (r.amount != null) return r.amount.toLocaleString('en-NG');
+        if (r.totalPayable != null) return r.totalPayable.toLocaleString('en-NG');
+        if (r.serviceCharge != null) return r.serviceCharge.toLocaleString('en-NG');
+        return '0';
       case 'totalPayable': return r.totalPayable != null ? r.totalPayable.toLocaleString('en-NG') : naira(r.amount);
       case 'serviceCharge': return (r.serviceCharge || 0).toLocaleString('en-NG');
       case 'address': return r.address || 'your unit';
       case 'firmName': return r.firmName || 'Management';
       case 'dueDate': return r.dueDate || 'the due date';
       case 'messageText': return r.messageText || '';
+      // Payment slots — the honest unset-account fallback copy, never a
+      // fabricated account number (2026-11-24 owner directive).
+      case 'bankName': return r.bankName || 'Not yet set';
+      case 'accountName': return r.accountName || 'Please contact the office';
+      case 'accountNumber': return r.accountNumber || 'for transfer details';
+      case 'paymentKind': return r.paymentKind || 'payment';
+      case 'daysOverdue': return r.daysOverdue || 'several';
       default: return String(f);
     }
   });
