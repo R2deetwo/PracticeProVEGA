@@ -13,7 +13,7 @@ import { Z_CLASS } from '../../overlays/constants';
 const AloaFAB: React.FC = () => {
     const { togglePanel, isPanelOpen, aloaState } = useAloa();
     const { coreState } = useCoreState();
-    const { view, modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
+    const { modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
     const { isProperty } = useProduct();
     const { canUseAI } = useFeatures();
     const assistantName = getAssistantName(isProperty);
@@ -24,8 +24,12 @@ const AloaFAB: React.FC = () => {
     // HIDE FAB IF ANY MODAL OR SEARCH IS OPEN
     if (modal || dockedModalType || isMobileSearchOpen) return null;
 
-    // HIDE FAB IN RESEARCH OR MESSAGING (Fade transition)
-    const isHidden = view === 'messaging' || view === 'research';
+    // ADR-0007 (one door): the FAB no longer self-hides in ANY view.
+    // It used to vanish in research/messaging — exactly the views where a
+    // user doing legal work needed the assistant door, and where the
+    // research notebook chat (a second AI face) lived instead. Aloa is the
+    // single user-facing assistant; its door is reachable everywhere.
+    const isHidden = false;
 
     const handleClick = () => {
         if (!isAiActive) {

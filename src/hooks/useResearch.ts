@@ -5,6 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import { AppState, ResearchSource } from '../types';
 import { getGeminiApiKey, AI_CONFIG, stripPII } from '../utils/aiUtils';
+// ADR-0007 (one assistant): the research notebook chat answers AS the one
+// assistant — the same identity lock the main chat uses, prepended FIRST per
+// the guardrail's placement rule — so users hear the same voice doing research,
+// never a generic second AI.
+import { getIdentityGuardrail } from '../constants/identityGuardrails';
 // R73 (the silk pass): @google/genai is ~300KB minified and this hook sits
 // in the STATIC provider chain (DataProvider ← AppProvider), eagerly
 // shipping the AI SDK to every marketing visitor. It now loads on FIRST
@@ -135,7 +140,11 @@ export const useResearch = (appState: AppState, actions: any) => {
         const grounded = sourceContext.includes('--- SOURCE:') || fileStorageIds.length > 0;
         const ungroundedPrefix = '[Ungrounded — no sources in context: this is an AI suggestion from general knowledge, not source-backed research. Verify before relying on it.]\n\n';
 
-        const systemPrompt = `You are a legal research assistant. The user has provided the following source documents as context. Answer their question based on the sources. If the answer isn't in the sources, say so.
+        const isPropertyMode = currentUser?.product === 'property' || currentUser?.product === 'atrium';
+        const assistantName = isPropertyMode ? 'ARIA' : 'ALOA';
+        const systemPrompt = `${getIdentityGuardrail(isPropertyMode)}
+
+You are ${assistantName} in RESEARCH MODE — a legal research assistant inside PracticePro. The user has provided the following source documents as context. Answer their question based on the sources. If the answer isn't in the sources, say so.
 
 SOURCE DOCUMENTS:${grounded
                 ? sourceContext

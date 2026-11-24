@@ -3127,14 +3127,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     };
 
     // ─── Send to Research Studio ──────────────────────────────────────────
-    // Takes an uploaded document from the ALOA chat and sends it to the
-    // Research Studio as a new source in a new (or existing) notebook.
-    // The user can then do deeper analysis in the Research Studio with
-    // the AI-powered research chat.
+    // ADR-0007 (one assistant, actions visible): takes an ALOA chat message
+    // and opens the Research Studio on it. WITH attachments: each document
+    // becomes a source in a new notebook (the original behavior). WITHOUT
+    // attachments: the message text itself becomes the source — so every
+    // user message carries the Research affordance, not just uploads.
     const handleSendToResearch = async (msg: AloaMessage) => {
-        if (!msg.attachments || msg.attachments.length === 0) return;
-        const attachmentNames = msg.attachmentNames || msg.attachments.map(() => 'Uploaded Document');
-        const notebookName = `ALOA Research — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+        const hasAttachments = !!(msg.attachments && msg.attachments.length > 0);
+        const messageText = (msg.content || '').trim();
+        if (!hasAttachments && !messageText) return;
+        const attachmentNames = msg.attachmentNames || (msg.attachments || []).map(() => 'Uploaded Document');
+        const notebookName = `${getAssistantName(isProperty)} Research — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 
         try {
             // 1. Create a new research notebook
@@ -3150,10 +3153,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }
 
             // 2. Add each attachment as a source in the notebook
-            for (let i = 0; i < msg.attachments!.length; i++) {
+            for (let i = 0; i < (msg.attachments || []).length; i++) {
                 const storageId = msg.attachments![i];
                 const name = attachmentNames[i] || `Document ${i + 1}`;
-
                 // Fetch the file content from Convex storage and extract text
                 // using the attachmentProcessor (handles PDF, DOCX, TXT, images)
                 try {
@@ -3220,12 +3222,26 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }
             }
 
+            // 2b. ADR-0007: no attachments → the message text itself becomes
+            // the source, so any user message can seed a research notebook.
+            if (!hasAttachments) {
+                handleAddResearchSource(notebook.id, {
+                    name: `Chat note — ${messageText.slice(0, 40)}${messageText.length > 40 ? '…' : ''}`,
+                    type: 'text',
+                    // Cap at 4,000 chars — enough to carry the question and its
+                    // context, without shipping a whole conversation as a source.
+                    content: messageText.slice(0, 4000),
+                });
+            }
+
             // 3. Open the Research Studio in a NEW browser tab with the
             //    new notebook pre-selected. This preserves the ALOA chat
             //    session — the user can keep chatting while Research runs
             //    in the parallel tab. Falls back to in-place nav on mobile
             //    or when pop-ups are blocked.
-            addToast(`Sent ${msg.attachments!.length} document(s) to Research Studio.`, { type: 'success' });
+            addToast(hasAttachments
+                ? `Sent ${msg.attachments!.length} document(s) to Research Studio.`
+                : 'Sent your message to Research Studio.', { type: 'success' });
             const ctx = { selectedNotebookId: notebook.id };
             try {
                 const { openInNewTab, buildRouteUrlWithHashContext } = await import('../../utils/tabNavigation');
@@ -4282,8 +4298,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             </button>
                                         )}
 
-                                        {/* Send to Research — shown for user messages with attachments */}
-                                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                                        {/* Send to Research — ADR-0007: every
+                                            user message carries the affordance
+                                            (attachments → docs as sources; plain
+                                            text → the message as the source). */}
+                                        {msg.role === 'user' && (
                                             <button
                                                 onClick={() => handleSendToResearch(msg)}
                                                 className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all duration-150 active:scale-[0.98] flex items-center gap-0.5"

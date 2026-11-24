@@ -3606,3 +3606,43 @@ Vox tab fate — it is both the owner-directed explicit Vox entry
 monetization decision. Docs-only change this commit; no behaviour
 touched. Implementation lands as its own gated task after the owner
 settles the Phase 3 calls.
+
+### Task 91 — ADR-0007 implementation: ALOA, the single user-facing AI assistant (2026-11-25)
+
+Owner delegation: "go ahead with what you think is best from a product
+point of view, then commit, push to production." Scope = ADR-0007
+Phases 1–2 + the Phase 3 product calls, implemented and gated:
+
+- ONE DOOR: AloaFAB no longer self-hides in research/messaging —
+  the hide rule (view === 'messaging' || view === 'research') is
+  REMOVED; the assistant door is reachable in every view. The unused
+  `view` destructure was dropped with it.
+- ONE FACE: ResearchChat (the Research AI Notes notebook chat)
+  converged onto the assistant identity — AI bubbles carry AloaIcon in
+  the product accent (was: ResearchIcon in blue — the second face),
+  the empty state renders "{ALOA|ARIA} — Research" via
+  getAssistantName (was: "Argument Lab"), and the copy says the
+  assistant answers, not "The AI".
+- ONE VOICE: useResearch's system prompt now PREPENDS
+  getIdentityGuardrail(isPropertyMode) (same identity lock as the
+  main chat, first-per placement rule) and addresses the model as
+  "{assistant} in RESEARCH MODE" — the notebook chat answers as the
+  one assistant, never as a generic second AI. (Atrium/property firms
+  resolve ARIA via currentUser.product.)
+- VISIBLE ACTIONS: the per-message Research chip in AloaChat now
+  shows on EVERY user message — with attachments the docs become
+  sources (unchanged); without, the message text itself seeds the
+  notebook as a source (capped 4,000 chars). The hardcoded
+  "ALOA Research —" notebook title now derives from the naming
+  authority (getAssistantName) per its never-hardcode rule.
+- PHASE 3 CALLS (delegated, recorded in the ADR): the bottom-nav
+  "ALOA Vox" tab STAYS (Aloa-branded entry into an Aloa capability +
+  the Free-tier Vox upsell surface — removal would cost discoverability
+  and the monetization funnel); Research keeps its workspace name.
+- tests: tests/unit/singleAssistantSurface.test.ts (5 structural
+  source-scan tests — one door, one face, one voice, visible Research
+  affordance + text path, Phase 3 retentions).
+
+No convex/ changes in this task → Convex production deploy NOT
+required; Vercel frontend production deploy + APK CI build carry the
+change.

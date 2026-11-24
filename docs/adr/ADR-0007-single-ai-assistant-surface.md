@@ -1,6 +1,6 @@
 # ADR-0007: ALOA is the single user-facing AI assistant
 
-**Status:** Accepted (2026-11-25 — owner decision in product review; implementation phased, not yet scheduled)
+**Status:** Accepted (2026-11-25 — owner decision in product review). Phases 1–2 and the Phase 3 product calls implemented 2026-11-25 under the owner's delegation ("go ahead with what you think is best from a product point of view").
 
 **Context:** The product currently presents several AI faces to a user in the same session:
 
@@ -24,16 +24,18 @@ Concretely:
 - DraftPro, Research, Vox, and ALOA-X remain **destination surfaces** (editor, workspace, capture, library). The decision governs the assistant layer and entry discipline — it does not collapse workspaces into the chat.
 - Every view where a user might "start with AI" shows exactly one assistant door: the FAB (and its desktop equivalents) is reachable in `research` and `messaging` too.
 
-### Phasing (implementation TBD — next scheduled task)
+### Phasing (implemented 2026-11-25 under owner delegation)
 
-- **Phase 1 — one door:** un-hide the FAB in `research`/`messaging`; converge ResearchChat's presentation onto the Aloa identity (name, icon, guardrail-visible behaviors); naming sweep so ALOA-X reads as an Aloa capability.
-- **Phase 2 — action legibility:** the three capabilities appear as explicit, visible affordances inside Aloa (Research / DraftPro / Vox), formalizing what already exists as tools (`start_drafting`, send-to-research, capture mode) so users can see the actions, not just discover them by conversation.
-- **Phase 3 — entry discipline (owner calls required before work):** the fate of the standalone bottom-nav `quickCapture` tab — it is simultaneously (a) the explicit Vox entry the owner directed on 2026-11-18 and (b) the Free-tier Vox upsell surface, so removal/re-routing is a monetization decision, not an engineering one; and Research's sidebar/nav wording under the converged identity.
+- **Phase 1 — one door: DONE.** `AloaFAB` no longer self-hides in `research`/`messaging` (the hide rule is removed); `ResearchChat` presents the one assistant — AloaIcon avatar in the product accent, "`{ALOA|ARIA}` — Research" empty state, and the same identity lock prepended to the research system prompt (`useResearch` → `getIdentityGuardrail`), so the notebook chat answers as the one assistant in research mode, never as a generic second AI.
+- **Phase 2 — action legibility: DONE.** All three capabilities are now visible affordances inside Aloa: Vox (header mic → capture mode), DraftPro ("Draft in DraftPro" chip on AI answers + the `start_drafting` tool), and Research — the per-message **Research** chip now shows on EVERY user message (attachments become sources; a plain message seeds the notebook with its own text as a source, capped at 4,000 chars). The hardcoded "ALOA Research —" notebook title now derives from the naming authority.
+- **Phase 3 — entry discipline (owner delegated the calls, 2026-11-25):**
+  - **The bottom-nav "ALOA Vox" tab stays.** Product judgment: it is Aloa-branded (an entry INTO an Aloa capability, not a second assistant persona), it is the owner-directed explicit way into full-screen capture (2026-11-18), and it is the Free-tier Vox upsell surface — removal would cost flagship-feature discoverability and the monetization funnel for no one-assistant gain.
+  - **Research keeps its name** as the destination (workspace name, not an assistant name); the AI chat inside it presents as the assistant in research mode (Phase 1 identity convergence).
 
 ## What this decision does NOT authorize
 
 - No removal of the Research workspace, DraftPro editor, Vox capture surface, or ALOA-X — they are destinations, not assistant personas.
-- No change to the Free-tier Vox upsell, AI plan gating, or the bottom-nav Vox tab without an explicit owner call (Phase 3).
+- No change to the Free-tier Vox upsell, AI plan gating, or the bottom-nav Vox tab (the delegated Phase 3 call KEEPS it).
 - No second assistant identity, name, avatar, or persona in any product; no new chat surface may be added anywhere.
 
 ## Consequences

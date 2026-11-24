@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ResearchMessage, ResearchSource } from '../../types';
-import { ResearchIcon, SendIcon, UserCircleIcon } from '../../constants';
+import { AloaIcon, SendIcon, UserCircleIcon } from '../../constants';
 import Tooltip from '../Tooltip';
 import { AutoExpandingChatInput } from '../ui/AutoExpandingChatInput';
 import { MessageThread } from '../messaging/MessageThread';
@@ -11,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { sanitize } from '../../utils/sanitization';
 import { useProduct } from '../../contexts/ProductContext';
+import { getAssistantName } from '../../utils/assistantIdentity';
 
 interface ResearchChatProps {
     messages: ResearchMessage[];
@@ -295,12 +296,16 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                 innerClassName="max-w-3xl mx-auto w-full"
                 emptyState={
                     <div className="flex flex-col items-center justify-center text-center">
-                        <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl mb-4 shadow-sm">
-                            <ResearchIcon className="w-8 h-8 text-blue-500" />
+                        {/* ADR-0007 (one assistant): the research chat's empty
+                            state presents the ONE assistant in research mode —
+                            the same ALOA/ARIA identity the FAB and panel carry —
+                            not a second standalone AI face. */}
+                        <div className="p-4 bg-gradient-to-br from-primary-50 to-primary-100/60 dark:from-primary-900/20 dark:to-primary-900/10 border border-primary-100 dark:border-primary-800/50 rounded-2xl mb-4 shadow-sm">
+                            <AloaIcon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-700 dark:text-zinc-200 tracking-tight">Argument Lab</h3>
+                        <h3 className="text-lg font-bold text-slate-700 dark:text-zinc-200 tracking-tight">{getAssistantName(isProperty)} — Research</h3>
                         <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mt-1.5 leading-relaxed">
-                            Ask anything about your {isProperty ? 'documents' : 'case files'}. The AI will respond with citations from your sources.
+                            Research mode: ask anything about your {isProperty ? 'documents' : 'case files'} and {getAssistantName(isProperty)} will answer with citations from your sources.
                         </p>
 
                         {sources.length > 0 && (
@@ -330,9 +335,12 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                 renderAvatar={(m) => (
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${m.isMe
                             ? 'bg-blue-600 text-white'
-                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-blue-600'
+                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-primary-600 dark:text-primary-400'
                         }`}>
-                        {m.isMe ? <UserCircleIcon className="w-4 h-4" /> : <ResearchIcon className="w-4 h-4" />}
+                        {/* ADR-0007: AI bubbles carry the assistant's own face
+                            (AloaIcon, product accent) — the user sees the ONE
+                            assistant doing research, not a second blue "AI". */}
+                        {m.isMe ? <UserCircleIcon className="w-4 h-4" /> : <AloaIcon className="w-4 h-4" />}
                     </div>
                 )}
                 renderBubbleContent={(m) => <ResearchBody msg={m} />}
