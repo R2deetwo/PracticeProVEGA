@@ -2987,3 +2987,75 @@ CodeQL).
 inset bridge (CI builds it on version bump); Workstreams A/B/C (Aloa
 Vox session capture, Legal KB currency model, WhatsApp audit) are next
 in the same owner directive.
+
+## 2026-11-24 (f) — Task 86: the Antigravity handover workstreams — Vox roles/currency wording, the Legal KB currency model + rules-of-court chunking + OCR triage, WhatsApp parity
+
+**The handover brief assumed three workstreams were greenfield; the repo
+audit (three parallel Explore passes) found two of them already built
+end-to-end.** Session Capture Mode (matterId + the 5 session types,
+speaker-labelled editable transcript segments, the four structured
+outputs with [Unverified Fact]/[Missing Detail] chips, Ask-Aloa-Vox
+cross-session recall with [MM:SS] citations, landing section without
+"new"/"beta") was complete since 2026-11-22. The WhatsApp gap templates
+(payment_receipt, lease_renewal, visitor_pass, maintenance, general
+notice) were already coded AND submitted to the WABA — pending Meta
+review. So this task shipped the REAL gaps:
+
+**Workstream A (Vox gap fill):**
+- opposing_counsel, judge, court_official join the speaker-role
+  vocabulary everywhere (ROLE_OPTIONS picker, chip labels via
+  roleChipLabel, voxSessionService typing, server roleFor normalizer +
+  renameSpeaker validation). The diarization prompt has proposed these
+  roles all along; finalizeSession used to collapse them to "other".
+- Stale "Growth and above" wording corrected to Pro-and-above in the
+  five places the entitlement actually gates (mic badge chip, aria-label,
+  helper copy, voiceCapture + voxSessions comments) — tierLimits
+  .canUseVox = Pro | Enterprise | Komplete since 2026-11-23.
+
+**Workstream B (Legal KB — the real work):**
+- ONE currency vocabulary, two mirrors (convex/legal/currency.ts,
+  src/legal/currencyStatus.ts): active_verified | amended_partial |
+  superseded_or_repealed | unverified_archive. deriveCurrencyStatus maps
+  the legacy vocabularies (legal_instruments.status,
+  amendmentTracker, the curated instruments table) — absent/unknown
+  honestly lands on unverified_archive, NEVER a fabricated in-force.
+- Schema + ingest: legalInstruments.currencyStatus (by_currency index),
+  legalChunks.currencyStatus (chunk may override its document);
+  backfillCurrencyStatus internalMutation (idempotent) — ran on prod:
+  1 judgment chunk filled, 0 instruments (the pipeline tables are empty
+  until the engine/founder feeds them; the derivation applies at ingest
+  from now on). hybridSearch + sparseSearch return currencyStatus with
+  the unverified_archive default.
+- Consumers: ALOA's rules-and-forms grounding text appends currency
+  notes ("[currency: REPEALED/SUPERSEDED — historical reference only,
+  do NOT cite as current law]") so the model can never assert dead law;
+  legalKnowledge search results carry currencyStatus; the Contract
+  Analyzer audit log renders the shared chip + caveat per finding; the
+  statute library entries carry active_verified from the R48 record.
+- Chunking: Order → Rule → Sub-rule for the High Court Civil Procedure
+  Rules family in BOTH engines (TS + Python, 1:1) — "ORDER 28/Rule
+  3/(2)" is the citation shape a practitioner cites.
+- OCR triage (Python extractor): embedded-text-first page triage
+  (MIN_PAGE_CHARS=24), scanned pages counted as ocr_pending, local OCR
+  via pytesseract ONLY when installed (never a new key), never silently
+  dropped. The Convex worker's pdf_deferred boundary remains honest.
+
+**Workstream C (WhatsApp parity):**
+- IntegrationSettings MAPPABLE_TYPES gains visitor_pass (17 → 18 — the
+  manual mapping editor was hiding a live, server-mapped type).
+- Production verified end-to-end: manual syncAllFirms run refreshed all
+  31 firm registries to 13 templates (3 approved / 9 pending / 2
+  rejected — the two vega rejects are the known pre-existing Meta
+  reviews); the daily sync cron was stale since Nov 19 — the production
+  Convex deploy re-registered crons, so the 05:45 UTC sync is live again.
+
+**Gates:** root tsc 0 · convex tsc 0 · vitest 3,611/3,611 (+9 new:
+Order/Rule/Sub-rule chunking ×2, currency derivation/labels/caveats ×7)
+· CI green on b2dd8077 (Tests, E2E smoke, Build Android APK, CodeQL,
+Deploy to Staging) · production deploys for 8c7fe61b both SUCCESS
+(Convex + Vercel) · production app HTTP 200 · backfill applied.
+
+**Known-open (documented, not silently dropped):** the two REJECTED vega
+templates (invoice_reminder, engagement_followup) await a Meta resubmit
+decision; the OCR engine itself stays optional (pytesseract absent in
+this sandbox — the triage counts report exactly what is pending).
