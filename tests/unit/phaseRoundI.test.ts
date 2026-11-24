@@ -64,8 +64,13 @@ describe('UX-56 — one onboarding surface at a time', () => {
         expect(dash).toContain('welcomeSuppressedByProgress');
         expect(dash).toContain('!welcomeDismissed && !welcomeSuppressedByProgress');
     });
-    it('the setup banner only renders once the checklist is dismissed', () => {
-        expect(dash).toContain("setupChecklist?.dismissed === true && <CompleteSetupBanner />");
+    it('the setup banner only renders once the checklist is dismissed — through the shared attention slot (2026-11-25 coalescing)', () => {
+        // The dismissed-check feeds the attention slot; the slot gates BOTH
+        // onboarding banners (setup beats the trial nudge — banner fatigue fix).
+        expect(dash).toContain('setup: hasAnyRecords && setupChecklist?.dismissed === true');
+        expect(dash).toContain("attentionSlot === 'setup' && <CompleteSetupBanner />");
+        expect(dash).toContain("attentionSlot === 'trial' && <TrialNudgeBanner />");
+        expect(dash).toContain("import { pickAttentionBanner } from '../utils/bannerCoalescing'");
     });
     it('the progress number is shared with the sidebar widget (one export)', () => {
         const cl = src('src/components/GettingStartedChecklist.tsx');

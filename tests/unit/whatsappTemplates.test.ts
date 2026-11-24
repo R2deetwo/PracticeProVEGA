@@ -485,9 +485,9 @@ describe('Vega templates — the vega_* set created via createVegaTemplates', ()
     expect(inv.varOrder.slice(-3)).toEqual(['bankName', 'accountName', 'accountNumber']);
   });
 
-  it('the engagement followup is the only MARKETING template', () => {
-    expect(VEGA_TEMPLATE_DEFS.filter((d) => d.category === 'MARKETING').map((d) => d.name))
-      .toEqual(['vega_engagement_followup']);
+  it('every vega_* def is UTILITY (Meta reclassified engagement_followup live — 2026-11-25 inspect: PENDING/UTILITY)', () => {
+    expect(VEGA_TEMPLATE_DEFS.filter((d) => d.category === 'UTILITY')).toHaveLength(VEGA_TEMPLATE_DEFS.length);
+    expect(VEGA_TEMPLATE_DEFS.some((d) => d.category === 'MARKETING')).toBe(false);
   });
 });
 

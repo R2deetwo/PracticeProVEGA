@@ -1047,7 +1047,12 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
   },
   {
     name: "vega_engagement_followup",
-    category: "MARKETING",
+    // 2026-11-25 live inspect (createVegaTemplates inspect mode): Meta's
+    // auto-categorizer has this template filed UTILITY alongside the rest
+    // of the vega set (PENDING in review). The declared category is
+    // decorative since Meta's July-2025 categorizer classifies by TEXT —
+    // the def now matches the live filing instead of contradicting it.
+    category: "UTILITY",
     messageType: "engagement_followup",
     // Round 1 was auto-REJECTED with "meeting with {{2}}" (firm name as a
     // variable — same sender-identity rule as the invoice template).

@@ -57,6 +57,7 @@ import type * as legal_engine from "../legal/engine.js";
 import type * as legal_ingest from "../legal/ingest.js";
 import type * as legal_queue from "../legal/queue.js";
 import type * as legal_search from "../legal/search.js";
+import type * as legal_seedCoreInstruments from "../legal/seedCoreInstruments.js";
 import type * as legal_shared from "../legal/shared.js";
 import type * as legal_worker from "../legal/worker.js";
 import type * as legalCorpus from "../legalCorpus.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "legal/ingest": typeof legal_ingest;
   "legal/queue": typeof legal_queue;
   "legal/search": typeof legal_search;
+  "legal/seedCoreInstruments": typeof legal_seedCoreInstruments;
   "legal/shared": typeof legal_shared;
   "legal/worker": typeof legal_worker;
   legalCorpus: typeof legalCorpus;

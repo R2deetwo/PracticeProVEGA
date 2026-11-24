@@ -3317,3 +3317,106 @@ staging-auth smoke + APK pipeline run in CI as usual on push.
   background: #000000` — the green flash chain is gone from production).
   The remaining #16A34A strings in the HTML are the favicon data-URI +
   browser theme-color (brand identity in browser chrome — intentional).
+
+---
+
+## Task 89 — Antigravity audit response: live template truth, core-authorities corpus seed, Settings quick search, banner coalescing, Sentry runbook
+
+Date: 2026-11-25. Owner pasted Antigravity's external audit (produced
+between its Gemini 503 outages) and directed: "address the issues it has
+raised. do your best to solve all the issues yourself." This round is the
+evidence-first response; its top finding was already-fixed, verified
+against live production rather than assumed.
+
+### 0. The audit's #1 claim, live-verified as already fixed
+
+- LIVE INSPECT (createVegaTemplates inspect:true, prod deploy key, WABA
+  1365626695350672): ALL TEN templates read PENDING — vega_invoice_reminder
+  and vega_engagement_followup INCLUDED, both filed UTILITY by Meta's own
+  auto-categorizer. The audit's "2 REJECTED on Meta's side" was the stale
+  round-1 listing-ghost reading (Task 83 already documented the quirk);
+  Round 3.2's in-place update resubmitted both on 2026-11-24. Nothing to
+  rewrite — Meta's reviewers hold the verdict; the update path iterates if
+  any rejection lands (rejected_reason surfaces through the same inspect).
+- Code def reconciled to the live filing: vega_engagement_followup declared
+  MARKETING → UTILITY (Meta's categorizer classifies by text and has it
+  UTILITY live); the "only MARKETING template" pin inverted to all-UTILITY.
+
+### 1. Audit P3 — corpus emptiness, answered with verified metadata + pipeline, never fabricated text
+
+- House rule 2 governs: NOT ONE LINE of statutory text was authored. What
+  landed: CORE_INSTRUMENTS (convex/legal/coreInstruments.ts) — eight
+  verified metadata records (constitution_1999, cama_2020,
+  evidence_act_2011, land_use_act, fhc_civil_rules_2019,
+  lagos_hc_civil_rules_2019, rpc_2023, rpc_2007), every citation fact
+  verified against live sources today (PLAC consolidated Constitution +
+  E14; the FRN Official Gazette CAMA copy — No. 3 of 2020, Gazette 124/
+  Vol.107; WIPO Lex + the amendment analyses for the Evidence (Amendment)
+  Act 2023 ss. 84/93/108/109/110/119/255/258; the akabogulaw + OBLP rules
+  PDFs; the RPC 2023 gazette B725-771 — made 6 June 2023 by the General
+  Council of the Bar under s.12(4) LPA, commenced 1 January 2024,
+  revoking the 2007 Rules effective 31 December 2023, confirmed by the
+  NBA's October 2024 compliance notice).
+- seedCoreInstruments (internalAction, deploy-key trust — the
+  whatsappDiagnostics pattern): idempotent instrument upsert by key with
+  currencyStatus derived through the same deriveCurrencyStatus the ingest
+  path uses; a CURATED-priority scrape-queue row per authoritative source
+  so the engine ingests the REAL TEXT (SHA-256 provenance, chunks,
+  embeddings) the moment it runs; system_audit_logs rows for every
+  insert/patch/enqueue; dryRun mode. Curated rows carry the honest
+  provenance marker rawDocumentHash="curated:<sha>" and the seed never
+  clobbers a pipeline-ingested row back to metadata-only (real-hash
+  guard). 13 unit tests pin the invariants (exact key set, statuses,
+  ASCII-only, empty structures = no fabricated text, currency mapping,
+  the RPC facts).
+
+### 2. Audit quick wins — Settings nav overload + Dashboard banner fatigue
+
+- Settings quick search (src/utils/settingsSearch.ts, 8 tests): the nav
+  filter grammar — a group hit keeps all children, a child hit prunes to
+  the matching panels, empty query passes through untouched; wired above
+  the nav through the Input primitive (shared by desktop sidebar + mobile
+  drawer), section headings hide when their section empties under a query,
+  and a no-match note replaces the list.
+- Banner coalescing (src/utils/bannerCoalescing.ts, 5 tests):
+  CompleteSetupBanner and TrialNudgeBanner share ONE attention slot —
+  setup wins (finishing onboarding is the activation driver), the nudge
+  returns on its next milestone day. TierAccessBanner and BroadcastBanner
+  keep their own lanes deliberately (plan state / founder comms are not
+  duplicates). The UX-56 source pin now asserts the new wiring
+  (dismissed-check feeds the slot; the slot gates both banners).
+
+### 3. Audit P2 — Sentry: the owner-only action, made one paste away
+
+- docs/ops/PRODUCTION_OBSERVABILITY.md — the runbook: the honest current
+  state (error_events table live with zero config; both DSNs absent so
+  frontend init and backend envelopes are off), the exact steps (React DSN
+  → VITE_SENTRY_DSN in Vercel + a redeploy, because the DSN is inlined at
+  build time; Node DSN → SENTRY_BACKEND_DSN via npx convex env set), and
+  end-to-end verification. DSNs are never fabricated — they are the
+  owner's, one paste each.
+
+### 4. The api.d.ts codegen lesson
+
+- `npx convex codegen` regenerates the committed _generated/api.d.ts with
+  the current CLI's tighter inference, which exposed 16 latent implicit-any
+  debts in aloa/messaging files (AloaChat, ConversationList, LedgerManager,
+  AutomationWorkflows, ScheduledTab) — pre-existing, untouched by this
+  round, deferred to their own pass. The committed api.d.ts keeps the prior
+  inference baseline; only the legal/seedCoreInstruments module entry was
+  added surgically (the file was already stale — legal/currency and
+  legal/shared had landed 2026-11-24 unmapped).
+
+**Gates:** root tsc 0 · convex tsc 0 · vitest 3,711/3,711 +1 skipped (+26
+net new: coreInstrumentsSeed 13, settingsSearch 8, bannerCoalescing 5, with
+the UX-56 pin updated in place) · lint 0 errors · ui-primitives ratchet
+held 2,212/2,212 (the search box rides the Input primitive; zero new raw
+elements) · design-token gate green (zIndex=0) · identity audit PASSED ·
+vite production build green.
+
+**Known-open:** Meta's PENDING verdicts on the ten templates (the daily
+cron auto-maps on approval; run remapAutoMappedTemplates once the full set
+approves); full-text corpus ingestion needs the engine to run (the founder
+toggle / worker) — the queue rows are in place at CURATED priority; the 16
+latent typing debts from the codegen lesson await their own pass; the
+law-reporting vendor and the two Sentry DSNs remain owner-only actions.

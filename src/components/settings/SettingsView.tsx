@@ -72,6 +72,8 @@ import CategoriesSettings from './CategoriesSettings';
 import DisplaySettings from './DisplaySettings';
 import SecurityAccessView from '../SecurityAccessView';
 import EstateCommunitySettings from './EstateCommunitySettings';
+import { Input } from '../ui/Input';
+import { filterSettingsGroups } from '../../utils/settingsSearch';
 
 import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
@@ -307,6 +309,15 @@ const SidebarContents: React.FC<{
         });
     }
 
+    // 2026-11-25 audit response (nav overload): quick-search the nav
+    // itself — jump straight to a panel instead of scanning 9 groups / 20
+    // sections. Pure filter grammar: src/utils/settingsSearch.ts
+    // (unit-tested); a group hit keeps all children, a child hit prunes to
+    // the matching panels, empty query passes through untouched.
+    const [settingsQuery, setSettingsQuery] = useState('');
+    const searching = settingsQuery.trim().length > 0;
+    const searchedGroups = filterSettingsGroups(groups, settingsQuery);
+
     const renderGroup = (g: Group) => {
         const visibleChildren = g.children.filter(c => c.visible);
         const groupIsActive = g.children.some(c => c.id === activeTab);
@@ -348,12 +359,25 @@ const SidebarContents: React.FC<{
 
     return (
         <div className="flex flex-col gap-0 p-3">
+            {/* ─── Quick search (2026-11-25 audit: nav overload) ─── */}
+            <div className="px-1 pb-2">
+                <Input
+                    type="search"
+                    aria-label="Search settings"
+                    placeholder="Search settings"
+                    value={settingsQuery}
+                    onChange={(e) => setSettingsQuery(e.target.value)}
+                    styleVariant="settings"
+                    inputClassName="text-xs py-1.5"
+                />
+            </div>
+
             {/* ─── Account Section ─── */}
-            <SectionHeading label="Account" />
-            {groups.filter(g => g.section === 'account').map(renderGroup)}
+            {(!searching || searchedGroups.some(g => g.section === 'account')) && <SectionHeading label="Account" />}
+            {searchedGroups.filter(g => g.section === 'account').map(renderGroup)}
 
             {/* ─── Practice / Workspace Section ─── */}
-            <SectionHeading label={isProperty ? 'Workspace' : 'Practice'} />
+            {(!searching || searchedGroups.some(g => g.section === 'practice')) && <SectionHeading label={isProperty ? 'Workspace' : 'Practice'} />}
             {isProperty && !isUnified && (
                 <NavItem
                     label="Revenue Protection Guide"
@@ -362,11 +386,17 @@ const SidebarContents: React.FC<{
                     onClick={() => { onCloseDrawer?.(); navigateTo('help', null, { activeSection: 'revenue-engine' }); }}
                 />
             )}
-            {groups.filter(g => g.section === 'practice').map(renderGroup)}
+            {searchedGroups.filter(g => g.section === 'practice').map(renderGroup)}
 
             {/* ─── System Section ─── */}
-            <SectionHeading label="System" />
-            {groups.filter(g => g.section === 'system').map(renderGroup)}
+            {(!searching || searchedGroups.some(g => g.section === 'system')) && <SectionHeading label="System" />}
+            {searchedGroups.filter(g => g.section === 'system').map(renderGroup)}
+            {/* No-match state for the quick search (2026-11-25). */}
+            {searching && searchedGroups.length === 0 && (
+                <p className="px-3 py-8 text-center text-xs text-slate-500 dark:text-zinc-400">
+                    No settings match &ldquo;{settingsQuery.trim()}&rdquo;.
+                </p>
+            )}
             {/* CRO AUDIT FIX — Feedback button kept visible in the nav. */}
             <NavItem
                 label="Share Feedback"

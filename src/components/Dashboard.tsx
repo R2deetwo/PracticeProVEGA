@@ -38,6 +38,9 @@ import { Button } from './ui/Button';
 // 7-day Vox-card rule (owner brief 2026-11-24): the Overview card can be
 // dismissed; it only re-surfaces after 7 days AND 7 days without Vox use.
 import { shouldShowVoxCard, dismissVoxCard, stampVoxUsedAt } from '../utils/voxUsageTracking';
+// 2026-11-25 audit response (banner fatigue): one attention slot for the
+// onboarding banners — pure grammar in src/utils/bannerCoalescing.ts.
+import { pickAttentionBanner } from '../utils/bannerCoalescing';
 
 
 
@@ -282,6 +285,16 @@ const Dashboard: React.FC = () => {
 
     if (!currentUser) return null; // Avoid crash before auth is ready
 
+    // 2026-11-25 audit response (banner fatigue): CompleteSetupBanner and
+    // TrialNudgeBanner share ONE attention slot — setup wins (finishing
+    // onboarding is the activation driver); the nudge returns on its next
+    // milestone day once setup completes. TierAccessBanner (plan state) and
+    // BroadcastBanner (founder comms) keep their own lanes on purpose.
+    const attentionSlot = pickAttentionBanner({
+        setup: hasAnyRecords && setupChecklist?.dismissed === true,
+        trial: hasAnyRecords,
+    });
+
     return (
         <div className="h-full overflow-y-auto custom-scrollbar scroll-smooth-ios bg-slate-50 dark:bg-zinc-900">
             <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0 pt-safe">
@@ -344,9 +357,12 @@ const Dashboard: React.FC = () => {
                     checklist has been dismissed — checklist OR banner, never both.
                     While the checklist widget is live it is the single onboarding
                     surface; once the user dismisses it, the banner takes over the
-                    remaining steps. */}
+                    remaining steps.
+                    2026-11-25: the setup banner occupies the shared attention
+                    slot — it suppresses the trial nudge for the day (banner
+                    coalescing; see pickAttentionBanner). */}
                 <ErrorBoundary fallback={null}>
-                    {hasAnyRecords && setupChecklist?.dismissed === true && <CompleteSetupBanner />}
+                    {attentionSlot === 'setup' && <CompleteSetupBanner />}
                 </ErrorBoundary>
 
                 {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
@@ -354,9 +370,11 @@ const Dashboard: React.FC = () => {
                     Dismissible per-day via localStorage.
                     SIMPLIFY FIX: suppressed while the firm has zero records —
                     Day 0's message ("Add your first property or matter") duplicates
-                    the auto-opened create modal and the welcome flow. */}
+                    the auto-opened create modal and the welcome flow.
+                    2026-11-25: the nudge defers to the setup banner through the
+                    shared attention slot (banner coalescing). */}
                 <ErrorBoundary fallback={null}>
-                    {hasAnyRecords && <TrialNudgeBanner />}
+                    {attentionSlot === 'trial' && <TrialNudgeBanner />}
                 </ErrorBoundary>
 
                 {/* QUICK CAPTURE CARD (owner addendum 2026-11-18: "place a
