@@ -323,6 +323,7 @@ import {
   varOrderForTemplate,
   nameTokenHits,
   VEGA_TEMPLATE_DEFS,
+  TYPE_DEFAULT_VARS,
 } from '../../convex/whatsappTemplates';
 import { fillPaymentInstructions, PAYMENT_INSTRUCTIONS_TRIGGER, DEFAULT_SNIPPETS } from '../../convex/voiceTools';
 
@@ -435,13 +436,32 @@ describe('Vega templates — the vega_* set created via createVegaTemplates', ()
     }
   });
 
-  it('each def body slot-count matches its messageType default var order', () => {
+  it('bodies are ASCII-only (round 1: the em dash caused HTTP 400 code 100)', () => {
     for (const d of VEGA_TEMPLATE_DEFS) {
+      expect(d.bodyText).toMatch(/[\x00-\x7F]*/);
+      // eslint-disable-next-line no-control-regex
+      expect(/[\u0080-\uFFFF]/.test(d.bodyText)).toBe(false);
+    }
+  });
+
+  it('no body uses a variable in the sender-identity position (round 1 auto-REJECT cause)', () => {
+    // Meta rejects templates where the business identity is a fill-in slot
+    // ("from {{4}}" / "meeting with {{2}}"). The firm is identified by the
+    // WhatsApp display name and the bank block's account name.
+    for (const d of VEGA_TEMPLATE_DEFS) {
+      expect(/\bfrom\s*\{\{\d+\}\}/i.test(d.bodyText)).toBe(false);
+      expect(/meeting with\s*\{\{\d+\}\}/i.test(d.bodyText)).toBe(false);
+    }
+  });
+
+  it('each def body slot-count matches its messageType default var order exactly', () => {
+    for (const d of VEGA_TEMPLATE_DEFS) {
+      const slots = Math.max(...[...d.bodyText.matchAll(/\{\{(\d+)\}\}/g)].map((m) => parseInt(m[1], 10)));
       const order = varOrderForTemplate(d.messageType, {
-        variableCount: Math.max(...[...d.bodyText.matchAll(/\{\{(\d+)\}\}/g)].map((m) => parseInt(m[1], 10))),
+        variableCount: slots,
         bodyText: d.bodyText,
       });
-      expect(order.length).toBeGreaterThan(0);
+      expect(order).toEqual(TYPE_DEFAULT_VARS[d.messageType]);
     }
   });
 

@@ -155,7 +155,7 @@ export const TYPE_KEYWORDS: Record<string, string[]> = {
 // Sensible default slot order per type (sliced/padded to the template's
 // variable count). Payment-flavoured types lead with the amount; the rest
 // lead with the tenant's name.
-const TYPE_DEFAULT_VARS: Record<string, string[]> = {
+export const TYPE_DEFAULT_VARS: Record<string, string[]> = {
   rent_reminder: ["tenantName", "amount", "address"],
   late_notice: ["tenantName", "amount", "address"],
   payment_receipt: ["tenantName", "amount", "address"],
@@ -171,11 +171,11 @@ const TYPE_DEFAULT_VARS: Record<string, string[]> = {
   // ── Vega types — var orders mirror the vega_* template bodies created
   // by createVegaTemplates below (invoice_reminder's trailing bank slots
   // are pinned by the "Bank:/Account Name:/Account Number:" labels).
-  court_reminder: ["tenantName", "messageText", "dueDate", "address", "firmName"],
-  invoice_reminder: ["tenantName", "messageText", "amount", "firmName", "dueDate", "bankName", "accountName", "accountNumber"],
-  document_ready: ["tenantName", "messageText", "firmName"],
-  appointment_reminder: ["tenantName", "firmName", "dueDate", "messageText"],
-  engagement_followup: ["tenantName", "firmName"],
+  court_reminder: ["tenantName", "messageText", "dueDate", "address"],
+  invoice_reminder: ["tenantName", "messageText", "amount", "dueDate", "bankName", "accountName", "accountNumber"],
+  document_ready: ["tenantName", "messageText"],
+  appointment_reminder: ["tenantName", "dueDate", "messageText"],
+  engagement_followup: ["tenantName"],
 };
 const PAD_FIELDS = ["firmName", "dueDate", "address", "messageText"] as const;
 
@@ -944,21 +944,30 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
     name: "vega_invoice_reminder",
     category: "UTILITY",
     messageType: "invoice_reminder",
+    // House style = the APPROVED atrium_rent_reminder shape (same "Pay to:"
+    // block, same payment-reference footer). Round 1 (2026-11-24) was
+    // auto-REJECTED: it carried the firm name as a VARIABLE ("from {{4}}") —
+    // Meta rejects templates where the sender identity is a fill-in slot.
+    // The business is identified by the WhatsApp display name; the bank
+    // block's account name carries the firm at send time.
     bodyText:
       "Hello {{1}},\n\n" +
-      "This is a friendly reminder that invoice {{2}} of NGN {{3}} from {{4}} is due on {{5}}.\n\n" +
-      "Pay to:\nBank: {{6}}\nAccount Name: {{7}}\nAccount Number: {{8}}\n\n" +
+      "This is a friendly reminder that your invoice {{2}} of NGN {{3}} is due on {{4}}.\n\n" +
+      "Pay to:\nBank: {{5}}\nAccount Name: {{6}}\nAccount Number: {{7}}\n\n" +
       "Please use the invoice number as your payment reference. Thank you.",
   },
   {
     name: "vega_court_reminder",
     category: "UTILITY",
     messageType: "court_reminder",
+    // Round 1 failed HTTP 400 (code 100) — the em dash in the closing
+    // signature. ASCII-only closings now (the approved atrium bodies are
+    // ASCII-only too).
     bodyText:
       "Hello {{1}},\n\n" +
       "This is a reminder that the next hearing in {{2}} comes up on {{3}} at {{4}}.\n\n" +
       "Please be seated before the case is called. Kindly reach out if you need copies of the processes before the date.\n\n" +
-      "— {{5}}",
+      "Thank you.",
   },
   {
     name: "vega_document_ready",
@@ -968,7 +977,7 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
       "Hello {{1}},\n\n" +
       "Your {{2}} has been prepared and is ready for your review in your client portal.\n\n" +
       "Kindly review and revert with any comments or approvals.\n\n" +
-      "— {{3}}",
+      "Thank you.",
   },
   {
     name: "vega_appointment_reminder",
@@ -976,17 +985,19 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
     messageType: "appointment_reminder",
     bodyText:
       "Hello {{1}},\n\n" +
-      "This is a reminder of your consultation with {{2}} on {{3}} at {{4}}.\n\n" +
+      "This is a reminder of your consultation on {{2}} at {{3}}.\n\n" +
       "If you need to reschedule, kindly reply to this message.\n\n" +
-      "— {{2}}",
+      "Thank you.",
   },
   {
     name: "vega_engagement_followup",
     category: "MARKETING",
     messageType: "engagement_followup",
+    // Round 1 was auto-REJECTED with "meeting with {{2}}" (firm name as a
+    // variable — same sender-identity rule as the invoice template).
     bodyText:
       "Hello {{1}},\n\n" +
-      "Thank you for meeting with {{2}}. If you would like us to proceed with your matter, simply reply to this message and we will send the next steps and our engagement terms.\n\n" +
+      "Thank you for meeting with us. If you would like us to proceed with your matter, simply reply to this message and we will send the next steps and our engagement terms.\n\n" +
       "We look forward to working with you.",
   },
 ];
@@ -1007,6 +1018,10 @@ export const createVegaTemplates = internalAction({
   args: {
     dryRun: v.optional(v.boolean()),
     names: v.optional(v.array(v.string())), // subset filter
+    // INSPECT mode: GET each vega_* template by name (single-template
+    // fetches include Meta's rejected_reason, the bulk listing does not)
+    // and return status + reason without creating anything.
+    inspect: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{
     success: boolean;
@@ -1069,15 +1084,55 @@ export const createVegaTemplates = internalAction({
       } while (after && pages < 5);
     } catch { /* listing is best-effort — creation still attempts */ }
 
-    // 3) POST each missing template through the pass-through.
     const defs = VEGA_TEMPLATE_DEFS.filter(
       (d) => !args.names?.length || args.names.includes(d.name)
     );
+
+    // 2b) INSPECT mode: per-template GET (rejected_reason included).
+    if (args.inspect) {
+      const details: Array<{ name: string; found: boolean; status?: string; category?: string; rejectedReason?: string; error?: string }> = [];
+      for (const def of defs) {
+        try {
+          const url = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(def.name)}`;
+          const res = await fetch(url, { headers });
+          const raw = await res.text();
+          let data: any = null;
+          try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+          const row = Array.isArray(data?.data) && data.data[0] ? data.data[0] : data;
+          if (row?.name) {
+            details.push({
+              name: def.name, found: true,
+              status: String(row.status || "UNKNOWN"),
+              category: row.category ? String(row.category) : undefined,
+              rejectedReason: row.rejected_reason ? String(row.rejected_reason) : undefined,
+            });
+          } else {
+            const parsedErr = data ? extractWaError(data) : null;
+            details.push({ name: def.name, found: false, error: parsedErr || (raw ? raw.slice(0, 200) : `HTTP ${res.status}`) });
+          }
+        } catch (e: any) {
+          details.push({ name: def.name, found: false, error: `Request failed: ${e?.message || e}` });
+        }
+      }
+      return { success: true, wabaId, results: details as any };
+    }
+
+    // 3) POST each missing template through the pass-through.
     const results: Array<{ name: string; outcome: "created" | "exists" | "failed" | "dry_run"; httpStatus?: number; status?: string; error?: string }> = [];
     for (const def of defs) {
-      if (existing.has(def.name.toLowerCase())) {
-        results.push({ name: def.name, outcome: "exists", status: existing.get(def.name.toLowerCase()) });
+      const existingStatus = existing.get(def.name.toLowerCase());
+      if (existingStatus && existingStatus.toUpperCase() !== "REJECTED") {
+        results.push({ name: def.name, outcome: "exists", status: existingStatus });
         continue;
+      }
+      // A REJECTED template occupies the name but is unusable. Delete it
+      // first (best-effort through the pass-through) so the corrected body
+      // can be recreated under the same name.
+      if (existingStatus) {
+        try {
+          const delUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(def.name)}`;
+          await fetch(delUrl, { method: "DELETE", headers });
+        } catch { /* best-effort — the POST below reports if the name is still taken */ }
       }
       if (args.dryRun) {
         results.push({ name: def.name, outcome: "dry_run" });
