@@ -39,6 +39,14 @@ export const sendWhatsAppInternal = internalAction({
         firmName: v.optional(v.string()),
         dueDate: v.optional(v.string()),
         messageText: v.optional(v.string()),
+        // ── VMS visitor-pass fields (2026-11-24 gap set) — passed by
+        // the visitorManagement fallback so the visitor_pass template
+        // renders from real visit data.
+        visitorName: v.optional(v.string()),
+        estateName: v.optional(v.string()),
+        tokenCode: v.optional(v.string()),
+        visitDate: v.optional(v.string()),
+        validUntil: v.optional(v.string()),
       })),
     })),
     retryTemplateLocales: v.optional(v.boolean()),
@@ -113,6 +121,14 @@ export const sendWhatsApp = action({
         firmName: v.optional(v.string()),
         dueDate: v.optional(v.string()),
         messageText: v.optional(v.string()),
+        // ── VMS visitor-pass fields (2026-11-24 gap set) — the
+        // visitorManagement fallback passes these so the visitor_pass
+        // template renders from real visit data.
+        visitorName: v.optional(v.string()),
+        estateName: v.optional(v.string()),
+        tokenCode: v.optional(v.string()),
+        visitDate: v.optional(v.string()),
+        validUntil: v.optional(v.string()),
       })),
     })),
     retryTemplateLocales: v.optional(v.boolean()),
@@ -310,6 +326,14 @@ export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core 
         accountNumber: v.optional(v.string()),
         paymentKind: v.optional(v.string()),   // "rent" / "service charge" / "invoice"
         daysOverdue: v.optional(v.string()),   // "{{n}} days overdue" slot
+        // ── VMS visitor-pass fields (2026-11-24 gap set) — the visitor
+        // flow calls sendWhatsAppCore directly with these; the template
+        // retry renders them in the labeled slot order.
+        visitorName: v.optional(v.string()),
+        estateName: v.optional(v.string()),
+        tokenCode: v.optional(v.string()),
+        visitDate: v.optional(v.string()),
+        validUntil: v.optional(v.string()),
       })),
     })),
     // When a template-first send fails with a name+locale lookup miss,
@@ -630,6 +654,8 @@ export function buildTemplateVarsForOrder(
     dueDate?: string; messageText?: string;
     bankName?: string; accountName?: string; accountNumber?: string;
     paymentKind?: string; daysOverdue?: string;
+    visitorName?: string; estateName?: string; tokenCode?: string;
+    visitDate?: string; validUntil?: string;
   }
 ): string[] {
   const naira = (n?: number) => `₦${(n || 0).toLocaleString("en-NG")}`;
@@ -665,6 +691,14 @@ export function buildTemplateVarsForOrder(
       case "accountNumber": return r.accountNumber || "for transfer details";
       case "paymentKind": return r.paymentKind || "payment";
       case "daysOverdue": return r.daysOverdue || "several";
+      // ── VMS visitor-pass fields (2026-11-24 gap set) — defaults read
+      // naturally inside the template's labeled lines; a missing code is
+      // stated honestly, never a fabricated one.
+      case "visitorName": return r.visitorName || "Visitor";
+      case "estateName": return r.estateName || "the estate";
+      case "tokenCode": return r.tokenCode || "issued at the gate";
+      case "visitDate": return r.visitDate || "the visit date";
+      case "validUntil": return r.validUntil || "the end of the day";
       default: return String(f);
     }
   });

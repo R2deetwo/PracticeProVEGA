@@ -46,6 +46,13 @@ const VAR_FIELD_LABELS: Record<string, string> = {
   accountNumber: 'Account number (firm default account)',
   paymentKind: 'Payment kind (rent / service charge / invoice)',
   daysOverdue: 'Days overdue',
+  // VMS visitor-pass fields (2026-11-24 gap set) — the visitorManagement
+  // fallback fills these for the visitor_pass template.
+  visitorName: 'Visitor name',
+  estateName: 'Estate name',
+  tokenCode: 'Visitor code',
+  visitDate: 'Visit date',
+  validUntil: 'Valid until',
 };
 
 const LANGUAGES = ['en', 'en_US', 'en_GB', 'fr', 'pt_BR', 'es', 'hi', 'id', 'pt'];

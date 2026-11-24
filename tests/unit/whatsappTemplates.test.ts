@@ -323,6 +323,8 @@ import {
   varOrderForTemplate,
   nameTokenHits,
   VEGA_TEMPLATE_DEFS,
+  GAP_TEMPLATE_DEFS,
+  familyAligned,
   TYPE_DEFAULT_VARS,
 } from '../../convex/whatsappTemplates';
 import { fillPaymentInstructions, PAYMENT_INSTRUCTIONS_TRIGGER, DEFAULT_SNIPPETS } from '../../convex/voiceTools';
@@ -486,6 +488,121 @@ describe('Vega templates — the vega_* set created via createVegaTemplates', ()
   it('the engagement followup is the only MARKETING template', () => {
     expect(VEGA_TEMPLATE_DEFS.filter((d) => d.category === 'MARKETING').map((d) => d.name))
       .toEqual(['vega_engagement_followup']);
+  });
+});
+
+describe('Gap templates — the missing five (2026-11-24: "do the ones you say are missing. lets not wait for the approval meta")', () => {
+  const slotCount = (body: string) => Math.max(...[...body.matchAll(/\{\{(\d+)\}\}/g)].map((m) => parseInt(m[1], 10)));
+  const gapTemplates = GAP_TEMPLATE_DEFS.map((d) => ({
+    name: d.name, language: 'en', status: 'APPROVED',
+    variableCount: slotCount(d.bodyText),
+    bodyText: d.bodyText,
+  })) as any[];
+  const vegaApproved = VEGA_TEMPLATE_DEFS.map((d) => ({
+    name: d.name, language: 'en', status: 'APPROVED',
+    variableCount: slotCount(d.bodyText),
+    bodyText: d.bodyText,
+  })) as any[];
+
+  it('every def has a Meta-legal name (lowercase/underscores, ≤60 chars) with the atrium_ prefix or the bare VMS name', () => {
+    for (const d of GAP_TEMPLATE_DEFS) {
+      expect(d.name).toMatch(/^[a-z0-9_]+$/);
+      expect(d.name.length).toBeLessThanOrEqual(60);
+      expect(d.name.startsWith('atrium_') || d.name === 'visitor_pass').toBe(true);
+    }
+  });
+
+  it('bodies are ASCII-only (round 1: the em dash caused HTTP 400 code 100)', () => {
+    for (const d of GAP_TEMPLATE_DEFS) {
+      // eslint-disable-next-line no-control-regex
+      expect(/[\u0080-\uFFFF]/.test(d.bodyText)).toBe(false);
+    }
+  });
+
+  it('no body uses a variable in the sender-identity position (round 1 auto-REJECT cause)', () => {
+    for (const d of GAP_TEMPLATE_DEFS) {
+      expect(/\bfrom\s*\{\{\d+\}\}/i.test(d.bodyText)).toBe(false);
+      expect(/meeting with\s*\{\{\d+\}\}/i.test(d.bodyText)).toBe(false);
+    }
+  });
+
+  it('every def is UTILITY (transactional phrasing — Meta\'s auto-categorizer reads TEXT)', () => {
+    expect(GAP_TEMPLATE_DEFS.every((d) => d.category === 'UTILITY')).toBe(true);
+  });
+
+  it('each def body slot-count matches its messageType default var order exactly', () => {
+    for (const d of GAP_TEMPLATE_DEFS) {
+      const order = varOrderForTemplate(d.messageType, {
+        variableCount: slotCount(d.bodyText),
+        bodyText: d.bodyText,
+      });
+      expect(order).toEqual(TYPE_DEFAULT_VARS[d.messageType]);
+    }
+  });
+
+  it('maintenance_update + general_announcement defaults carry NO firmName (sender identity is never a fill-in slot)', () => {
+    expect(TYPE_DEFAULT_VARS['maintenance_update']).not.toContain('firmName');
+    expect(TYPE_DEFAULT_VARS['general_announcement']).not.toContain('firmName');
+  });
+
+  it('suggestMappings maps every gap type to its template — with the LIVE three + the Vega set in the pool', () => {
+    const s = suggestMappings([...gapTemplates, ...vegaApproved, LIVE_ATRIUM_RENT, LIVE_ATRIUM_LATE, LIVE_ATRIUM_SC], []);
+    const byType = Object.fromEntries(s.map((x) => [x.messageType, x.templateName]));
+    expect(byType['payment_receipt']).toBe('atrium_payment_receipt');
+    expect(byType['lease_renewal']).toBe('atrium_lease_renewal');
+    expect(byType['visitor_pass']).toBe('visitor_pass');
+    expect(byType['maintenance_update']).toBe('atrium_maintenance_update');
+    expect(byType['general_announcement']).toBe('atrium_general_announcement');
+    // The existing sets are not stolen by the new templates.
+    expect(byType['rent_reminder']).toBe('atrium_rent_reminder');
+    expect(byType['court_reminder']).toBe('vega_court_reminder');
+    // THE FAMILY GUARD: invoice_reminder and atrium_payment_receipt TIE on
+    // the shared "payment" name keyword (2-2), and the old fewer-variables
+    // tie-break would have handed the legal type to the 3-slot property
+    // receipt. Family alignment now outranks slot count.
+    expect(byType['invoice_reminder']).toBe('vega_invoice_reminder');
+    // The Vega invoice keeps its bank tail (nothing in the gap set can
+    // outscore it once the family guard is applied).
+    expect(s.find((x) => x.messageType === 'invoice_reminder')!.varOrder.slice(-3))
+      .toEqual(['bankName', 'accountName', 'accountNumber']);
+  });
+
+  it('familyAligned is exported and symmetric', () => {
+    expect(familyAligned({ name: 'vega_invoice_reminder' }, 'invoice_reminder')).toBe(true);
+    expect(familyAligned({ name: 'atrium_payment_receipt' }, 'invoice_reminder')).toBe(false);
+    expect(familyAligned({ name: 'atrium_payment_receipt' }, 'payment_receipt')).toBe(true);
+    expect(familyAligned({ name: 'vega_invoice_reminder' }, 'payment_receipt')).toBe(false);
+    expect(familyAligned({ name: 'visitor_pass' }, 'visitor_pass')).toBe(true);
+  });
+
+  it('visitor_pass varOrder is exactly the labeled VMS fields (pinned by the Visitor code:/Visit date:/Valid until: labels)', () => {
+    const pass = gapTemplates.find((t) => t.name === 'visitor_pass')!;
+    expect(varOrderForTemplate('visitor_pass', pass)).toEqual([
+      'visitorName', 'estateName', 'tokenCode', 'visitDate', 'validUntil',
+    ]);
+    // The estate slot is NOT pinned as an address — "to {{2}}" avoids the
+    // generic /for {{n}}/ address pattern on purpose.
+    const slots = inferLabeledSlots(pass.bodyText);
+    expect(slots).toEqual({ 3: 'tokenCode', 4: 'visitDate', 5: 'validUntil' });
+  });
+
+  it('buildTemplateVarsForOrder + buildVarsForOrder render the visitor fields IDENTICALLY (twins)', () => {
+    const order = ['visitorName', 'estateName', 'tokenCode', 'visitDate', 'validUntil'];
+    const data = {
+      visitorName: 'Tunde Adeyemi', estateName: 'Chevron Estate, Lekki',
+      tokenCode: 'VG-4821', visitDate: '15 December 2026', validUntil: 'Mon 15 Dec, 6:00 PM',
+    };
+    const server = buildTemplateVarsForOrder(order, data);
+    const client = buildVarsForOrder(order, data as any);
+    expect(server).toEqual(['Tunde Adeyemi', 'Chevron Estate, Lekki', 'VG-4821', '15 December 2026', 'Mon 15 Dec, 6:00 PM']);
+    expect(client).toEqual(server);
+  });
+
+  it('the missing-field defaults read naturally in the labeled lines (twins)', () => {
+    const order = ['visitorName', 'estateName', 'tokenCode', 'visitDate', 'validUntil'];
+    const server = buildTemplateVarsForOrder(order, {});
+    expect(server).toEqual(['Visitor', 'the estate', 'issued at the gate', 'the visit date', 'the end of the day']);
+    expect(buildVarsForOrder(order, {} as any)).toEqual(server);
   });
 });
 

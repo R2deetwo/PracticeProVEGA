@@ -150,6 +150,13 @@ export const TYPE_KEYWORDS: Record<string, string[]> = {
   document_ready: ["document", "ready", "prepared", "draft"],
   appointment_reminder: ["appointment", "consultation", "meeting"],
   engagement_followup: ["engagement", "follow", "consulted"],
+  // ── VMS (visitor management) — 2026-11-24 gap set. A visitor is a
+  // brand-new number: the free-form pass send is ALWAYS outside the
+  // 24-hour window (Meta 131047), so without a template the pass never
+  // delivers. The visitorManagement.sendVisitorWhatsApp flow passes
+  // `fallback.messageType: "visitor_pass"` — this keyword set is what
+  // lets the daily auto-mapper pick the template up for every firm.
+  visitor_pass: ["visitor", "pass", "token", "gate", "visit"],
 };
 
 // Sensible default slot order per type (sliced/padded to the template's
@@ -166,8 +173,11 @@ export const TYPE_DEFAULT_VARS: Record<string, string[]> = {
   welcome_note: ["tenantName", "address", "firmName"],
   promotion: ["tenantName", "firmName", "messageText"],
   vendor_update: ["firmName", "messageText", "tenantName"],
-  general_announcement: ["tenantName", "firmName", "messageText"],
-  maintenance_update: ["tenantName", "address", "firmName"],
+  // firmName REMOVED from these two defaults (2026-11-24 gap set): Meta
+  // auto-rejects templates whose sender identity sits in a fill-in slot,
+  // so the third slot goes to the schedule date / notice text instead.
+  general_announcement: ["tenantName", "address", "messageText"],
+  maintenance_update: ["tenantName", "address", "dueDate"],
   // ── Vega types — var orders mirror the vega_* template bodies created
   // by createVegaTemplates below (invoice_reminder's trailing bank slots
   // are pinned by the "Bank:/Account Name:/Account Number:" labels).
@@ -176,6 +186,9 @@ export const TYPE_DEFAULT_VARS: Record<string, string[]> = {
   document_ready: ["tenantName", "messageText"],
   appointment_reminder: ["tenantName", "dueDate", "messageText"],
   engagement_followup: ["tenantName"],
+  // ── VMS — mirrors the visitor_pass template body (its labeled slots are
+  // pinned by the "Visitor code:/Visit date:/Valid until:" patterns below).
+  visitor_pass: ["visitorName", "estateName", "tokenCode", "visitDate", "validUntil"],
 };
 const PAD_FIELDS = ["firmName", "dueDate", "address", "messageText"] as const;
 
@@ -198,6 +211,11 @@ export const BODY_SLOT_PATTERNS: { pattern: RegExp; field: string }[] = [
   { pattern: /account\s*number\s*:\s*\{\{(\d+)\}\}/i, field: "accountNumber" },
   { pattern: /\{\{(\d+)\}\}\s*days?\s+overdue/i, field: "daysOverdue" },
   { pattern: /due\s*date\s*:\s*\{\{(\d+)\}\}/i, field: "dueDate" },
+  // ── VMS labels (2026-11-24 gap set) — pin the visitor_pass slots so the
+  // mapping survives body edits without ever padding a code into a slot.
+  { pattern: /visitor\s*code\s*:\s*\{\{(\d+)\}\}/i, field: "tokenCode" },
+  { pattern: /visit\s*date\s*:\s*\{\{(\d+)\}\}/i, field: "visitDate" },
+  { pattern: /valid\s*until\s*:\s*\{\{(\d+)\}\}/i, field: "validUntil" },
   { pattern: /(?:of|is)\s+(?:NGN|₦|N)\s*\{\{(\d+)\}\}/i, field: "amount" },
   { pattern: /your\s+\{\{(\d+)\}\}\s+of\b/i, field: "paymentKind" },
   { pattern: /\bfor\s+\{\{(\d+)\}\}/i, field: "address" },
@@ -326,10 +344,28 @@ export function defaultVarOrderFor(messageType: string, variableCount?: number):
   return order;
 }
 
-/**
- * Pure auto-mapping suggestion: for each message type with keywords that
+// ─── FAMILY ALIGNMENT (2026-11-24 gap set) ─────────────────────────────────
+// The platform WABA carries BOTH product families' templates. A shared
+// keyword ("payment" hits vega_invoice_reminder AND atrium_payment_receipt)
+// can tie a cross-product pair; the family guard keeps each type with its
+// own family's template before the variable-count tie-break runs.
+export const VEGA_MESSAGE_TYPES: ReadonlySet<string> = new Set([
+  "court_reminder", "invoice_reminder", "document_ready",
+  "appointment_reminder", "engagement_followup",
+]);
+
+/** true when the template's name family matches the message type's family
+ * (vega_* templates own the Vega/legal types; everything else — atrium_*,
+ * visitor_*, or a firm's own custom names — owns the property types). */
+export function familyAligned(t: { name: string }, messageType: string): boolean {
+  const isVegaTemplate = t.name.toLowerCase().startsWith("vega_");
+  return VEGA_MESSAGE_TYPES.has(messageType) === isVegaTemplate;
+}
+
+/** Pure auto-mapping suggestion: for each message type with keywords that
  * has no existing mapping, pick the best-scoring APPROVED template.
- * Tie-break: fewer variables (fewer slots to mismatch), then stable order.
+ * Tie-break: family alignment first (2026-11-24), then fewer variables
+ * (fewer slots to mismatch), then stable order.
  * Exported for tests — saveSettingsAndAutoMap below is what writes rows.
  */
 export function suggestMappings(
@@ -349,10 +385,18 @@ export function suggestMappings(
       if (nameTokenHits(t, type) === 0) continue;
       const score = scoreTemplateForType(t, type);
       if (score <= 0) continue;
+      // 2026-11-24 gap set: FAMILY alignment outranks the variable-count
+      // tie-break. invoice_reminder and the new atrium_payment_receipt
+      // TIE on the shared "payment" name keyword (2-2), and the old
+      // fewer-variables rule would hand the legal type to the property
+      // receipt template (3 slots beat 7). A vega_* template wins the
+      // Vega types; an atrium_*/visitor_* template wins the property types.
       if (
         !best ||
         score > best.score ||
+        (score === best.score && familyAligned(t, type) && !familyAligned(best.t, type)) ||
         (score === best.score &&
+          familyAligned(t, type) === familyAligned(best.t, type) &&
           (t.variableCount ?? 3) < (best.t.variableCount ?? 3))
       ) {
         best = { t, score };
@@ -1015,6 +1059,102 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
   },
 ];
 
+// ─── GAP TEMPLATES — the missing set (2026-11-24 owner directive) ──────────
+// Owner direction: "do the ones you say are missing. lets not wait for the
+// approval meta" — create the gap-closing templates NOW, in parallel with
+// the Vega five's review. Owner directive 2026-11-24 gap analysis (grounded
+// in the live account audit: 8 templates, 3 APPROVED + 5 PENDING — all
+// either Atrium payment-cycle or Vega practice):
+//   1. atrium_payment_receipt — payment confirmation, the most standard
+//      UTILITY message in property management; payment_receipt sends
+//      existed in scheduled_messages and FAILED (the four mismatched sends
+//      that motivated the 2026-11-24 remap).
+//   2. atrium_lease_renewal — the automation engine's lease-expiry ladder
+//      (90/60/30 days, enabled by default) enqueues lease_renewal messages
+//      that could only ever deliver inside a 24h reply window.
+//   3. visitor_pass — the VMS flow sends to brand-new numbers (the
+//      visitor), which are ALWAYS outside the 24h window; without a
+//      template the pass send is guaranteed to fail with 131047.
+//   4. atrium_maintenance_update — maintenance notices for scheduled work.
+//   5. atrium_general_announcement — estate circulars phrased as service
+//      information (Meta's auto-categorizer may still reclassify or
+//      reject a free-text slot; the update path iterates if it does).
+// Same recipe that got the Atrium three approved: ASCII-only bodies,
+// transactional phrasing, no sender-identity variables, example values
+// for every slot, and labels ("Visitor code:/Visit date:/Valid until:")
+// so slot inference pins the fields instead of padding.
+// NOT created on purpose: promotion / vendor_update (pure MARKETING —
+// conversation pricing + opt-in burden; WhatsApp is a notifications
+// channel here, not a broadcast tool) and welcome_note (promotional
+// flavour; likely auto-filed MARKETING and rejected).
+export const GAP_TEMPLATE_DEFS: VegaTemplateDef[] = [
+  {
+    name: "atrium_payment_receipt",
+    category: "UTILITY",
+    messageType: "payment_receipt",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is to confirm that your payment of NGN {{2}} for {{3}} has been received.\n\n" +
+      "Thank you.",
+    exampleVars: ["Tunde Adeyemi", "150,000", "12B Admiralty Way, Lekki Phase 1"],
+  },
+  {
+    name: "atrium_lease_renewal",
+    category: "UTILITY",
+    messageType: "lease_renewal",
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is a reminder that the lease for {{2}} expires on {{3}}.\n\n" +
+      "Kindly contact the office to complete your renewal. Thank you.",
+    exampleVars: ["Tunde Adeyemi", "12B Admiralty Way, Lekki Phase 1", "15 December 2026"],
+  },
+  {
+    name: "visitor_pass",
+    category: "UTILITY",
+    messageType: "visitor_pass",
+    // "to {{2}}" (not "for {{2}}") on purpose: the generic /\bfor {{n}}/
+    // inference pattern pins that slot as the ADDRESS — the estate name
+    // is the visit destination, not a unit address.
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is your visitor pass to {{2}}.\n\n" +
+      "Visitor code: {{3}}\nVisit date: {{4}}\nValid until: {{5}}\n\n" +
+      "Please show this code at the estate gate. Thank you.",
+    exampleVars: ["Tunde Adeyemi", "Chevron Estate, Lekki", "VG-4821", "15 December 2026", "Mon 15 Dec, 6:00 PM"],
+  },
+  {
+    name: "atrium_maintenance_update",
+    category: "UTILITY",
+    messageType: "maintenance_update",
+    // Slot 3 is the scheduled WORK date (defaults map it to dueDate — a
+    // generic date string); firmName is deliberately absent (sender
+    // identity must never be a fill-in slot).
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is to inform you that maintenance work has been scheduled for {{2}} on {{3}}.\n\n" +
+      "Kindly arrange access where needed. Thank you.",
+    exampleVars: ["Tunde Adeyemi", "12B Admiralty Way, Lekki Phase 1", "18 December 2026"],
+  },
+  {
+    name: "atrium_general_announcement",
+    category: "UTILITY",
+    messageType: "general_announcement",
+    // {{3}} carries the notice text — the one rejection-risk slot in the
+    // set; phrased as a service notice because Meta's auto-categorizer
+    // reads TEXT, and anything promotional gets filed MARKETING/rejected.
+    bodyText:
+      "Hello {{1}},\n\n" +
+      "This is a service notice for residents of {{2}}.\n\n" +
+      "{{3}}\n\n" +
+      "Kindly contact the office if you need further information. Thank you.",
+    exampleVars: [
+      "Tunde Adeyemi",
+      "Chevron Estate, Lekki",
+      "Water supply will be paused on Saturday from 8 AM to 2 PM for tank cleaning.",
+    ],
+  },
+];
+
 /**
  * Create the Vega templates on the platform WABA, directly through the
  * Chakra pass-through (Meta Graph: POST /{waba-id}/message_templates).
@@ -1031,14 +1171,21 @@ export const createVegaTemplates = internalAction({
   args: {
     dryRun: v.optional(v.boolean()),
     names: v.optional(v.array(v.string())), // subset filter
-    // INSPECT mode: GET each vega_* template by name (single-template
-    // fetches include Meta's rejected_reason, the bulk listing does not)
-    // and return status + reason without creating anything.
+    // INSPECT mode: GET each template by name (single-template fetches
+    // include Meta's rejected_reason, the bulk listing does not) and
+    // return status + reason without creating anything.
     inspect: v.optional(v.boolean()),
     // Graph API version override for creation (defaults to the deployment's
     // CHAKRA_WA_API_VERSION, currently v19.0). Chakra's own docs create
     // with v24.0; pass e.g. "v24.0" to match.
     apiVersion: v.optional(v.string()),
+    // WHICH def list to operate on (2026-11-24 gap set):
+    //   "vega"  — the five legal-practice templates (default; the original
+    //             behaviour — backward compatible with every prior call)
+    //   "gaps"  — the five missing templates (payment receipt, lease
+    //             renewal, visitor pass, maintenance, general notice)
+    //   "all"   — both sets in one pass.
+    set: v.optional(v.union(v.literal("vega"), v.literal("gaps"), v.literal("all"))),
   },
   handler: async (ctx, args): Promise<{
     success: boolean;
@@ -1109,7 +1256,12 @@ export const createVegaTemplates = internalAction({
       } while (after && pages < 5);
     } catch { /* listing is best-effort — creation still attempts */ }
 
-    const defs = VEGA_TEMPLATE_DEFS.filter(
+    const defs = (args.set === "gaps"
+      ? GAP_TEMPLATE_DEFS
+      : args.set === "all"
+        ? [...VEGA_TEMPLATE_DEFS, ...GAP_TEMPLATE_DEFS]
+        : VEGA_TEMPLATE_DEFS
+    ).filter(
       (d) => !args.names?.length || args.names.includes(d.name)
     );
 

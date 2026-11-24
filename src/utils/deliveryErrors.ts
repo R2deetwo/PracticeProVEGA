@@ -24,7 +24,8 @@ import { AutomationMessageType } from '../types';
 export type TemplateVarField =
   | 'tenantName' | 'amount' | 'totalPayable' | 'serviceCharge'
   | 'address' | 'firmName' | 'dueDate' | 'messageText'
-  | 'bankName' | 'accountName' | 'accountNumber' | 'paymentKind' | 'daysOverdue';
+  | 'bankName' | 'accountName' | 'accountNumber' | 'paymentKind' | 'daysOverdue'
+  | 'visitorName' | 'estateName' | 'tokenCode' | 'visitDate' | 'validUntil';
 
 /**
  * A firm-configured template mapping (whatsapp_template_mappings row).
@@ -60,6 +61,14 @@ export interface TemplateRecipientData {
   accountNumber?: string;
   paymentKind?: string;   // "rent" / "service charge" / "invoice"
   daysOverdue?: string;   // "{{n}} days overdue" slot
+  // VMS visitor-pass fields (2026-11-24 gap set) — the visitorManagement
+  // fallback passes these server-side; they exist here so the client twin
+  // renders the visitor_pass template identically.
+  visitorName?: string;
+  estateName?: string;
+  tokenCode?: string;
+  visitDate?: string;
+  validUntil?: string;
 }
 
 /** Build the ordered variable values from a varOrder + recipient data.
@@ -99,6 +108,14 @@ export function buildVarsForOrder(
       case 'accountNumber': return r.accountNumber || 'for transfer details';
       case 'paymentKind': return r.paymentKind || 'payment';
       case 'daysOverdue': return r.daysOverdue || 'several';
+      // ── VMS visitor-pass fields (2026-11-24 gap set) — defaults MUST
+      // mirror convex/communications.ts buildTemplateVarsForOrder exactly
+      // (the twins render identically; a pinned test enforces it).
+      case 'visitorName': return r.visitorName || 'Visitor';
+      case 'estateName': return r.estateName || 'the estate';
+      case 'tokenCode': return r.tokenCode || 'issued at the gate';
+      case 'visitDate': return r.visitDate || 'the visit date';
+      case 'validUntil': return r.validUntil || 'the end of the day';
       default: return String(f);
     }
   });

@@ -344,12 +344,35 @@ export const sendVisitorWhatsApp = internalAction({
       args.address,
       mapsLink,
     );
+    // Validity strings for the visitor_pass template retry — same format
+    // buildVisitorMessage renders (en-GB short weekday/date + HH:MM).
+    const passValidUntil =
+      new Date(args.expiresAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) +
+      ", " +
+      new Date(args.expiresAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
     try {
       const result = await ctx.runAction(internal.communications.sendWhatsAppCore, {
         to: args.visitorPhone,
         messageText,
         firmId: args.firmId,
+        // ── 2026-11-24 gap set: a visitor is a BRAND-NEW number — the
+        // free-form pass send is always outside the 24h window, so Meta
+        // rejects it with 131047. The fallback retries with the firm's
+        // mapped visitor_pass template (auto-mapped once Meta approves
+        // it); until then it behaves exactly as before (no mapping → no
+        // retry). The rich free-form version still goes first and wins
+        // whenever the window happens to be open.
+        fallback: {
+          messageType: "visitor_pass",
+          templateVarsData: {
+            visitorName: args.visitorName,
+            estateName: args.estateName,
+            tokenCode: args.tokenCode,
+            visitDate: args.visitDate,
+            validUntil: passValidUntil,
+          },
+        },
       });
 
       // Update token with send result
