@@ -2907,3 +2907,83 @@ r78-live-lightbox-editor.png.
 **LESSON (re-learned):** the promote workflow's own test gate is a REAL
 gate — after a last-mile geometry tweak, re-run the touched test files
 before dispatching, or the pin fails in CI exactly as it would locally.
+
+## 2026-11-24 (e) — Task 85: sidebar Invite Colleague card repair (dismissible + honest COPY) + ALOA Vox mobile shell flush-to-edges
+
+**Owner bug reports (verbatim asks):** the sidebar Invite Colleague card
+"cannot be dismissed, the field next to COPY looks blank/unclear, and
+clicking COPY fails to copy anything"; the Aloa Vox mobile screen shows
+"excessive top/bottom gaps, a faint lock icon overlapping `< ALOA`, and
+`Legal Pad` wrapping onto two lines".
+
+**Root causes found (measured, not guessed — Playwright 375x812 + DOM
+geometry probes):**
+- **Floating tab bar:** the global `<768px` CSS rule in index.css that
+  injects `padding-bottom: 3.5rem !important` into every
+  `.overflow-y-auto` container (the BottomNav spacing fix) hijacked the
+  App-shell view wrapper for quickCapture — its className had NO pb-*
+  class in that branch, so the `:not([class*="pb-14"])` exclusions never
+  matched, and the ENTIRE Vox shell (header + stage + its own tab bar)
+  was lifted 56px off the viewport bottom (measured nav bottom=756 vs
+  viewport 812 — the "large empty white gap above the bottom gesture
+  bar").
+- **Giant top gap:** three stacked top paddings — the App shell's
+  `pt-safe` (env inset) + the Vox header's own
+  `pt-[calc(0.75rem+env(safe-area-inset-top))]` (a SECOND full inset +
+  12px) + the inner row's `pt-3` — 2× inset + ~24px of dead white.
+- **The faint lock icon on `< ALOA`:** on the edge-to-edge APK
+  (targetSdk 36), Android WebView resolves `env(safe-area-inset-*)` to 0
+  on many devices (only the display cutout is mapped, not system bars) —
+  `pt-safe` = 0 → the header rendered UNDER the status bar, whose clock
+  / notification icons (incl. the DND/VPN padlock) collided with the back
+  button.
+
+**Fixes (6 files + 1 native):**
+- `src/utils/clipboard.ts` (NEW): one copy path for every surface —
+  Clipboard API first, hidden-textarea `execCommand('copy')` fallback
+  (the Android APK WebView path), empty-value guard, focus restore.
+- `InviteColleagueRow.tsx`: dismissible card (× with
+  `aria-label="Dismiss invite colleague card"`, persisted per firmId in
+  localStorage; Settings → Team keeps an always-available instance via
+  the optional `dismissKey` prop); two labelled CopyRows — "Firm access
+  code" INV-XXXX fully visible beside its COPY button, "Join link" with
+  its own Copy-link action; 2s "Copied ✓" button state, inline error +
+  toast on failure. Sidebar passes `dismissKey`; FirmSettings' own
+  invite-code copy routes through the util too.
+- `App.tsx`: quickCapture now owns its safe areas (shell drops `pt-safe`
+  for the view); the view wrapper is `overflow-hidden no-nav-pad` for
+  quickCapture (the CSS rule can't match; no page scroll); the What's New
+  floater (fixed bottom-20, calibrated to the office BottomNav) is
+  hidden in the capture view. App-scope `isQuickCapture` for that last
+  gate.
+- `QuickCaptureView.tsx`: header carries the ONE top inset
+  `pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]`
+  with compact inner `py-2.5`; the bottom tab bar anchors flush to the
+  viewport edge with the ONE bottom inset inside its white background;
+  Speak/Legal Pad/Session get `whitespace-nowrap`; the mic group centers
+  in the leftover stage (`flex-1 justify-center`, pt-6/pb-6 breathing).
+- `MainActivity.java`: NEW native safe-area bridge — the decor view's
+  insets listener publishes the REAL system-bar insets to the web layer
+  as `--native-safe-top/--native-safe-bottom` CSS custom properties via
+  `evaluateJavascript` (re-fires on rotation/inset changes, try/catch
+  everything). Web CSS floors with `max(env(...), var(--native-safe-*,
+  0px))` so whichever source reports correctly wins; browsers/older APKs
+  fall back to env() alone.
+
+**Verification:** scripts/qa_vox_invite.cjs (Playwright, demo workspace,
+clipboard permissions): COPY clipboard readback —
+`PASS COPY wrote the displayed code (INV-4821) with a Copied state`;
+`PASS dismiss hides the card and persists across reload`; geometry —
+nav bottom=812 (flush, was 756), header 65px (was 77+), mic center=406
+(exact screen center, was 259), labels 3×44px (no wrap), docH==clientH
+(no scroll). e2e_launch_readiness.cjs invite-panel assertions updated
+for the two-row card. vitest 3,602 passed / 1 skipped; root tsc 0;
+convex tsc 0. Pushed 6a63769b — CI green across all six workflows
+(E2E smoke, Tests, Build Admin APK, **Build Android APK — the
+MainActivity change compiles in the real APK build**, Deploy to Staging,
+CodeQL).
+
+**Follow-ups queued:** the APK needs one rebuild to ship the native
+inset bridge (CI builds it on version bump); Workstreams A/B/C (Aloa
+Vox session capture, Legal KB currency model, WhatsApp audit) are next
+in the same owner directive.
