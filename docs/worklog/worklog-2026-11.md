@@ -3059,3 +3059,114 @@ Deploy to Staging) · production deploys for 8c7fe61b both SUCCESS
 templates (invoice_reminder, engagement_followup) await a Meta resubmit
 decision; the OCR engine itself stays optional (pytesseract absent in
 this sandbox — the triage counts report exactly what is pending).
+
+---
+
+## Task 87 — Matters streamline, Android header presence, configurable session lock, dismissible Vox card, popover & Documents guards (commit fd59ec18)
+
+Date: 2026-11-24. Five owner briefs landed in one batch, each traced to a
+specific complaint rather than a generic polish round.
+
+### 1. The matter endorsement composer: Vox in, modal round-trips out
+
+The owner: "when you say post endorsement… we should have the ability to use
+Aloa Vox… Should this not be automatically recorded? Must there be some extra
+step for the user to take before it can be logged as something that will
+enter the calendar?"
+
+- **Vox in the composer**: new `useFieldDictation` hook (src/hooks/) — the
+  same Whisper→Gemini `transcribeBatch` engine SaveToNoteForm uses (periodic
+  10s append-not-overwrite, continuation-tail seam healing, permission
+  requested inside the user gesture, shared mic-stream claim/release, final
+  onstop drain never blocked by the periodic guard). A pulsing red mic +
+  live timer in the composer toolbar; words append straight into the
+  endorsement textarea. A 30s `markUserActivity` heartbeat keeps the
+  session-lock countdown alive mid-take (taps stop during speech).
+- **One-click "+ Task"**: posts the endorsement AND creates the task through
+  the real `handleAddTask` pipeline (offline queue, assignee notifications).
+  Title = first line of the endorsement (HTML stripped, 90-char cap); due
+  date from a SPOKEN date, else deliberately none — the toast says so. Never
+  fabricate a legal deadline.
+- **One-click "+ Event"**: posts + on the calendar immediately. Spoken date
+  + time lands the event there (default 09:00, court convention); no date →
+  today 09:00 and the toast states that plainly so nothing is silent.
+- **`endorsementDateParser`** (src/utils/, 15 tests): Nigerian day-first
+  dd/mm/yyyy with month-first forced-flip, "12th of March 2026" / "March 12,
+  2026", bare day+month rolling to the next future occurrence, today/
+  tomorrow/next week, and hh:mm / 9am-style time-of-day extraction.
+
+### 2. "Auto-generated from lease data… I can't get rid of it"
+
+The logic, now user-visible: lease reminders are VIRTUAL — computed from the
+property's lease fields, not rows in the events table (deleting them there
+was impossible by design). `virtualEventDismissals` (src/utils/, 9 tests)
+adds the missing escape hatch:
+
+- Hide a single reminder → keyed to its id + exact date.
+- Hide a rent-due series → keyed to the series (lease-end anchor).
+- ANY lease change (renewal, moved lease end) re-surfaces automatically —
+  the dismissal only matches while the anchor still holds.
+- Filtered inside `computeAtriumVirtualEvents` — the single choke point, so
+  calendar month/week/diary, dashboard mini-calendar and both modal
+  resolvers all honour it.
+- EventDetailModal's readOnly footer now explains the model and offers
+  "Hide from calendar" (confirm copy differentiates series vs single;
+  wired in ModalLayer + DockedModal).
+
+### 3. Android header monikers
+
+- ONLINE-ONLY strip (offline members no longer clutter the narrow header;
+  still reachable in the roster), ONE primary moniker + compact `+N` chip
+  for other active members, tap moniker → DM, tap +N → roster picker
+  (R74 multi-select group messaging intact).
+- Overflow impossible: wrapper `min-w-0 overflow-hidden`, badges `shrink-0`.
+
+### 4. Configurable session auto-lock
+
+- `sessionLockSettings` (src/utils/, 7 tests): per-device policy
+  {enabled, timeoutMinutes: 1|5|15|30|60|never}, default = the old 15 min.
+- Settings → Security → "Session Auto-Lock" card: switch (Button primitive,
+  role=switch — no raw checkbox growth) + Select primitive with the timeout
+  options; warning card while off.
+- `useIdleTimer`: timeoutMs=null disables entirely; visibilitychange
+  pause/resume (backgrounded app never burns the countdown); exported
+  `markUserActivity` for the voice heartbeat. Existing cross-tab contract
+  tests untouched and green.
+
+### 5. Dismissible Overview Vox card (7-day rule)
+
+`voxUsageTracking` (7 tests): dismiss → hidden; re-surfaces only when
+hidden ≥7 days AND Vox unused ≥7 days. Stamps: AloaPanel entering capture
+mode (header mic + dashboard card), AloaChat→capture hand-off, and
+QuickCapture's record start. The card itself got a `×` (header mic + FAB
+untouched — always available).
+
+### 6. Matters row actions + review popover + Documents
+
+- InlineMatterReview's "Review Matter In" menu renders through a
+  document.body PORTAL (fixed position measured from the bell, viewport
+  clamped, flips above when near the bottom) — the matter card's
+  overflow-hidden can no longer clip it. Presets 1/3/7/14/30 days + custom.
+- Row action cluster regrouped close (close | review | delete, gap-1.5).
+- Documents crash guard: `formatDateSafe`/`dateSortKeySafe`/
+  `fileExtensionSafe` + hardened `formatBytes` (NaN-safe); null file names
+  never reach `.split('.')`, null dates never feed NaN into sorts;
+  SectionErrorBoundary wraps the Documents view (App) and the matter
+  Documents tab. Uniform selection: `selectionStyles` module — DocumentList
+  and MatterList share one primary-highlight + checkbox grammar (indigo
+  retired).
+
+**Gates:** root tsc 0 · convex tsc 0 · vitest 3,651/3,651 (+59 new tests
+across endorsementDateParser 15, voxUsageTracking 7, sessionLockSettings 7,
+virtualEventDismissals 9 + the earlier suites) · lint 0 errors ·
+UI-primitives ratchet IMPROVED 2219 → 2212 (InlineMatterReview migrated to
+Button primitives; baseline re-committed tighter) · design-token gate green ·
+identity audit green · vite production build green · CI on fd59ec18: Tests,
+E2E smoke, Build Android APK, Deploy to Staging all success (CodeQL ran
+after) · production Convex + Vercel deploys dispatched for fd59ec18.
+
+**Known-open:** the session-lock policy is per-DEVICE by design (phone vs
+shared desktop); the endorsement date parser handles the spoken forms
+audited in this repo's drafting corpus — deeper NLU (e.g. "the Wednesday
+after the defence is filed") stays with Vox's server-side triage, not the
+local one-click path.
