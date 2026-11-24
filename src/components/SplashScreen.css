@@ -7,48 +7,23 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: #0e0e11; /* Opaque Midnight Zinc */
+    /* OWNER BRIEF 2026-11-25: pure BLACK (#000000) start — the native
+       splash, splash-plugin color and HTML boot overlay are black now too,
+       so the whole boot chain opens black with zero bright-green flash.
+       The old green ambient shimmer (::before) and the dark-zinc bg reveal
+       (::after) are RETIRED for the same reason. */
+    background-color: #000000;
     overflow: hidden;
 }
 
-/* ─── Cinematic Ambient Shimmer ──────────────────────────────────── */
-/* A slow, breathing radial gradient that creates depth and atmosphere.
-   Animates continuously throughout the splash sequence. */
-.splash-screen::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle at center, rgba(22, 163, 74, 0.04) 0%, transparent 50%);
-    pointer-events: none;
-    animation: splashAmbientBreath 4s cubic-bezier(0.4, 0, 0.2, 1) ease-in-out infinite;
-}
+/* ── RETIRED 2026-11-25 ────────────────────────────────────────────────
+   The Cinematic Ambient Shimmer (green ::before radial gradient) and the
+   Layered Background Reveal (::after fading #0e0e11 over it) are removed:
+   both painted green-tinted layers from t=0 — exactly the "premature
+   bright-green screen flash before the main transition begins" the owner
+   reported. The splash now opens on pure #000000. */
 
-@keyframes splashAmbientBreath {
-    0%, 100% { transform: scale(1); opacity: 0.6; }
-    50% { transform: scale(1.15); opacity: 1; }
-}
-
-/* ─── Layered Background Reveal ──────────────────────────────────── */
-/* On mount, the background fades in from pure black to the dark zinc
-   base. This creates a smooth transition from the native OS splash. */
-.splash-screen::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: #0e0e11;
-    pointer-events: none;
-    animation: splashBgReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes splashBgReveal {
-    0% { opacity: 1; }
-    100% { opacity: 0; }
-}
-
-/* ─── Logo Mark ──────────────────────────────────────────────────── */
+/* ── Logo Mark ────────────────────────────────────────────────────────── */
 .splash-logo {
     position: relative;
     z-index: 10;
@@ -57,10 +32,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Staggered entry: scale from 95% with fade-in */
-    animation: splashLogoEntry 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    opacity: 0;
-    transform: scale(0.92);
+    /* Staggered entry: scale from 92% with fade-in. fill-mode BACKWARDS so
+       the first keyframe covers the pre-start window; after the animation
+       ends the INLINE styles take over — the Stage-2 dissolve (inline
+       opacity 0) must never be beaten by a persisted keyframe. */
+    animation: splashLogoEntry 1.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes splashLogoEntry {
@@ -69,7 +45,7 @@
     100% { opacity: 1; transform: scale(1); }
 }
 
-/* ─── Text Container ─────────────────────────────────────────────── */
+/* ── Text Container ───────────────────────────────────────────────────── */
 .splash-text-container {
     margin-top: 24px;
     height: 24px;
@@ -77,10 +53,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* Staggered entry: slides up after the logo settles */
-    animation: splashTextEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
-    opacity: 0;
-    transform: translateY(12px);
+    /* Staggered entry: slides up after the logo settles. BACKWARDS fill —
+       same Stage-2 dissolve contract as the logo entry above. */
+    animation: splashTextEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards;
 }
 
 @keyframes splashTextEntry {
@@ -96,7 +71,15 @@
     padding-left: 0.6em;
 }
 
-/* ─── Background Image Layer (unused but kept for compat) ────────── */
+/* ── Product End-Card (Stage 2) ───────────────────────────────────────── */
+/* Positioned/animated inline by SplashScreen.tsx (absolute inset-0,
+   centered column, 350ms opacity/scale ease). Only the single product mark
+   renders here — the 3-icon strip is retired (owner brief 2026-11-25). */
+.splash-endcard {
+    z-index: 20;
+}
+
+/* ── Background Image Layer (unused but kept for compat) ──────────────── */
 .splash-bg-image {
     position: absolute;
     inset: 0;
@@ -108,7 +91,7 @@
     pointer-events: none;
 }
 
-/* ─── Cinematic Exit Transition ──────────────────────────────────── */
+/* ── Cinematic Exit Transition ────────────────────────────────────────── */
 /* When the splash exits, it scales outward slightly while cross-fading
    into the main app. This creates a smooth "scene transition" rather
    than an abrupt jump. */
@@ -121,7 +104,7 @@
     100% { opacity: 0; transform: scale(1.08); }
 }
 
-/* ─── Status Text Pulse ──────────────────────────────────────────── */
+/* ── Status Text Pulse ────────────────────────────────────────────────── */
 @keyframes pulse {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 0.6; }

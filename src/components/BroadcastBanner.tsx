@@ -38,6 +38,13 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useUI } from '../contexts/UIContext';
 
 import { Z_CLASS } from '../overlays/constants';
+// Banner preview cycler (owner brief 2026-11-25) — admin-injected TEST
+// banners merge into this carousel for visual inspection.
+import {
+    subscribeTestBanners,
+    getTestBanners,
+    type TestBannerRow,
+} from '../utils/bannerTestCycler';
 // CRO AUDIT FIX — increased from 2 to 4 max simultaneous banners.
 const MAX_BANNERS = 4;
 
@@ -327,6 +334,14 @@ export const BroadcastBanner: React.FC = () => {
     // the injection reactive after a dismissal without waiting for a
     // coreState refetch (mirrors the legacy CriticalLeaseBanner behavior).
     const [dismissedCriticalIds, setDismissedCriticalIds] = useState<Set<string>>(new Set());
+    // BANNER PREVIEW CYCLER — subscribe to admin-injected test banners so
+    // they render in THIS carousel (the real Dashboard surface) for
+    // spacing/dismissal/styling inspection. In-memory only; test rows use
+    // persistenceMode 'session' so dismissing one leaves no durable state.
+    const [testBanners, setTestBanners] = useState<TestBannerRow[]>(getTestBanners);
+    useEffect(() => {
+        return subscribeTestBanners(rows => setTestBanners(rows));
+    }, []);
 
     // One-time cleanup of OLD dismissal state (message-family keys).
     useEffect(() => {
@@ -656,7 +671,12 @@ export const BroadcastBanner: React.FC = () => {
         upsell: 4,
     };
     const allVisibleBanners = useMemo(() => {
-        const combined = [...systemBanners, ...visibleBroadcasts];
+        // Test banners honour the same session-dismissal filter the real
+        // rows do, so dismissing one in inspection actually removes it.
+        const visibleTests = testBanners.filter(
+            b => !isSessionDismissed(b.broadcastId, b.id)
+        );
+        const combined = [...systemBanners, ...visibleBroadcasts, ...visibleTests];
         // Sort by urgency rank (ascending — 0 = highest priority)
         return combined.sort((a, b) => {
             const rankA = URGENCY_RANK[parseTheme(a.type || '')] ?? 5;
@@ -667,7 +687,7 @@ export const BroadcastBanner: React.FC = () => {
             const tsB = new Date(b.timestamp || b._creationTime || 0).getTime();
             return tsB - tsA;
         }).slice(0, MAX_BANNERS);
-    }, [systemBanners, visibleBroadcasts]);
+    }, [systemBanners, visibleBroadcasts, testBanners]);
 
     // Reset activeIndex if it's out of bounds
     useEffect(() => {

@@ -11,9 +11,12 @@
  *   (scripts/sync-product-config.cjs --product vega swaps this in, syncs,
  *    patches strings.xml app_name + the launcher icon set, builds, restores)
  *
- * The native splash STAYS company-branded (owner direction: the PracticePro
- * opening is liked as-is; the *in-app* cinematic splash ends on the product
- * mark — see SplashScreen.tsx / splashEndCard.ts).
+ * OWNER BRIEF 2026-11-25 (Splash Sequence): the native splash + plugin
+ * color are now BLACK (#000000) — the standard launch opens black-first with
+ * zero bright-green flash, then the in-app cinematic runs Black → PracticePro
+ * (Black → Amber → Green) → Black → the single product mark (see
+ * SplashScreen.tsx / splashEndCard.ts). The ADMIN/FOUNDER app keeps its own
+ * sequence untouched.
  */
 
 import type { CapacitorConfig } from '@capacitor/cli';
@@ -22,7 +25,7 @@ const config: CapacitorConfig = {
   appId: 'com.practicepro.app',
   appName: 'Vega',
   webDir: 'dist',
-  backgroundColor: '#16A34A',
+  backgroundColor: '#000000',
   android: {
     allowMixedContent: false,
     captureInput: false,
@@ -31,7 +34,7 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: '#16A34A',
+      backgroundColor: '#000000',
       androidScaleType: 'CENTER_CROP',
       showSpinner: true,
       androidSpinnerStyle: 'large',

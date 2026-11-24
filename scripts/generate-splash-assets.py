@@ -9,22 +9,34 @@ CENTER_CROP'd image that covered it, and the web body painted white for
 light-theme users. One boot = white → green flash → white → black. The
 founder saw a dead white screen for seconds and thought the app hung.
 
-THE CANONICAL BOOT SEQUENCE (all green until the in-app cinematic):
-  1. Launch theme window background (@drawable/splash) — BRAND GREEN
-  2. Splash plugin (backgroundColor #16A34A + this image + spinner) — GREEN
-  3. HTML boot overlay (index.html #pp-boot-overlay) — GREEN + P + spinner
-  4. In-app SplashScreen cinematic (black → amber → green → product card)
+OWNER BRIEF 2026-11-25 (Splash Sequence & Product-Specific Finale): the
+standard launch now opens BLACK-FIRST — the previous all-green boot chain
+(green native splash → green plugin → green boot overlay → black cinematic)
+flashed bright green before the main transition began, which the owner
+directed removed. THE CANONICAL BOOT SEQUENCE (all black until the in-app
+cinematic's amber/green phases):
+  1. Launch theme window background (@drawable/splash) — BLACK
+  2. Splash plugin (backgroundColor #000000 + this image + spinner) — BLACK
+  3. HTML boot overlay (index.html #pp-boot-overlay) — BLACK + white P + spinner
+  4. In-app SplashScreen cinematic: Black → PracticePro (Black → Amber
+     → Green) → Black → the single product mark
 
-This script renders every density bucket as solid brand green (#16A34A)
-with the white PracticePro "P" mark (the favicon's Top-Block letterform)
-centered. Run from the repo root:  python3 scripts/generate-splash-assets.py
+This script renders every density bucket as solid BLACK (#000000) with the
+white PracticePro "P" mark (the favicon's Top-Block letterform) centered.
+Run from the repo root:  python3 scripts/generate-splash-assets.py
+
+The ADMIN/FOUNDER APK keeps its own green native splash (its resources
+live under android/branding/... and its own config) — untouched here.
 """
 
 from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-BRAND_GREEN = (22, 163, 74, 255)  # #16A34A
+# 2026-11-25: the background is BLACK now — the counter color just needs to
+# match the background so the P's bowl window cuts through; the mark itself
+# stays WHITE.
+BACKGROUND = (0, 0, 0, 255)  # #000000
 WHITE = (255, 255, 255, 255)
 
 RES_ROOT = Path(__file__).resolve().parent.parent / "android" / "app" / "src" / "main" / "res"
@@ -84,7 +96,7 @@ SS = 4  # supersampling factor
 
 def render(width: int, height: int) -> Image.Image:
     ss_w, ss_h = width * SS, height * SS
-    img = Image.new("RGBA", (ss_w, ss_h), BRAND_GREEN)
+    img = Image.new("RGBA", (ss_w, ss_h), BACKGROUND)
     draw = ImageDraw.Draw(img)
 
     # Scale the 24-unit mark to ~20% of the shorter screen side.
@@ -100,7 +112,7 @@ def render(width: int, height: int) -> Image.Image:
         ]
 
     draw.polygon(to_canvas(p_mark_outer()), fill=WHITE)
-    draw.polygon(to_canvas(p_mark_counter()), fill=BRAND_GREEN)
+    draw.polygon(to_canvas(p_mark_counter()), fill=BACKGROUND)
 
     return img.resize((width, height), Image.LANCZOS)
 
@@ -112,7 +124,7 @@ def main():
         img = render(w, h)
         img.save(out, optimize=True)
         print(f"wrote {out.relative_to(RES_ROOT.parent.parent.parent.parent)} ({w}x{h})")
-    print("done — all splash images are brand green + white P")
+    print("done — all splash images are black + white P")
 
 
 if __name__ == "__main__":

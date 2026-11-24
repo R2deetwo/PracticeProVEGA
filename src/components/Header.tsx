@@ -75,7 +75,11 @@ const Header: React.FC = React.memo(() => {
     const { canUseVox: voxEnabled } = useFeatures();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
-    const [notifTab, setNotifTab] = useState<'platform' | 'firm'>('platform');
+    // OWNER BRIEF 2026-11-25 (Bell tab order & labels): 'firm' is the DEFAULT
+    // active tab and renders FIRST in the popover (the firm's own traffic is
+    // what a practitioner opens the bell for); 'platform' is second. Labels
+    // shortened to "Firm" / "Platform" — no redundant "Notices" suffix.
+    const [notifTab, setNotifTab] = useState<'firm' | 'platform'>('firm');
     const notificationsRef = useRef<HTMLDivElement>(null);
     const [isUserMenuOpen, setUserMenuOpen] = React.useState(false);
     const userMenuRef = React.useRef<HTMLDivElement>(null);
@@ -548,24 +552,10 @@ const Header: React.FC = React.memo(() => {
                                 </div>
                             </div>
 
-                            {/* Tab switcher — Platform Notices | Firm Notices (System merged into Platform) */}
+                            {/* Tab switcher — Firm | Platform (owner brief
+                                2026-11-25: Firm first + default, short labels;
+                                System merged into Platform). */}
                             <div className="flex border-b border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900">
-                                <button
-                                    onClick={() => setNotifTab('platform')}
-                                    className={`flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${
-                                        notifTab === 'platform'
-                                            ? 'text-primary-600 dark:text-primary-400 border-primary-500'
-                                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 border-transparent'
-                                    }`}
-                                >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84a3 3 0 100-5.68 3 3 0 000 5.68zM7.51 7.34a6 6 0 018.98 0M4.66 4.49a10 10 0 0114.69 0M2.81 1.64a15 15 0 0118.38 0" />
-                                    </svg>
-                                    Platform Notices
-                                    {aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).length > 0 && (
-                                        <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                                    )}
-                                </button>
                                 <button
                                     onClick={() => setNotifTab('firm')}
                                     className={`flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${
@@ -577,8 +567,24 @@ const Header: React.FC = React.memo(() => {
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                     </svg>
-                                    Firm Notices
+                                    Firm
                                     {aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).length > 0 && (
+                                        <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setNotifTab('platform')}
+                                    className={`flex-1 py-3 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 border-b-2 ${
+                                        notifTab === 'platform'
+                                            ? 'text-primary-600 dark:text-primary-400 border-primary-500'
+                                            : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 border-transparent'
+                                    }`}
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84a3 3 0 100-5.68 3 3 0 000 5.68zM7.51 7.34a6 6 0 018.98 0M4.66 4.49a10 10 0 0114.69 0M2.81 1.64a15 15 0 0118.38 0" />
+                                    </svg>
+                                    Platform
+                                    {aggregatedNotifications.filter(n => (n as any)._isBroadcast && !n.isRead).length > 0 && (
                                         <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                                     )}
                                 </button>

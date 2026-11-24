@@ -5,17 +5,22 @@
  * that, but it should end with the actual logo of the thing that we are
  * doing or working on."
  *
- * The company splash sequence keeps its choreography (black → amber → green);
- * only the FINAL settle frame resolves to the product being opened:
+ * Owner brief 2026-11-25 (Splash Sequence & Product-Specific Finale): the
+ * company splash sequence keeps its choreography (black → amber → green);
+ * Stage 2 then fades through black and reveals ONLY the single product
+ * mark being opened:
  *
  *   firm product 'vega'     → the Vega mark (the Seal, navy)
  *   firm product 'atrium'   → the Atrium mark (the Stepped Stack, yellow)
- *   firm product 'unified'  → the Komplete mark (the Twin Coins)
- *   unknown / logged-out    → the company mark + the product lockup row
- *                             ("Vega · Atrium · Komplete") — Gate A, option
- *                             (b): the neutral card teaches the two-products
- *                             -plus-bundle model instead of reading as
- *                             "PracticePro is the legal app".
+ *   firm product 'unified' → the Komplete mark (the Twin Coins)
+ *   unknown / logged-out   → the company card — Stage 1 completes straight
+ *                             into login; the post-login reveal (App.tsx
+ *                             ProductReveal) plays Stage 2 once the plan
+ *                             resolves.
+ *
+ * The multi-icon lockup row ("Vega · Atrium · Komplete") is RETIRED (owner
+ * brief 2026-11-25: "Remove Multi-Icon Strip … show only the user's active
+ * product icon") — the company card carries no lockup anymore.
  *
  * The product always resolves from the same source of truth as the app skins
  * (the firm/user record via ProductContext — APP_UI_SEPARATION.md §2); this
@@ -36,12 +41,10 @@ export interface SplashEndCard {
     attribution: string | null;
     /**
      * The hue for the "Ready" text + end-card accent. Chosen for legibility
-     * on the splash's dark zinc ground (#0e0e11): Vega's navy tile would
+     * on the splash's black ground (#000000): Vega's navy tile would
      * vanish at text scale, so its accent is the star's indigo-lit corner.
      */
     readyColor: string;
-    /** Whether the "Vega · Atrium · Komplete" lockup row renders (company card). */
-    lockup: boolean;
 }
 
 /** The company green — the existing splash final-phase colour. */
@@ -85,7 +88,6 @@ export function resolveSplashEndCard(product?: SplashProduct): SplashEndCard {
                 name: 'Vega',
                 attribution: COMPANY_ATTRIBUTION,
                 readyColor: '#C7D2FE',
-                lockup: false,
             };
         case 'atrium':
             return {
@@ -93,7 +95,6 @@ export function resolveSplashEndCard(product?: SplashProduct): SplashEndCard {
                 name: 'Atrium',
                 attribution: COMPANY_ATTRIBUTION,
                 readyColor: '#EAB308',
-                lockup: false,
             };
         case 'komplete':
             return {
@@ -101,7 +102,6 @@ export function resolveSplashEndCard(product?: SplashProduct): SplashEndCard {
                 name: 'Komplete',
                 attribution: COMPANY_ATTRIBUTION,
                 readyColor: '#A5B4FC',
-                lockup: false,
             };
         default:
             return {
@@ -109,7 +109,6 @@ export function resolveSplashEndCard(product?: SplashProduct): SplashEndCard {
                 name: null,
                 attribution: null,
                 readyColor: COMPANY_READY_COLOR,
-                lockup: true,
             };
     }
 }

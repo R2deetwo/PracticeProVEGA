@@ -2488,7 +2488,18 @@ export const setGettingStartedChecklistDismissed = mutation({
  *  - update:   replace by account.id
  *  - setDefault: mark one account default, clear the rest
  *  - delete:   remove by account.id (default falls back to the first remaining)
+ *
+ * OWNER BRIEF 2026-11-25 (Financial Configuration):
+ *  - 5-account cap, enforced SERVER-SIDE (not just UI) — the UI disables
+ *    the Add button at 5 and shows a contact-us message; this gate makes
+ *    the limit hold for every writer (checklist deep-links, future APIs).
+ *  - Komplete fund segregation: an account may carry a `purpose`
+ *    designation ('law_firm' | 'estate_property' | 'unified') — validated
+ *    here so a bad value can never persist.
  */
+const MAX_BANK_ACCOUNTS = 5;
+const BANK_ACCOUNT_PURPOSES = new Set(["law_firm", "estate_property", "unified"]);
+
 export const manageBankAccount = mutation({
   args: {
     op: v.string(), // 'add' | 'update' | 'setDefault' | 'delete'
@@ -2513,6 +2524,13 @@ export const manageBankAccount = mutation({
         if (!a.bankName || !a.accountNumber || !a.accountName) {
           throw new Error("Account name, bank name and account number are all required.");
         }
+        // 5-account cap (owner brief 2026-11-25) — server-enforced so every
+        // writer path honors it, not just the Settings button.
+        if (current.length >= MAX_BANK_ACCOUNTS) {
+          throw new Error(
+            `Bank account limit reached (${MAX_BANK_ACCOUNTS}). Contact the PracticePro team if your practice needs more accounts.`
+          );
+        }
         const id = a.id || `acct_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         next = [...current, {
           id,
@@ -2520,6 +2538,11 @@ export const manageBankAccount = mutation({
           bankName: String(a.bankName).trim(),
           accountNumber: String(a.accountNumber).trim(),
           isDefault: current.length === 0 ? true : !!a.isDefault,
+          // Komplete fund-segregation designation — only the three canonical
+          // purposes persist; anything else is dropped (never a crash).
+          ...(typeof a.purpose === "string" && BANK_ACCOUNT_PURPOSES.has(a.purpose)
+            ? { purpose: a.purpose }
+            : {}),
         }];
         break;
       }
@@ -2528,12 +2551,26 @@ export const manageBankAccount = mutation({
         if (!a.bankName || !a.accountNumber || !a.accountName) {
           throw new Error("Account name, bank name and account number are all required.");
         }
-        next = current.map(acc => acc.id === a.id ? {
-          ...acc,
-          accountName: String(a.accountName).trim(),
-          bankName: String(a.bankName).trim(),
-          accountNumber: String(a.accountNumber).trim(),
-        } : acc);
+        next = current.map(acc => {
+          if (acc.id !== a.id) return acc;
+          const updated: any = {
+            ...acc,
+            accountName: String(a.accountName).trim(),
+            bankName: String(a.bankName).trim(),
+            accountNumber: String(a.accountNumber).trim(),
+          };
+          // Purpose semantics: a present `purpose` key SETS a valid value or
+          // CLEARS the designation (undefined/null/invalid); an absent key
+          // leaves the stored designation untouched.
+          if (Object.prototype.hasOwnProperty.call(a, "purpose")) {
+            if (typeof a.purpose === "string" && BANK_ACCOUNT_PURPOSES.has(a.purpose)) {
+              updated.purpose = a.purpose;
+            } else {
+              delete updated.purpose;
+            }
+          }
+          return updated;
+        });
         break;
       }
       case "setDefault": {

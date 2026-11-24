@@ -19,6 +19,13 @@
  *   npm run build:admin     — builds the founder frontend → dist-admin/
  *   npm run cap:sync:admin  — runs sync-admin-config.cjs (swaps config, syncs, restores)
  *   npm run apk:admin:release — builds the founder release APK
+ *
+ * OWNER BRIEF 2026-11-25 (Splash Sequence): the native splash + plugin color
+ * are now BLACK (#000000) — the standard launch opens black-first with zero
+ * bright-green flash, then the in-app cinematic runs Black → PracticePro
+ * (Black → Amber → Green) → Black → the single product mark (see
+ * SplashScreen.tsx / splashEndCard.ts). The FOUNDER APK (capacitor.admin
+ * .config.ts) keeps its own sequence untouched.
  */
 
 import type { CapacitorConfig } from '@capacitor/cli';
@@ -27,7 +34,7 @@ const config: CapacitorConfig = {
   appId: 'com.practicepro.app',
   appName: 'PracticePro',
   webDir: 'dist',
-  backgroundColor: '#16A34A',
+  backgroundColor: '#000000',
   android: {
     // allowMixedContent disabled (Aug 2026) — no code uses HTTP URLs.
     // All API calls go through HTTPS (Convex, Paystack, Firebase, Gemini).
@@ -40,7 +47,7 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: '#16A34A',
+      backgroundColor: '#000000',
       androidScaleType: 'CENTER_CROP',
       showSpinner: true,
       androidSpinnerStyle: 'large',

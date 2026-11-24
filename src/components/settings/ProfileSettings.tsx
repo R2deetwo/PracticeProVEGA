@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../../types';
 import { useProduct } from '../../contexts/ProductContext';
+import { useCoreState } from '../../contexts/CoreContext';
 import { ALL_PROFESSIONAL_TITLES } from '../../utils/professionalIdentity';
 import FeedbackButton from '../FeedbackButton';
 // ui/ primitives (ADR-0004) — Task 61 reference migration. Every adopted
@@ -63,6 +64,7 @@ interface ProfileSettingsProps {
 // guidance). Theme/typography live ONLY in Settings → Display.
 const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdateUser }) => {
     const { isLegal } = useProduct();
+    const { coreState } = useCoreState();
     const toast = useToastFeedback();
     const [userName, setUserName] = useState(currentUser.name);
     // PROFESSIONAL TITLE (user feedback 2026-09-12): "the person may
@@ -72,12 +74,28 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
     const [titleInput, setTitleInput] = useState(currentUser.professionalTitle || '');
     const [titleCustomInput, setTitleCustomInput] = useState(currentUser.titleCustom || '');
 
+    // OWNER BRIEF 2026-11-25: the Professional Standards card is gated on the
+    // firm-level "Compliance & Professional Standards Tracking" toggle
+    // (Settings → Firm Details — OFF by default). When the firm turns it on,
+    // members self-fill and maintain their own record; off, the card hides.
+    const complianceTrackingEnabled = !!(coreState.firmDetails as any)?.complianceTrackingEnabled;
+
     // API Key State
     const [standards, setStandards] = useState(currentUser.professionalStandards || {
         lastPracticingFeePaidYear: new Date().getFullYear() - 1,
         nbaStampStatus: 'Pending' as 'Approved' | 'Pending',
         completedCpdHours: 0
     });
+
+    // OWNER BRIEF 2026-11-25 (negative-number guard): CPD hours and the
+    // practicing-fee year can NEVER go below their sensible floors — the
+    // clamps catch manual typing AND arrow/scroll-wheel decrements.
+    const MIN_CPD_HOURS = 0;
+    const MIN_FEE_YEAR = 1990;
+    const clampCpdHours = (raw: number): number =>
+        Number.isFinite(raw) ? Math.max(MIN_CPD_HOURS, Math.min(raw, 1000)) : MIN_CPD_HOURS;
+    const clampFeeYear = (raw: number): number =>
+        Number.isFinite(raw) ? Math.max(MIN_FEE_YEAR, Math.min(raw, new Date().getFullYear() + 1)) : MIN_FEE_YEAR;
 
     const handleProfileUpdate = () => {
         const titleChanged =
@@ -172,8 +190,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
                     </div>
                 </SettingsCard>
 
-                {isLegal && (currentUser.role === 'Lawyer' || currentUser.role === 'Admin') && (
+                {isLegal && (currentUser.role === 'Lawyer' || currentUser.role === 'Admin') && complianceTrackingEnabled && (
                     <SettingsCard title="Professional Standards" id="professional-standards">
+                        {/* The firm's Compliance & Professional Standards toggle
+                            gates this card (owner brief 2026-11-25). Members
+                            self-fill; admins and teammates see the record via
+                            Settings → Firm Details → View team standards. */}
                         <div className="space-y-4">
                             <Input
                                 styleVariant="settings"
@@ -182,13 +204,15 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
                                 type="number"
                                 id="practicingFee"
                                 label="Last Practicing Fee Paid (Year)"
+                                min={MIN_FEE_YEAR}
+                                max={new Date().getFullYear() + 1}
                                 value={standards.lastPracticingFeePaidYear}
-                                onChange={(e) => setStandards(s => ({ ...s, lastPracticingFeePaidYear: parseInt(e.target.value, 10) || new Date().getFullYear() - 1 }))}
+                                onChange={(e) => setStandards(s => ({ ...s, lastPracticingFeePaidYear: clampFeeYear(parseInt(e.target.value, 10)) }))}
                             />
                             <Select
                                 styleVariant="settings"
                                 id="nbaStampStatus"
-                                label="NBA Stamp Status"
+                                label="NBA Status"
                                 value={standards.nbaStampStatus}
                                 onChange={(e) => setStandards(s => ({ ...s, nbaStampStatus: e.target.value as 'Approved' | 'Pending' }))}
                             >
@@ -202,9 +226,27 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
                                 type="number"
                                 id="cpdHours"
                                 label="Completed CPD Hours (Current Year)"
+                                min={MIN_CPD_HOURS}
                                 value={standards.completedCpdHours}
-                                onChange={(e) => setStandards(s => ({ ...s, completedCpdHours: parseInt(e.target.value, 10) || 0 }))}
+                                onChange={(e) => setStandards(s => ({ ...s, completedCpdHours: clampCpdHours(parseInt(e.target.value, 10)) }))}
+                                hint="Hours cannot be negative — the floor is 0."
                             />
+                            {/* Stamp & Seal slot (owner brief 2026-11-25): a
+                                reserved status record for the physical NBA
+                                stamp/seal — the artifact itself is never
+                                stored here. */}
+                            <Select
+                                styleVariant="settings"
+                                id="stampAndSeal"
+                                label="Stamp & Seal"
+                                value={standards.stampAndSealStatus || 'not_submitted'}
+                                onChange={(e) => setStandards(s => ({ ...s, stampAndSealStatus: e.target.value as 'not_submitted' | 'submitted' | 'verified' }))}
+                                hint="Reserved slot for your NBA Stamp & Seal record — status only, the seal artifact is held by you."
+                            >
+                                <option value="not_submitted">Not submitted</option>
+                                <option value="submitted">Submitted</option>
+                                <option value="verified">Verified</option>
+                            </Select>
                             {/* Dark inverse CTA — variant="bare" with the VERBATIM
                                 original class string. Why bare: the original declares
                                 no text-size (renders at the inherited 16px), and a

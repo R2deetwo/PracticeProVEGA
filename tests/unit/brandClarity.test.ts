@@ -47,15 +47,22 @@ describe('Brand Clarity S1/S2 — the splash ends on the product being opened', 
             expect(card.mark).toBe(p);
             expect(card.name).toBeTruthy();
             expect(card.attribution).toBe(COMPANY_ATTRIBUTION);
-            expect(card.lockup).toBe(false);
         }
     });
 
-    it('the company card carries the product lockup instead of a product mark (Gate A, option b)', () => {
+    it('the company card carries NO lockup — the multi-icon strip is retired (owner brief 2026-11-25)', () => {
         const card = resolveSplashEndCard('practicepro');
         expect(card.mark).toBe('practicepro');
         expect(card.name).toBeNull();
-        expect(card.lockup).toBe(true);
+        // The retired “Vega · Atrium · Komplete” row must not come back: the
+        // end-card CONTRACT no longer carries a lockup flag at all (the
+        // docstring may say the word, the interface may not).
+        const source = read('src/components/splashEndCard.ts');
+        expect(source).not.toContain('lockup:');
+        expect(source).not.toContain('lockup: boolean');
+        const splash = read('src/components/SplashScreen.tsx');
+        expect(splash).not.toContain('endCard.lockup');
+        expect(splash).not.toContain('splash-lockup');
     });
 
     it('App.tsx resolves the splash product through the normalizer (S2 fix)', () => {
@@ -74,6 +81,33 @@ describe('Brand Clarity S1/S2 — the splash ends on the product being opened', 
         expect(splash).toContain('VegaMark');
         expect(splash).toContain('AtriumMark');
         expect(splash).toContain('KompleteMark');
+    });
+
+    it('the two-stage sequence is black-first with timing guardrails (owner brief 2026-11-25)', () => {
+        const splash = read('src/components/SplashScreen.tsx');
+        // Pure black start — the old dark-zinc ground is gone.
+        expect(splash).toContain("backgroundColor: '#000000'");
+        const css = read('src/components/SplashScreen.css');
+        // The green ambient shimmer + dark-zinc reveal layers (the premature
+        // bright-green flash) are retired.
+        expect(css).not.toContain('splashAmbientBreath');
+        expect(css).not.toContain('splashBgReveal');
+        expect(css).not.toContain('radial-gradient(circle at center, rgba(22, 163, 74');
+        expect(css).toContain('background-color: #000000');
+        // The stage machine: black → amber → green → blackout → product.
+        expect(splash).toContain("'emergence' | 'amber' | 'green' | 'blackout' | 'product'");
+        // The boot chain (native + plugin + HTML loader) is black too.
+        const idx = read('index.html');
+        expect(idx).toContain('#pp-boot-overlay');
+        expect(idx).toMatch(/#pp-boot-overlay[^}]*background: #000000/s);
+        for (const cfg of ['capacitor.config.ts', 'capacitor.vega.config.ts', 'capacitor.atrium.config.ts', 'capacitor.komplete.config.ts']) {
+            const c = read(cfg);
+            expect(c).toContain("backgroundColor: '#000000'");
+            expect(c).not.toContain("backgroundColor: '#16A34A'");
+        }
+        // The founder/admin app keeps its own sequence.
+        const admin = read('capacitor.admin.config.ts');
+        expect(admin).toContain("backgroundColor: '#16A34A'");
     });
 
     it('the Komplete mark exists and mirrors the favicon register (S4)', () => {

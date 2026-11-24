@@ -447,8 +447,8 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         <div className="space-y-5">
             <div className="bg-white dark:bg-zinc-800 rounded-lg p-5 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-                        <ZapIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                        <ZapIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white">AI Assistant</h2>
@@ -495,7 +495,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                         </button>
                         <button
                             onClick={() => runKeyHealthCheck({ force: true, toast: true })}
-                            className="px-4 py-2.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg font-bold text-sm hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+                            className="px-4 py-2.5 bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 rounded-lg font-bold text-sm hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors"
                             title="Check key health (free — verifies the key with Google)"
                         >
                             {keyHealthChecking ? (

@@ -142,7 +142,13 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { ModalLayer } from '../overlays/layers/ModalLayer';
 import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
+import ProductReveal from './ProductReveal';
 import { normalizeSplashProduct } from './splashEndCard';
+// OWNER BRIEF 2026-11-25 — the cached activeProduct lets a returning
+// logged-in user's boot splash play Stage 1 → Stage 2 immediately (the
+// product finale) instead of settling on the generic company card while
+// auth resolves.
+import { getCachedSplashProduct, cacheSplashProduct } from '../utils/splashProductCache';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import ToastRefreshNotification from './ToastRefreshNotification';
@@ -969,6 +975,15 @@ export const App: React.FC = () => {
     }, [location.pathname]);
     const { confirm: confirmAction, ConfirmDialog: confirmDialogNode } = useConfirm();
     const { product } = useProduct();
+    // ── SPLASH PRODUCT CACHE (owner brief 2026-11-25) ─────────────────────
+    // The cached product for the boot splash is read ONCE at mount (before
+    // auth resolves); the live product overwrites it the moment data loads.
+    const bootSplashProductRaw = React.useMemo(() => getCachedSplashProduct(), []);
+    // The post-login Stage-2 reveal (ProductReveal): plays once a FRESH
+    // login resolves the plan, or when the plan CHANGED vs the value the
+    // boot splash settled on (a Vega→Komplete upgrade visibly rewards).
+    const [revealProduct, setRevealProduct] = useState<null | 'vega' | 'atrium' | 'komplete'>(null);
+    const splashRevealDone = React.useRef(false);
     const [forceEntry, setForceEntry] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
     const [visualsComplete, setVisualsComplete] = useState(false);
@@ -1127,6 +1142,28 @@ export const App: React.FC = () => {
 
     // Safety valve: if the session has been loading for 6 seconds and the user has no
     // stored session, abandon the splash and show the landing page immediately.
+    // ── SPLASH PRODUCT CACHE WRITE + POST-LOGIN REVEAL (owner brief
+    // 2026-11-25): once the live product resolves, persist it for the next
+    // boot's Stage 2, and — when the boot splash did NOT already settle on
+    // this exact product — play the product reveal once. Skipped entirely
+    // for the demo session (a marketing persona, never a workspace reveal).
+    React.useEffect(() => {
+        if (splashRevealDone.current) return;
+        if (!isDataLoaded || !currentUser?.firmId) return;
+        if (currentUser?.email === 'demo@practicepro.ng') { splashRevealDone.current = true; return; }
+        const live = normalizeSplashProduct(product);
+        if (live === 'practicepro') return;
+        cacheSplashProduct(live as 'vega' | 'atrium' | 'komplete');
+        const bootProduct = normalizeSplashProduct(bootSplashProductRaw);
+        splashRevealDone.current = true;
+        // The boot splash already played this exact product's Stage 2
+        // (saved session + unchanged plan) — the reveal would be a repeat.
+        if (hasSavedSession && bootProduct === live) return;
+        setRevealProduct(live);
+        window.setTimeout(() => setRevealProduct(null),
+            350 + 1100 + 350 + 100);
+    }, [isDataLoaded, currentUser, product, hasSavedSession, bootSplashProductRaw]);
+
     // #4 — Redirect unauthenticated users away from protected routes to keep URL clean
     // IMPORTANT: Portal users who have a saved session should NEVER be redirected away
     // during the brief window while auth is loading. We detect this by checking
@@ -2045,8 +2082,15 @@ export const App: React.FC = () => {
                 onReset={handleReset} 
                 onForceEnter={() => { setForceEntry(true); setHasInitialSplashFinished(true); }} 
                 onComplete={() => setSplashAnimationComplete(true)}
-                product={(!isDataLoaded || !currentUser?.firmId) ? 'practicepro' : normalizeSplashProduct(product)} 
+                product={(!isDataLoaded || !currentUser?.firmId)
+                    // Owner brief 2026-11-25: the CACHED product plays Stage 2
+                    // immediately while auth/data resolve; unknown → the
+                    // company card completes after Stage 1 (login takes over,
+                    // ProductReveal plays Stage 2 post-login).
+                    ? (bootSplashProductRaw ? normalizeSplashProduct(bootSplashProductRaw) : 'practicepro')
+                    : normalizeSplashProduct(product)} 
             />
+            {revealProduct && <ProductReveal product={revealProduct} />}
             {isSessionLocked ? (
                 <LockScreen onUnlock={() => setIsSessionLocked(false)} />
             ) : (

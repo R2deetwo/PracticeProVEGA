@@ -1,43 +1,40 @@
 /**
- * SplashScreen — cinematic brand reveal.
+ * SplashScreen — two-stage cinematic brand reveal (owner brief 2026-11-25
+ * "Splash Screen Sequence & Product-Specific Finale").
  *
- * CINEMATIC ANIMATION SEQUENCE (~3 seconds total):
+ * STAGE 1 — THE PARENt BRAND (PracticePro):
+ *   0ms    — clean BLACK (#000000) start. Zero bright-green flash (the
+ *            native splash, splash-plugin color and HTML boot overlay all
+ *            render black now, so the whole boot chain is black-first).
+ *   400ms  — logo morphs to ORANGE / AMBER-GOLD (#EAB308).
+ *   900ms  — logo morphs to the PracticePro brand GREEN (rgb(22,163,74))
+ *            and holds briefly so the completed state registers cleanly.
+ *   1300ms — Stage 2 begins (product known) or the sequence completes
+ *            (unauthenticated / product unknown).
  *
- *   1. AMBIENT REVEAL (0ms → 1200ms)
- *      Background fades from pure black to dark zinc (#0e0e11) via CSS
- *      ::after animation. Ambient shimmer (::before) begins breathing.
+ * STAGE 2 — THE PRODUCT FINALE (only when the product is known):
+ *   1300ms — clean fade back through BLACK (the Stage-1 content dissolves).
+ *   1750ms — reveal of ONLY the single product icon for the active product
+ *            (Atrium | Vega | Komplete) with its name + "by PracticePro
+ *            Systems" attribution — 350ms opacity/scale ease, then a clean
+ *            hold. The 3-icon strip is RETIRED.
+ *   2300ms — sequence complete (the app shell takes over via onComplete).
  *
- *   2. LOGO ENTRY (0ms → 1200ms, staggered)
- *      Logo fades in with micro-scale expansion (92% → 100%) using
- *      cubic-bezier(0.16, 1, 0.3, 1) — a smooth, decelerating curve.
+ * UNAUTHENTICATED / PRODUCT UNKNOWN: finish after Stage 1 (~1.7s) straight
+ * into the login screen — the post-login product reveal (App.tsx
+ * ProductReveal) plays the Stage-2 finale once the plan resolves.
  *
- *   3. COLOR PHASE 1 — BLACK (0ms → 800ms)
- *      Logo starts in black (#000000) on the dark background.
+ * The ADMIN / FOUNDER splash (src/admin/FounderSplashScreen.tsx + the
+ * admin capacitor config) is deliberately untouched — its sequence is its
+ * own.
  *
- *   4. COLOR PHASE 2 — AMBER (800ms → 1600ms)
- *      Logo morphs to amber (#EAB308) — the loading signal.
- *      Haptic: soft impact when color settles.
+ * TIMING GUARDRAILS (owner brief): total ~1.8–2.4s; Stage-2 transitions
+ * 300–450ms with a clean hold; SPLASH_TIMINGS below is the single source
+ * of truth (unit-tested).
  *
- *   5. COLOR PHASE 3 — GREEN (1600ms → 2400ms)
- *      Logo morphs to brand green (rgb(22, 163, 74)).
- *      "Ready" text fades in with vertical slide-up.
- *      Haptic: soft impact when color settles.
- *
- *   6. SETTLE (2400ms → 2800ms)
- *      Brief hold on the final frame to let the branding sink in.
- *
- *   7. CINEMATIC EXIT (2800ms → 3400ms)
- *      Splash scales outward (1 → 1.08) while cross-fading to the
- *      main app. This creates a smooth scene transition.
- *
- * EASING:
- *   All transitions use cubic-bezier(0.16, 1, 0.3, 1) — a smooth,
- *   decelerating curve that feels intentional and elegant.
- *
- * ROBUSTNESS:
- *   CSS transitions + direct state management. The logo is ALWAYS
- *   visible once mounted (opacity is controlled by CSS animation, not
- *   React state). No Framer Motion, no race conditions.
+ * ROBUSTNESS: CSS transitions + direct state management; the logo is
+ * ALWAYS visible once mounted; timers are cleared on unmount; no
+ * Framer Motion, no race conditions.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -59,6 +56,24 @@ interface SplashScreenProps {
     onComplete?: () => void;
 }
 
+/** The single source of truth for the sequence clock (ms). Unit-tested. */
+export const SPLASH_TIMINGS = {
+    /** Stage 1 — logo leaves black for amber. */
+    amberAt: 400,
+    /** Stage 1 — logo reaches the PracticePro green. */
+    greenAt: 900,
+    /** Stage 1 hold ends; Stage 2 begins (product known). */
+    stageTwoAt: 1300,
+    /** Stage 2 — the product mark reveal begins. */
+    productRevealAt: 1750,
+    /** Stage 2 — sequence complete (product known). */
+    completeAt: 2300,
+    /** Unauthenticated / unknown — complete after the Stage-1 hold. */
+    unauthCompleteAt: 1700,
+    /** Cinematic exit duration once the app takes over. */
+    exitMs: 600,
+} as const;
+
 // Cinematic easing curve — smooth deceleration
 const EASE_CINEMATIC = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
@@ -70,6 +85,8 @@ const hapticImpact = async () => {
     } catch {}
 };
 
+type Phase = 'emergence' | 'amber' | 'green' | 'blackout' | 'product';
+
 const SplashScreen: React.FC<SplashScreenProps> = ({
     isVisible,
     statusMessage = "Initializing System...",
@@ -78,20 +95,18 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     product,
     onComplete
 }) => {
-    const [phase, setPhase] = useState<'emergence' | 'amber' | 'green'>('emergence');
+    const [phase, setPhase] = useState<Phase>('emergence');
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
     const [isExiting, setIsExiting] = useState(false);
     const hasStarted = useRef(false);
     const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-    // ── BRAND CLARITY PASS, PHASE 1 — the end-card ────────────────────
-    // The sequence keeps its choreography; only the final settle frame
-    // resolves to the product being opened (owner direction 2026-11-18:
-    // "it should end with the actual logo of the thing that we are doing
-    // or working on"). Pure resolver — see splashEndCard.ts.
+    // ── OWNER BRIEF 2026-11-25 — the two-stage end-card ────────────────
+    // Stage 2 exists ONLY when the product is known (from the live
+    // ProductContext resolution OR the locally cached activeProduct);
+    // unauthenticated/unknown finishes on the completed PracticePro state.
     const endCard = resolveSplashEndCard(product);
     const isProductCard = endCard.mark !== 'practicepro';
-    const isSettleFrame = phase === 'green' && !isExiting;
 
     const clearAllTimers = () => {
         timersRef.current.forEach(t => clearTimeout(t));
@@ -109,27 +124,43 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             setIsActuallyMounted(true);
             setIsExiting(false);
 
-            // ── PHASE 1: EMERGENCE — logo in black ────────────────────
+            // ── STAGE 1: EMERGENCE — logo in black ─────────────────────
             setPhase('emergence');
 
-            // ── PHASE 2: AMBER (after 800ms) ───────────────────────────
+            // ── STAGE 1: AMBER (after 400ms) ───────────────────────────
             addTimer(() => {
                 setPhase('amber');
                 hapticImpact(); // Soft haptic when color transitions
-            }, 800);
+            }, SPLASH_TIMINGS.amberAt);
 
-            // ── PHASE 3: GREEN (after 1600ms) ──────────────────────────
+            // ── STAGE 1: GREEN (after 900ms) + brief hold ──────────────
             addTimer(() => {
                 setPhase('green');
                 hapticImpact(); // Soft haptic when color settles
-            }, 1600);
+            }, SPLASH_TIMINGS.greenAt);
 
-            // ── SETTLE + COMPLETE (after 2800ms) ───────────────────────
-            // Hold the final frame for ~1.2s after green appears so the
-            // branding feels intentional and credible.
-            addTimer(() => {
-                if (onComplete) onComplete();
-            }, 2800);
+            if (isProductCard) {
+                // ── STAGE 2: fade back through BLACK ───────────────────
+                addTimer(() => {
+                    setPhase('blackout');
+                }, SPLASH_TIMINGS.stageTwoAt);
+
+                // ── STAGE 2: the single product mark reveal ────────────
+                addTimer(() => {
+                    setPhase('product');
+                    hapticImpact(); // Soft haptic when the product lands
+                }, SPLASH_TIMINGS.productRevealAt);
+
+                // ── COMPLETE — hold the finale, then hand off ───────────
+                addTimer(() => {
+                    if (onComplete) onComplete();
+                }, SPLASH_TIMINGS.completeAt);
+            } else {
+                // ── UNAUTH / UNKNOWN: finish after the Stage-1 hold ────
+                addTimer(() => {
+                    if (onComplete) onComplete();
+                }, SPLASH_TIMINGS.unauthCompleteAt);
+            }
         } else if (!isVisible && isActuallyMounted && !isExiting) {
             // ── CINEMATIC EXIT ────────────────────────────────────────
             // Scale outward + cross-fade instead of a simple opacity fade.
@@ -137,8 +168,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             addTimer(() => {
                 setIsActuallyMounted(false);
                 setIsExiting(false);
-            }, 600);
+            }, SPLASH_TIMINGS.exitMs);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isVisible]);
 
     // Cleanup on unmount
@@ -150,117 +182,56 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
     // Once we're in the green phase, the "Ready" text near the logo is
     // showing. Hide the bottom status text so "Ready" doesn't appear twice.
-    const showBottomStatus = isVisible && phase !== 'green' && !isExiting;
+    const showBottomStatus = isVisible && phase === 'emergence' && !isExiting;
 
-    // Color for the logo based on phase. The product end-card re-hues the
-    // final phase to the product accent (splashEndCard.readyColor); the
-    // company card keeps the historic green.
+    // Stage-1 logo color: black → amber → the PracticePro green. The green
+    // phase keeps the company color even when Stage 2 follows.
     const logoColor = phase === 'emergence' ? '#000000'
         : phase === 'amber' ? '#EAB308'
-        : endCard.readyColor;
+        : 'rgb(22, 163, 74)';
 
     const logoGlow = phase === 'emergence' ? 'drop-shadow(0 0 15px rgba(255,255,255,0.05))'
         : phase === 'amber' ? 'drop-shadow(0 0 25px rgba(234,179,8,0.25))'
-        : isProductCard
-            ? 'drop-shadow(0 0 35px rgba(255,255,255,0.18))'
-            : 'drop-shadow(0 0 35px rgba(22,163,74,0.4))';
+        : 'drop-shadow(0 0 35px rgba(22,163,74,0.4))';
 
-    // On the product end-card the company logo recedes (scale + lift) so
-    // the product mark can hero the settle frame — the company stays
-    // credited via the "by PracticePro Systems" attribution line.
-    const companyLogoTransform = isProductCard && isSettleFrame
-        ? 'scale(0.42) translateY(-10px)'
-        : 'scale(1) translateY(0)';
+    // ── STAGE 2 geometry ──────────────────────────────────────────────
+    // blackout: the whole Stage-1 column (logo + text) dissolves to black
+    // (color → black + opacity 0) — "transition cleanly back through
+    // black". product: the company logo stays hidden and ONLY the single
+    // product mark heroes the finale.
+    const stageOneVisible = phase !== 'blackout' && phase !== 'product';
+    const stageOneOpacity = stageOneVisible ? 1 : 0;
+    const stageOneColor = phase === 'blackout' || phase === 'product' ? '#000000' : logoColor;
 
-    const endCardOpacity = isSettleFrame ? 1 : 0;
-    const endCardTransform = isSettleFrame ? 'translateY(0)' : 'translateY(12px)';
+    const productCardOpacity = phase === 'product' ? 1 : 0;
+    const productCardTransform = phase === 'product' ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.96)';
 
     return (
         <div
             className={`splash-screen ${isExiting ? 'splash-exiting' : ''}`}
             style={{
-                backgroundColor: '#0e0e11',
+                backgroundColor: '#000000',
                 pointerEvents: isVisible ? 'auto' : 'none',
                 zIndex: 9999,
             }}
         >
             {/* Branding Core */}
             <div className="relative z-10 flex flex-col items-center">
-                {/* Logo — entry animation handled by CSS .splash-logo class.
-                    Color and glow change via inline style transitions. On the
-                    product end-card the company logo recedes so the product
-                    mark can take the settle frame. */}
+                {/* ── STAGE 1 — the PracticePro logo (black → amber → green) ── */}
                 <div
                     className="splash-logo"
                     style={{
-                        color: logoColor,
+                        color: stageOneColor,
                         filter: logoGlow,
-                        transform: companyLogoTransform,
-                        transition: `color 0.8s ${EASE_CINEMATIC}, filter 0.8s ${EASE_CINEMATIC}, transform 0.8s ${EASE_CINEMATIC}`,
+                        opacity: stageOneOpacity,
+                        transform: stageOneVisible ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(0)',
+                        transition: `color 0.8s ${EASE_CINEMATIC}, filter 0.8s ${EASE_CINEMATIC}, opacity 0.45s ${EASE_CINEMATIC}, transform 0.45s ${EASE_CINEMATIC}`,
                     }}
                 >
                     <Logo className="w-32 h-32" />
                 </div>
 
-                {/* PHASE 1 (Brand Clarity) — THE PRODUCT END-CARD. When the
-                    splash knows which app it is settling into, the product
-                    mark + name + "by PracticePro Systems" attribution fade
-                    in beneath the receded company logo. */}
-                {isProductCard && (
-                    <div
-                        className="splash-endcard flex flex-col items-center"
-                        style={{
-                            opacity: endCardOpacity,
-                            transform: endCardTransform,
-                            transition: `opacity 0.6s ${EASE_CINEMATIC} 0.15s, transform 0.6s ${EASE_CINEMATIC} 0.15s`,
-                        }}
-                    >
-                        {endCard.mark === 'vega' ? (
-                            <VegaMark className="w-24 h-24" title="PracticePro Vega" />
-                        ) : endCard.mark === 'atrium' ? (
-                            <AtriumMark className="w-24 h-24" title="PracticePro Atrium" />
-                        ) : (
-                            <KompleteMark className="w-24 h-24" title="PracticePro Komplete" />
-                        )}
-                        <span
-                            className="mt-3 text-2xl font-bold tracking-tight"
-                            style={{ color: endCard.readyColor }}
-                        >
-                            {endCard.name}
-                        </span>
-                        <span className="mt-1 text-xs font-medium uppercase tracking-[0.3em] text-slate-500">
-                            {endCard.attribution}
-                        </span>
-                    </div>
-                )}
-
-                {/* PHASE 1 (Brand Clarity) — THE COMPANY LOCKUP. Logged-out /
-                   product-unknown: the company card stays the hero and the
-                   lockup row teaches the two-products-plus-bundle model
-                   (Gate A, option b). */}
-                {endCard.lockup && (
-                    <div
-                        className="splash-lockup flex items-center gap-2.5 mt-2"
-                        style={{
-                            opacity: endCardOpacity,
-                            transform: endCardTransform,
-                            transition: `opacity 0.6s ${EASE_CINEMATIC} 0.15s, transform 0.6s ${EASE_CINEMATIC} 0.15s`,
-                        }}
-                    >
-                        <VegaMark className="w-4 h-4" title="" />
-                        <span className="text-sm font-semibold text-slate-300">Vega</span>
-                        <span className="text-slate-600">·</span>
-                        <AtriumMark className="w-4 h-4" title="" />
-                        <span className="text-sm font-semibold text-slate-300">Atrium</span>
-                        <span className="text-slate-600">·</span>
-                        <KompleteMark className="w-4 h-4" title="" />
-                        <span className="text-sm font-semibold text-slate-300">Komplete</span>
-                    </div>
-                )}
-
-                {/* Text — entry animation handled by CSS .splash-text-container.
-                    Visibility controlled by phase (appears in green phase).
-                    Re-hued to the product accent on product cards. */}
+                {/* Text — appears with the green phase, dissolves with Stage 2. */}
                 <div className="splash-text-container">
                     <span
                         className="splash-text"
@@ -276,7 +247,39 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                 </div>
             </div>
 
-            {/* Status Feedback — hidden once green "Ready" appears */}
+            {/* ── STAGE 2 — THE PRODUCT FINALE. ONLY the single product mark
+                (plus name + attribution) — the multi-icon strip is retired
+                (owner brief 2026-11-25). The unauthenticated/company splash
+                never renders this block. */}
+            {isProductCard && (
+                <div
+                    className="splash-endcard absolute inset-0 flex flex-col items-center justify-center gap-0"
+                    style={{
+                        opacity: productCardOpacity,
+                        transform: productCardTransform,
+                        transition: `opacity 0.35s ${EASE_CINEMATIC}, transform 0.35s ${EASE_CINEMATIC}`,
+                    }}
+                >
+                    {endCard.mark === 'vega' ? (
+                        <VegaMark className="w-28 h-28" title="PracticePro Vega" />
+                    ) : endCard.mark === 'atrium' ? (
+                        <AtriumMark className="w-28 h-28" title="PracticePro Atrium" />
+                    ) : (
+                        <KompleteMark className="w-28 h-28" title="PracticePro Komplete" />
+                    )}
+                    <span
+                        className="mt-4 text-2xl font-bold tracking-tight"
+                        style={{ color: endCard.readyColor }}
+                    >
+                        {endCard.name}
+                    </span>
+                    <span className="mt-1 text-xs font-medium uppercase tracking-[0.3em] text-slate-500">
+                        {endCard.attribution}
+                    </span>
+                </div>
+            )}
+
+            {/* Status Feedback — only during the black emergence phase */}
             {showBottomStatus && (
                 <div className="absolute bottom-20 flex flex-col items-center gap-4 px-10">
                     <p

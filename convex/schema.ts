@@ -65,6 +65,11 @@ export default defineSchema({
     whatsappLimit: nullableNumber,
     setupFeePaid: nullableBoolean,
     trustAccountingEnabled: v.optional(v.boolean()),  // Toggle: enable trust accounting for this firm
+    // Owner brief 2026-11-25 — firm-wide Compliance & Professional Standards
+    // Tracking. OFF by default (absent = off). When ON, members self-fill
+    // their Professional Standards record (practicing fee, NBA status, CPD
+    // hours, Stamp & Seal slot), visible to the team for verification.
+    complianceTrackingEnabled: v.optional(v.boolean()),
     // ─── TRIAL SYSTEM (CRO Audit Track B) ───────────────────────────────
     // When trialStartsAt is set, the firm is on a 30-day trial of `trialPlan`.
     // On expiry (cron), trialPlan is cleared and subscriptionPlan reverts to 'Core'.

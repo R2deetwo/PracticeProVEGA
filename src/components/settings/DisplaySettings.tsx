@@ -127,7 +127,7 @@ const ThemePicker: React.FC<{ theme: Theme; setTheme: (t: Theme) => void }> = ({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full h-11 px-4 py-2.5 rounded-md border transition-all duration-200 flex items-center justify-between cursor-pointer bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700/80 hover:border-emerald-500/50 text-slate-800 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                className="w-full h-11 px-4 py-2.5 rounded-md border transition-all duration-200 flex items-center justify-between cursor-pointer bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700/80 hover:border-primary-500/50 text-slate-800 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30"
             >
                 <span className="flex items-center gap-2.5 min-w-0">
                     <span
@@ -168,8 +168,8 @@ const ThemePicker: React.FC<{ theme: Theme; setTheme: (t: Theme) => void }> = ({
                                         }}
                                         className={`w-full px-3 py-2 flex items-center justify-between rounded-lg transition-colors cursor-pointer text-left ${
                                             isActive
-                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                                : 'hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300 text-slate-700 dark:text-slate-200'
+                                                ? 'bg-primary-500/10 text-primary-700 dark:text-primary-300'
+                                                : 'hover:bg-primary-500/10 hover:text-primary-700 dark:hover:text-primary-300 text-slate-700 dark:text-slate-200'
                                         }`}
                                     >
                                         <span className="flex items-center gap-2.5 min-w-0">
@@ -180,7 +180,7 @@ const ThemePicker: React.FC<{ theme: Theme; setTheme: (t: Theme) => void }> = ({
                                             <span className="text-sm font-medium truncate">{opt.label}</span>
                                         </span>
                                         {isActive && (
-                                            <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                            <svg className="w-4 h-4 text-primary-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                             </svg>
                                         )}

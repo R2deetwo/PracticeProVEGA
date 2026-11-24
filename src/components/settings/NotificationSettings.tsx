@@ -34,6 +34,15 @@ import {
   webNotificationPermission, requestWebNotificationPermission,
 } from '../../utils/reminderEngine';
 import { registerForNotifications } from '../../utils/notifications';
+// Banner preview cycler (owner brief 2026-11-25) — admin-only internal
+// preview control + the pure pub/sub module it drives.
+import {
+    BANNER_TEST_PRESETS,
+    pushTestBanner,
+    clearTestBanners,
+    getTestBanners,
+    subscribeTestBanners,
+} from '../../utils/bannerTestCycler';
 // ui/ primitives (ADR-0004) — new raw form elements are banned; the
 // pref switches below are deduped into one PrefSwitch component (a single
 // switch control per file instead of one per row).
@@ -42,13 +51,17 @@ import { Button, Select } from '../ui';
 // ── PrefSwitch — one shared switch control for every notification toggle ──
 // (ADR-0004 ratchet: previously each toggle row hand-rolled its own switch
 // markup; the whole file now owns exactly ONE switch element.)
-const PrefSwitch: React.FC<{ checked: boolean; onToggle: () => void; label: string; tone?: 'blue' | 'emerald'; }> = ({ checked, onToggle, label, tone = 'emerald' }) => (
+// ACCENT STANDARDIZATION (owner brief 2026-11-25): the switch fills with the
+// skin-scoped primary accent (Brand Blue on Vega/Komplete, Atrium's emerald
+// on Atrium) for every general toggle; the Property / Residents category is
+// the one exception and pins Atrium green via tone="emerald".
+const PrefSwitch: React.FC<{ checked: boolean; onToggle: () => void; label: string; tone?: 'primary' | 'emerald' | 'blue' }> = ({ checked, onToggle, label, tone = 'primary' }) => (
   <button
     onClick={onToggle}
     role="switch"
     aria-checked={checked}
     aria-label={label}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${checked ? (tone === 'blue' ? 'bg-blue-600' : 'bg-emerald-500') : 'bg-slate-200 dark:bg-zinc-600'}`}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${checked ? (tone === 'emerald' ? 'bg-emerald-500' : 'bg-primary-600') : 'bg-slate-200 dark:bg-zinc-600'}`}
   >
     <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
   </button>
@@ -65,7 +78,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; colo
   legal: {
     label: 'Legal / Clients',
     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>,
-    color: 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20',
+    color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
     description: 'Emails sent to clients and legal team members',
   },
   portal: {
@@ -77,7 +90,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; colo
   system: {
     label: 'System / Security',
     icon: <ShieldCheckIcon className="w-4 h-4" />,
-    color: 'text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800',
+    color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
     description: 'Critical system emails — always enabled for security',
   },
 };
@@ -240,7 +253,6 @@ export const NotificationSettings: React.FC = () => {
                   <p className="text-xs text-slate-400 dark:text-zinc-500">{desc}</p>
                 </div>
                 <PrefSwitch
-                  tone="blue"
                   checked={isChecked}
                   label={label}
                   onToggle={() => {
@@ -348,13 +360,17 @@ export const NotificationSettings: React.FC = () => {
                       <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-0.5">{type.description}</p>
                     </div>
 
-                    {/* Toggle switch */}
+                    {/* Toggle switch — skin-scoped primary accent for general
+                        categories; Atrium green strictly for the Property /
+                        Residents domain (owner brief 2026-11-25). */}
                     <button
                       onClick={() => !isAlwaysOn && handleToggle(type.key)}
                       disabled={isAlwaysOn || isSaving}
                       className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-zinc-900 ${
                         isEnabled
-                          ? 'bg-emerald-500 focus:ring-emerald-500/30'
+                          ? (category === 'property'
+                              ? 'bg-emerald-500 focus:ring-emerald-500/30'
+                              : 'bg-primary-600 focus:ring-primary-500/30')
                           : 'bg-slate-200 dark:bg-zinc-700 focus:ring-slate-400/30'
                       } ${isAlwaysOn ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'} ${isSaving ? 'opacity-60' : ''}`}
                       title={isAlwaysOn ? 'This notification type cannot be disabled' : isEnabled ? 'Click to disable' : 'Click to enable'}
@@ -394,6 +410,9 @@ export const NotificationSettings: React.FC = () => {
           <TestPushButton />
         </div>
       </div>
+
+      {/* ─── Banner Preview Cycler (admin-only internal tool) ───────── */}
+      <BannerPreviewCycler />
     </div>
   );
 };
@@ -470,8 +489,8 @@ const RemindersAndDeviceCard: React.FC = () => {
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-          <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="w-9 h-9 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+          <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
           </svg>
         </div>
@@ -568,6 +587,67 @@ const RemindersAndDeviceCard: React.FC = () => {
           <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">The Snooze quick action on a reminder notification.</p>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── Banner Preview Cycler (admin-only internal tool) ──────────────────────
+// Owner brief 2026-11-25: a clean internal preview control that cycles and
+// triggers TEST banner notifications (Founder Announcement, System/Platform
+// Notice, Urgent Compliance/Billing Alert) so spacing, dismissal behaviour
+// and styling can be inspected on the REAL Dashboard banner surface, on
+// desktop and mobile viewports. Injected rows are client-side only (never
+// Convex), session-dismissable, and capped at 3.
+const BannerPreviewCycler: React.FC = () => {
+  const { currentUser } = useAuth();
+  const { navigateTo } = useUI();
+  const [rows, setRows] = useState(getTestBanners());
+
+  useEffect(() => subscribeTestBanners(next => setRows(next)), []);
+
+  // Internal/admin tool — never surfaced to regular members.
+  if (currentUser?.role !== 'Admin') return null;
+
+  const hasActive = rows.length > 0;
+
+  return (
+    <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
+      <div className="flex items-center gap-3 mb-1">
+        <div className="w-9 h-9 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+          <svg className="w-5 h-5 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h14a1 1 0 011 1v10a1 1 0 01-1 1H7.414a2 2 0 00-1.414.586l-3 3V4z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Banner Preview <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">(internal)</span></h3>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Trigger test banners to inspect styling, spacing and dismissal on your Dashboard.</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {BANNER_TEST_PRESETS.map(preset => (
+          <Button
+            key={preset.id}
+            variant="bare"
+            onClick={() => pushTestBanner(preset.id)}
+            className="px-3 py-1.5 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors"
+          >
+            {preset.buttonLabel}
+          </Button>
+        ))}
+        {hasActive && (
+          <Button
+            variant="bare"
+            onClick={() => clearTestBanners()}
+            className="px-3 py-1.5 text-slate-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+          >
+            Clear test banners
+          </Button>
+        )}
+      </div>
+      <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-2">
+        Test banners appear in the Dashboard carousel (client-side only — nothing is sent to users).{' '}
+        <Button variant="bare" onClick={() => navigateTo('dashboard')} className="text-primary-600 dark:text-primary-400 font-bold hover:underline">Open Dashboard →</Button>
+      </p>
     </div>
   );
 };

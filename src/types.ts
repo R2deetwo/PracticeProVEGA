@@ -78,7 +78,13 @@ export type ModalType = 'login' | 'signup' | 'leadCapture' | 'newMatter' | 'edit
 export type SelectedId = string | null;
 
 // Interfaces
-export interface BankAccount { id: string; bankName: string; accountNumber: string; accountName?: string; isDefault?: boolean; firmId?: string; }
+/** Account purpose designation (owner brief 2026-11-25): Komplete
+ * workspaces designate each bank account by purpose to support proper
+ * client/trust fund segregation between the legal practice and the
+ * property business. Absent = not designated (pre-existing accounts;
+ * Vega-only and Atrium-only firms never see the picker). */
+export type BankAccountPurpose = 'law_firm' | 'estate_property' | 'unified';
+export interface BankAccount { id: string; bankName: string; accountNumber: string; accountName?: string; isDefault?: boolean; firmId?: string; purpose?: BankAccountPurpose; }
 export interface TaxSettings { vatRate: number; whtRate?: number; }
 export interface AiSettings { enableAllAiFeatures?: boolean; enableJurisdictionalAnalysis?: boolean; firmGeminiApiKey?: string; firmDeepSeekApiKey?: string;
     /** S2 (security spine): true when the firm's Gemini key is stored
@@ -239,6 +245,12 @@ export interface FirmDetails { id: string; _id?: string; name: string; address: 
     product?: Product;
     automationSettings?: any;
     trustAccountingEnabled?: boolean;        // Toggle: enable trust accounting
+    /** Owner brief 2026-11-25 (Compliance & Professional Standards): OFF by
+     * default. When ON, firm members can self-fill and maintain their own
+     * Professional Standards record (practicing fee, NBA status, CPD hours,
+     * Stamp & Seal slot) — visible to admins and team members for internal
+     * verification and trust. Absent = OFF (the default). */
+    complianceTrackingEnabled?: boolean;
     defaultStateOfPractice?: string;          // Default jurisdiction for all drafts (e.g., "Lagos", "Delta", "FCT")
     statesOfPractice?: string[];              // All states the firm operates in (multi-state practices)
     practiceProfile?: PracticeProfile;        // Practice-type configuration captured during onboarding
@@ -261,7 +273,15 @@ export interface PracticeProfile {
     /** ISO timestamp of when the profile was captured */
     completedAt?: string;
 }
-export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
+export interface ProfessionalStandards {
+    lastPracticingFeePaidYear: number;
+    nbaStampStatus: 'Approved' | 'Pending';
+    completedCpdHours: number;
+    /** Stamp & Seal slot (owner brief 2026-11-25): a reserved per-lawyer
+     * record for the NBA stamp/seal — status only, the physical artifact is
+     * never stored here. Absent = never filled. */
+    stampAndSealStatus?: 'not_submitted' | 'submitted' | 'verified';
+}
 // REMINDERS & NOTIFICATION CENTER (2026-11-22): the reminder*/device* keys
 // drive the client reminder engine (useReminderEngine) and the Reminders &
 // Device Notifications card in NotificationSettings. All default to ON /

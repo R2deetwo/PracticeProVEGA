@@ -3170,3 +3170,134 @@ shared desktop); the endorsement date parser handles the spoken forms
 audited in this repo's drafting corpus — deeper NLU (e.g. "the Wednesday
 after the defence is filed") stays with Vox's server-side triage, not the
 local one-click path.
+
+---
+
+## Task 88 — Settings brand-color standardization, Compliance consolidation, bank-account cap/purpose, bell order + banner cycler, two-stage product splash (owner briefs 2026-11-25)
+
+Date: 2026-11-25. Two owner briefs landed in one round: the Settings /
+Financial Configuration / Notifications overhaul and the splash-sequence
+rework.
+
+### 1. Brand Blue vs Atrium Green — the accent grammar
+
+The app already owns the machinery: `primary-*` resolves per product skin
+(Vega/Komplete #1D4ED8 blue, Atrium #059669 emerald) while hardcoded
+`emerald-*`/`green-*` classes stay green on every product — the exact
+erratic flipping the owner saw. Every general-settings accent now rides
+`primary-*`; Atrium green is strictly the Property & Residence register;
+status indicators (online dot, "On" badges, done/valid chips, live pulses)
+stay green as semantic status:
+
+- SettingsView nav (active items, icon containers, accent bar, sub-tabs,
+  feedback icon, "All settings" link) → primary; the property-only
+  Revenue Protection Guide row keeps emerald.
+- NotificationSettings: the shared PrefSwitch defaults primary; the
+  category row toggles are emerald ONLY for the property category;
+  Legal / Portal / System category chips all Brand Blue (the violet Legal
+  chip retired); Reminders card icon primary.
+- DisplaySettings theme picker (border/focus/selected/check) → primary.
+- AgentSettings (AI Settings) icon containers + key-health button →
+  primary; status chips (done/valid/running) untouched semantics.
+- SecuritySettings biometric card (icon + Enable CTA) → primary; the
+  "✓ enabled" success line stays green (status).
+- FirmSettings Trust Accounting toggle → primary.
+- ComplianceView header icon → primary.
+
+### 2. Compliance & Professional Standards consolidation
+
+- The standalone Compliance nav item is RETIRED from the Settings sidebar
+  (the /compliance route stays for the "View team standards" link +
+  existing deep links).
+- New firm-level toggle in Firm Details ("Compliance & Professional
+  Standards", OFF by default — `firms.complianceTrackingEnabled` through
+  the same generic-firms update path as trustAccountingEnabled). When ON,
+  members self-fill their own Professional Standards record; when OFF the
+  profile card hides and the compliance view shows an honest off-state
+  explanation instead of an empty table.
+- ProfileSettings Professional Standards: gated on the firm toggle; CPD
+  hours clamped to a 0 floor (manual typing AND arrow/scroll-wheel —
+  `clampCpdHours`, min={0} on the input) and the practicing-fee year
+  bounded 1990..current+1; new "Stamp & Seal" slot (status-only record:
+  not_submitted | submitted | verified — the artifact is never stored).
+- ComplianceReports gains the Stamp & Seal column + the off-state gate.
+
+### 3. Financial Configuration — cap + fund segregation
+
+- 5-account cap, enforced THREE layers deep: the Settings Add button is
+  replaced by the contact-us message at 5, BankAccountForm (the checklist
+  deep-link path) refuses with the honest message, and convex
+  manageBankAccount throws at the server for every writer.
+- Komplete workspaces designate each account's purpose (law_firm |
+  estate_property | unified): the picker renders only on Komplete, the
+  convex mutation validates the value (present key sets-or-clears on
+  update, absent key leaves the stored designation), and saved accounts
+  carry a purpose badge (estate = Atrium green, law-firm/unified = Brand
+  Blue) plus the Default badge.
+
+### 4. Bell popover + the banner preview cycler
+
+- The bell popover opens on FIRM by default, Firm tab first, Platform
+  second; labels shortened to "Firm" / "Platform".
+- New admin-only "Banner Preview (internal)" card in NotificationSettings:
+  three owner-named presets (Founder Announcement / System-Platform Notice
+  / Urgent Compliance-Billing Alert) inject client-side TEST banners into
+  the real Dashboard carousel via a pure pub/sub module
+  (src/utils/bannerTestCycler.ts) — broadcast-shaped rows, fresh id per
+  push (a dismissed preset can always re-trigger), session-dismissable so
+  inspection leaves no durable state, capped at 3; BroadcastBanner merges
+  them through the same urgency sort + session-dismissal filter.
+
+### 5. The two-stage product splash
+
+- THE GREEN FLASH, ELIMINATED: the whole boot chain is black-first — the
+  native splash drawables regenerated black + white P
+  (generate-splash-assets.py), the Capacitor splash backgroundColor
+  #000000 across capacitor/vega/atrium/komplete configs, the index.html
+  boot overlay black. The ADMIN/FOUNDER app keeps its own green sequence
+  untouched (capacitor.admin.config.ts + FounderSplashScreen).
+- The in-app splash: pure #000000 ground; the green ambient shimmer
+  (::before) and the dark-zinc reveal (::after) layers RETIRED; CSS entry
+  animations switched to fill-mode BACKWARDS so the Stage-2 dissolve
+  (inline opacity) can't be beaten by persisted keyframes.
+- Two-stage machine (SPLASH_TIMINGS is the single source of truth,
+  unit-tested): Stage 1 black 0ms → amber 400ms → green 900ms + brief hold
+  → (product known) blackout 1300ms → single-product-mark reveal 1750ms
+  (350ms ease + clean hold) → complete 2300ms; unauthenticated/unknown
+  completes at 1700ms straight into login. The multi-icon
+  "Vega · Atrium · Komplete" strip is RETIRED (splashEndCard lockup field
+  deleted).
+- The resolved activeProduct caches locally (pp_splash_product —
+  src/utils/splashProductCache.ts): a returning logged-in user's boot
+  splash plays Stage 1 → Stage 2 immediately instead of the generic card.
+- Post-login Stage-2 reveal (src/components/ProductReveal.tsx, toastSub
+  z-rung): plays once a FRESH login resolves the plan, and again when the
+  plan CHANGED vs the boot-cached product (a Vega→Komplete upgrade is
+  visibly rewarded with the Komplete reveal). Never duplicates a reveal
+  the boot splash already played; never for the demo session.
+
+### 6. ADR-0004 discipline
+
+The round's first ratchet run CAUGHT 6 new raw buttons (the compliance
+toggle, its row actions, the cycler card) — all migrated to the Button
+primitive (bare carries exact classes + switch semantics), landing the
+ratchet back at 2212/2212 with zero growth. The ProductReveal initially
+used a raw z-[9998] literal — the design-token gate caught it; it now
+rides Z_CLASS.toastSub.
+
+**Gates:** root tsc 0 · convex tsc 0 · vitest 3,685/3,685 +1 skipped
+(+34 net new: settingsBrandAndSplash 26 incl. pure cycler/cache/timing
+suites + brandClarity additions) · lint 0 errors · identity audit PASSED ·
+design-token gate green (zIndex=0) · ui-primitives ratchet held 2,212 ·
+vite production build green · live visual QA (scripts/qa-splash-2026-11-25.cjs
+against the built dist): t=150ms splash is rgb(0,0,0) with the white P
+(black-first confirmed), the retired ambient/bg-reveal CSS absent from the
+bundle, no lockup row.
+
+**Known-open:** the two-stage sequence's mid-flight phases are pinned by
+unit tests + the t0 visual proof (a logged-in mid-flight capture needs a
+real session; the invalid-session QA path correctly falls through to the
+login/landing); the unauthenticated Stage-1 stand-in is the black boot
+overlay (the web root serves the marketing landing to anonymous visitors,
+so forcing the app splash there would cover the landing page); the e2e
+staging-auth smoke + APK pipeline run in CI as usual on push.

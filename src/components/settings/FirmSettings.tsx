@@ -8,6 +8,10 @@ import { getInitials, getUserColor } from '../../utils/colorUtils';
 import { EditIcon, TrashIcon, SearchIcon, UserCircleIcon, PlusIcon, GavelIconLarge, CalculatorIcon, DocumentIcon, ZapIcon, GlobeIcon, LockClosedIcon, ShieldCheckIcon, RevertIcon, OfficeBuildingIcon, BillingIcon } from '../../constants';
 import RpcGuidanceAgent from '../RpcGuidanceTip';
 import InviteColleagueRow from '../workspace/InviteColleagueRow';
+// ui/ primitives (ADR-0004) — the compliance toggle + its row actions use
+// Button (bare carries the exact classes + switch semantics), so this
+// round adds ZERO raw form elements.
+import { Button } from '../ui';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -104,7 +108,7 @@ interface FirmSettingsProps {
 
 const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDetails, openModal, users, currentUser, openUserModal, onDeleteUser, onEnableDevMode }) => {
     const permissions = usePermissions();
-    const { isProperty } = useProduct();
+    const { isProperty, isUnified, isLegal } = useProduct();
     const { loginAsUser, bearerToken } = useAuth();
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const { addToast, navigateTo, closeModal, activePeers } = useUI();
@@ -299,6 +303,28 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
     const bankAccounts = firmDetails.bankAccounts || [];
 
+    // OWNER BRIEF 2026-11-25 (Financial Configuration):
+    // 5-account cap — beyond it the Add button disables with a clean
+    // contact-us message; Komplete workspaces designate each account by
+    // purpose (law firm / estate / unified) for fund segregation.
+    const MAX_BANK_ACCOUNTS = 5;
+    const bankCapReached = bankAccounts.length >= MAX_BANK_ACCOUNTS;
+
+    const PURPOSE_LABEL: Record<string, string> = {
+        law_firm: 'Law Firm',
+        estate_property: 'Estate / Property',
+        unified: 'Unified',
+    };
+    const purposeBadgeClass = (purpose?: string): string => {
+        if (purpose === 'estate_property') {
+            // Property-domain exception — Atrium green strictly for the
+            // estate/property register (owner brief 2026-11-25).
+            return 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+        }
+        // Law-firm + unified accounts carry the Brand Blue register.
+        return 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800';
+    };
+
     return (
         <div className="space-y-8">
             <SettingsCard title={isProperty ? "Portfolio Profile" : "Firm Profile"} onTitleClick={handleTitleClick} id="firm-details">
@@ -335,8 +361,23 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                     {bankAccounts.length > 0 ? (
                         bankAccounts.map(account => (
                             <div key={account.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
-                                <div>
-                                    <p className="font-bold text-slate-900 dark:text-white text-sm">{account.bankName}</p>
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-bold text-slate-900 dark:text-white text-sm">{account.bankName}</p>
+                                        {/* Komplete fund-segregation badge (owner brief
+                                            2026-11-25): each designated account
+                                            carries its purpose. */}
+                                        {account.purpose && (
+                                            <span className={`px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider rounded-md border ${purposeBadgeClass(account.purpose)}`}>
+                                                {PURPOSE_LABEL[account.purpose] || account.purpose}
+                                            </span>
+                                        )}
+                                        {account.isDefault && (
+                                            <span className="px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wider rounded-md bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600">
+                                                Default
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-xs text-slate-500 dark:text-zinc-400 font-mono">{account.accountNumber}</p>
                                     {account.accountName && <p className="text-xs text-slate-400">{account.accountName}</p>}
                                 </div>
@@ -354,14 +395,75 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                         </div>
                     )}
 
-                    <button
-                        onClick={() => openModal('newBankAccount')}
-                        className="w-full py-2 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg font-bold text-sm hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <PlusIcon className="w-4 h-4" /> Add Bank Account
-                    </button>
+                    {bankCapReached ? (
+                        /* The cap message replaces the Add button — the limit is
+                           honest, not silent, and points the user at our team. */
+                        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700">
+                            <ShieldCheckIcon className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                                You've reached the {MAX_BANK_ACCOUNTS}-account limit. Need more accounts for your practice?
+                                <Button variant="bare" onClick={() => navigateTo('help')} className="text-primary-600 dark:text-primary-400 font-bold hover:underline ml-1">Contact our team</Button>
+                                and we'll set it up for you.
+                            </p>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => openModal('newBankAccount')}
+                            className="w-full py-2 bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg font-bold text-sm hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <PlusIcon className="w-4 h-4" /> Add Bank Account
+                        </button>
+                    )}
+                    {isUnified && (
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500">
+                            On Komplete you can designate each account by purpose — Law Firm, Estate / Property, or Unified — when adding or editing it, to keep legal and estate client funds segregated.
+                        </p>
+                    )}
                 </div>
             </SettingsCard>
+
+            {/* COMPLIANCE & PROFESSIONAL STANDARDS TRACKING (owner brief
+                2026-11-25) — the standalone Compliance nav item retired;
+                firm-wide tracking is THIS toggle (OFF by default), and each
+                member's own record lives in Settings → My Profile →
+                Professional Standards. */}
+            {isLegal && (
+                <SettingsCard title="Compliance & Professional Standards" id="compliance-tracking">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                            <p className="font-semibold text-slate-900 dark:text-white text-sm">Track Compliance & Professional Standards</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                                When on, members of this firm can fill and maintain their own Professional Standards record — Last Practicing Fee Paid, NBA Status, CPD Hours and the Stamp &amp; Seal slot — visible to admins and team members for internal verification and trust.
+                            </p>
+                            <p className="text-2xs text-slate-400 mt-2">
+                                Off by default. Turning it on never changes existing records — it simply shows the Professional Standards card in each member's profile.
+                            </p>
+                        </div>
+                        <Button
+                            variant="bare"
+                            role="switch"
+                            aria-checked={!!firmDetails.complianceTrackingEnabled}
+                            aria-label="Track compliance and professional standards"
+                            onClick={() => onUpdateFirmDetails({
+                                ...firmDetails,
+                                complianceTrackingEnabled: !firmDetails.complianceTrackingEnabled,
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${firmDetails.complianceTrackingEnabled ? 'bg-primary-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${firmDetails.complianceTrackingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </Button>
+                    </div>
+                    {permissions.canManageFirmDetails && (
+                        <Button
+                            variant="bare"
+                            onClick={() => navigateTo('compliance')}
+                            className="mt-3 text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                        >
+                            View team standards →
+                        </Button>
+                    )}
+                </SettingsCard>
+            )}
 
             {/* TRUST ACCOUNTING TOGGLE — Legal firms only */}
             {!isProperty && (
@@ -381,7 +483,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                 ...firmDetails,
                                 trustAccountingEnabled: !firmDetails.trustAccountingEnabled,
                             })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${firmDetails.trustAccountingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${firmDetails.trustAccountingEnabled ? 'bg-primary-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${firmDetails.trustAccountingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>

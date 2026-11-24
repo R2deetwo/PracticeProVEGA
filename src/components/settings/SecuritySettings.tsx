@@ -586,8 +586,8 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
         <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md overflow-hidden p-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <div className="p-2 bg-primary-50 dark:bg-primary-900/30 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.568 8.268m9.14-9.14a3 3 0 11-4.243 4.243M3 3l18 18" />
                         </svg>
                     </div>
@@ -609,7 +609,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
                     <button
                         onClick={handleRegister}
                         disabled={checking}
-                        className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
                     >
                         {checking ? 'Enabling...' : 'Enable'}
                     </button>

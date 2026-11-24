@@ -15,6 +15,29 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
     const { users } = coreState;
     const { currentUser } = useAuth();
     const { isProperty } = useProduct();
+
+    // OWNER BRIEF 2026-11-25: the standalone Compliance nav item retired —
+    // this report is the team-facing view of the firm's compliance tracking,
+    // gated on the SAME firm toggle that gates each member's Professional
+    // Standards card (Settings → Firm Details). Off (the default) shows an
+    // honest explanation, never an empty-looking table.
+    const complianceTrackingEnabled = !!(coreState.firmDetails as any)?.complianceTrackingEnabled;
+
+    if (!complianceTrackingEnabled) {
+        return (
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-black/5 dark:border-white/5">
+                <h3 className="text-lg font-bold mb-2">Team Professional Standards</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400">
+                    Compliance & Professional Standards tracking is currently <span className="font-bold">off</span> for this workspace.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 leading-relaxed">
+                    An admin can turn it on in Settings → Firm Details → Compliance &amp; Professional Standards. When on, each member fills their own
+                    record (practicing fee, NBA status, CPD hours, Stamp &amp; Seal slot) in Settings → My Profile, and this report makes it visible to the team
+                    for internal verification and trust.
+                </p>
+            </div>
+        );
+    }
     
     // Only show internal team members (Lawyers, Paralegals, External Counsel)
     // Portal users (Tenants, Clients) must never appear in compliance reports.
@@ -26,8 +49,9 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
         ...user,
         ...(user.professionalStandards || {
             lastPracticingFeePaidYear: 0,
-            nbaStampStatus: 'Pending',
-            completedCpdHours: 0
+            nbaStampStatus: 'Pending' as const,
+            completedCpdHours: 0,
+            stampAndSealStatus: undefined as 'not_submitted' | 'submitted' | 'verified' | undefined,
         })
     }));
 
@@ -56,8 +80,9 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
                             <tr>
                                 <th className="py-2 px-4">Team Member</th>
                                 <th className="py-2 px-4">Last Practicing Fee</th>
-                                <th className="py-2 px-4">NBA Stamp</th>
+                                <th className="py-2 px-4">NBA Status</th>
                                 <th className="py-2 px-4">CPD Hours (Current Year)</th>
+                                <th className="py-2 px-4">Stamp &amp; Seal</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-zinc-700">
@@ -74,6 +99,7 @@ const ComplianceReports: React.FC<ComplianceReportsProps> = () => {
                                         <td className={`py-3 px-4 ${!isFeePaid ? 'text-red-500 font-semibold' : ''}`}>{user.lastPracticingFeePaidYear}</td>
                                         <td className={`py-3 px-4 ${user.nbaStampStatus === 'Pending' ? 'text-yellow-600 font-semibold' : ''}`}>{user.nbaStampStatus}</td>
                                         <td className={`py-3 px-4 ${user.completedCpdHours < 16 ? 'text-yellow-600 font-semibold' : ''}`}>{user.completedCpdHours} / 16</td>
+                                        <td className="py-3 px-4 text-slate-600 dark:text-zinc-400">{user.stampAndSealStatus === 'verified' ? 'Verified' : user.stampAndSealStatus === 'submitted' ? 'Submitted' : '—'}</td>
                                     </tr>
                                 );
                             })}
