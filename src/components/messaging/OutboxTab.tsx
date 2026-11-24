@@ -33,7 +33,7 @@ import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
 // WHATSAPP MANUAL SHARE (2026-09-14): the API integration is retired —
 // whatsapp-channel rows get a one-tap wa.me handoff (message prefilled,
 // user hits send in WhatsApp) instead of an undeliverable automated send.
-import { whatsappShareUrl } from '../../utils/whatsappShare';
+import { whatsappShareUrl, looksLikePhone } from '../../utils/whatsappShare';
 
 // WhatsApp brand glyph for the share button (not in shared constants).
 const WhatsAppGlyph = ({ className }: { className?: string }) => (
@@ -487,9 +487,11 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                           ENTIRE history for this recipient. */}
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {/* WhatsApp handoff — shares the LATEST message to this
-                            recipient (codes/references included). */}
-                        {group.rows.some((r: any) => r.channel === 'whatsapp') && (() => {
-                          const waRow = group.rows.find((r: any) => r.channel === 'whatsapp' && (r.messageContent || r.messagePreview));
+                            recipient (codes/references included). Only when the
+                            stored recipient is a PHONE — an email recipient builds
+                            a garbage wa.me/<email-digits> deep link. */}
+                        {group.rows.some((r: any) => r.channel === 'whatsapp' && looksLikePhone(r.recipient)) && (() => {
+                          const waRow = group.rows.find((r: any) => r.channel === 'whatsapp' && looksLikePhone(r.recipient) && (r.messageContent || r.messagePreview));
                           if (!waRow) return null;
                           return (
                             <a
@@ -616,8 +618,9 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                           {/* WHATSAPP MANUAL SHARE — the integration is retired;
                               wa.me opens WhatsApp with this exact message
                               prefilled to the recipient (codes and references
-                              included). */}
-                          {log.channel === 'whatsapp' && (log.messageContent || log.messagePreview) && (
+                              included). Phone recipients only — an email
+                              recipient would produce a broken wa.me link. */}
+                          {log.channel === 'whatsapp' && looksLikePhone(log.recipient) && (log.messageContent || log.messagePreview) && (
                             <a
                               href={whatsappShareUrl(log.recipient, log.messageContent || log.messagePreview)}
                               target="_blank"

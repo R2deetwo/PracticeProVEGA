@@ -27,7 +27,7 @@ import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./code
 // Task 21: shared user-record resolution + NDPA privacy projection
 import { pickUserRecord, stripAuthFields, userLookupArgs } from "./userResolution";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
-import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
+import { requireStaffCaller, requirePortalCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
 // ALOA X round (2026-11-19): changeOwnPassword resolves the caller from
 // their session token and hashes the current token to protect it from the
 // revoke-other-sessions sweep (convex/sessions.ts).
@@ -6610,6 +6610,35 @@ export const generateUploadUrl = mutation({
   handler: async (ctx, args) => {
     // RLS: Require firm user — only authenticated users can generate upload URLs
     await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    return await ctx.storage.generateUploadUrl();
+  }
+});
+
+/**
+ * generatePortalUploadUrl — storage upload URL for PORTAL users
+ * (Tenant/Client role).
+ *
+ * MESSAGING AUDIT (2026-11-24): portal-side attachment uploads — resident
+ * message attachments (TenantPortal MessagesTab), maintenance-ticket
+ * photos, payment receipts, and client-portal message attachments
+ * (ClientDashboard) — were calling generateUploadUrl({}) with NO bearer.
+ * Doubly broken: requireFirmUser rejects callers without a verified
+ * session AND rejects Tenant/Client roles outright. Every portal
+ * attachment upload has failed since the strict-identity cutover.
+ *
+ * This variant authenticates the PORTAL caller instead: possession of a
+ * verified session proves the account (password/MFA happened at the
+ * login gateway), and Convex storage upload URLs are not firm-scoped —
+ * they're single-use POST tickets. Portal callers can therefore get one
+ * exactly like staff callers do.
+ */
+export const generatePortalUploadUrl = mutation({
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // STRICT IDENTITY: portal caller via verified bearer session — the
+    // caller-supplied email is ignored by resolveCaller (strict mode),
+    // kept in the signature so call sites match the house pattern.
+    await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     return await ctx.storage.generateUploadUrl();
   }
 });

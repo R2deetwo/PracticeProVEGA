@@ -98,6 +98,12 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
         isPinned: newNoticePinned,
         propertyId: newNoticePropertyId || undefined,
         unitId: newNoticeUnitId || undefined,
+        // STRICT-IDENTITY FIX (messaging audit): createNotice auth-first
+        // (requireStaffCaller) — this call went out WITHOUT the bearer, so
+        // every notice post failed with "Unauthenticated" while archive/
+        // restore worked (they passed it).
+        userEmail: currentUser?.email,
+        sessionToken: bearerToken ?? undefined,
       });
       setNewNoticeTitle('');
       setNewNoticeBody('');

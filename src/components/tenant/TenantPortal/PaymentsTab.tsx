@@ -40,7 +40,10 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   const [showBankDetails, setShowBankDetails] = useState(false);
 
   const submitProof = useMutation(api.portals.submitPaymentProof);
-  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  // MESSAGING AUDIT: portal-scoped upload URL — generateUploadUrl
+  // (requireFirmUser) rejects Tenant/Client roles, so the old call
+  // failed every portal attachment upload.
+  const generateUploadUrl = useMutation(api.myFunctions.generatePortalUploadUrl);
 
   // ─── ROUND B (M18): Paystack availability comes from the SERVER, not a
   // hardcoded `pk_test_…` fallback in the bundle. The old check silently
@@ -219,7 +222,7 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       const storageIds: string[] = [];
       for (const file of pendingFiles) {
         try {
-          const postUrl = await generateUploadUrl({});
+          const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
           const res = await fetch(postUrl, {
             method: 'POST',
             body: file,

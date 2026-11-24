@@ -67,4 +67,80 @@ describe('strict identity: guarded Convex call sites carry sessionToken', () => 
         const src = read('src/components/MessagesView.tsx');
         expect(callPassesSession(src, 'sendChatMessageMutation(')).toBe(true);
     });
+
+    // ── MESSAGING AUDIT (2026-11-24) ─────────────────────────────────────
+    // The audit found four silent-dead call sites in the Messages hub that
+    // the original scan never covered: sendAdminReply (every general
+    // conversation reply failed with "Unauthenticated"), generateUploadUrl
+    // ×3 (team attachments, voice notes, admin reply attachments), the
+    // ticket-record refresh query, and NoticeBoardTab's createNotice.
+    // These pins keep the bearers on those exact calls.
+    it('MessagesView — sendAdminReply (general conversation replies)', () => {
+        const src = read('src/components/MessagesView.tsx');
+        // Wider window (1400): the fix note between the call and the bearer
+        // pushes sessionToken ~1020 chars past the call site.
+        expect(callPassesSession(src, 'sendAdminReply({', 1400)).toBe(true);
+    });
+    it('MessagesView — every generateUploadUrl call carries the bearer', () => {
+        const src = read('src/components/MessagesView.tsx');
+        expect(src.split('await generateUploadUrl(').length - 1).toBe(3); // all three sites in one shape
+        expect(callPassesSession(src, 'await generateUploadUrl(')).toBe(true);
+    });
+    it('MessagesView — ticket record refresh query carries the bearer', () => {
+        const src = read('src/components/MessagesView.tsx');
+        expect(callPassesSession(src, 'convex.query(queryFn,')).toBe(true);
+    });
+    it('NoticeBoardTab — createNotice carries the bearer (notices actually post)', () => {
+        const src = read('src/components/messaging/NoticeBoardTab.tsx');
+        expect(callPassesSession(src, 'createNotice({')).toBe(true);
+    });
+    it('AloaChat — attachment upload URL carries the bearer', () => {
+        const src = read('src/components/aloa/AloaChat.tsx');
+        expect(callPassesSession(src, 'generateUploadUrl({')).toBe(true);
+    });
+
+    // Portal-side messaging attachments: the firm generateUploadUrl
+    // (requireFirmUser) rejects Tenant/Client roles outright — the portal
+    // surfaces must use the portal-scoped endpoint WITH the bearer.
+    it('Portal upload call sites — portal endpoint + bearer everywhere', () => {
+        for (const f of [
+            'src/components/tenant/TenantPortal/MessagesTab.tsx',
+            'src/components/tenant/TenantPortal/PaymentsTab.tsx',
+            'src/components/tenant/TenantPortal/MaintenanceTab.tsx',
+            'src/components/client/ClientDashboard.tsx',
+        ]) {
+            const src = read(f);
+            expect(src).toContain('api.myFunctions.generatePortalUploadUrl');
+            expect(src).not.toContain('api.myFunctions.generateUploadUrl');
+            expect(callPassesSession(src, 'generateUploadUrl({')).toBe(true);
+        }
+    });
+
+    // The messaging audit also removed the dead delete-routing: the
+    // thread-header trash must go through handleDeleteThread, which
+    // routes conversations → deleteConversationCascade, legacy portal →
+    // adminDeletePortalMessage, inbound → deleteInboundMessage.
+    it('MessagesView — thread-header delete routes through handleDeleteThread', () => {
+        const src = read('src/components/MessagesView.tsx');
+        expect(src).toContain('onClick={handleDeleteThread}');
+        expect(src).toContain('const deleteConversationCascade');
+        // The old inline deleteInboundMessage-on-conversation-ids bug
+        // must not return: the only remaining deleteInboundMessage call
+        // sites live inside handleDeleteThread itself.
+        expect(src.match(/deleteInboundMessage\(\{/g)?.length).toBeLessThanOrEqual(1);
+    });
+
+    // The inbox→compose handoff must carry the typed reply text instead
+    // of discarding it, and the simulated/offline path must NOT toast
+    // "Reply sent." for an undelivered message.
+    it('MessagesView — inbox reply handoff carries text + honest toasts', () => {
+        const src = read('src/components/MessagesView.tsx');
+        expect(src).toContain('message: inboxReply.trim() || undefined');
+        expect(src).not.toContain("addToast('Reply sent.', { type: 'success' });\n            } else {\n                // Save to audit log so reply is not lost");
+    });
+    it('ComposeModal — prefill.message seeds the composer (not discarded)', () => {
+        const src = read('src/components/atrium/ComposeModal.tsx');
+        expect(src).toContain("prefill?.message ?? ''");
+        expect(src).toContain('message?: string;');
+    });
 });

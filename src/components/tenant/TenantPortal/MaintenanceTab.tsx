@@ -46,7 +46,10 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
   const createTicket = useMutation(api.portals.createMaintenanceTicket);
   const cancelTicket = useMutation(api.portals.cancelMaintenanceTicket);
   // Get upload URL mutation
-  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  // MESSAGING AUDIT: portal-scoped upload URL — generateUploadUrl
+  // (requireFirmUser) rejects Tenant/Client roles, so the old call
+  // failed every portal attachment upload.
+  const generateUploadUrl = useMutation(api.myFunctions.generatePortalUploadUrl);
   // Offline queue — for ticket creation when no attachments, and ticket
   // cancellation (never has attachments).
   const { queueMutation, isOnline } = useOfflineQueue();
@@ -173,7 +176,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
       if (pendingFiles.length > 0) {
         for (const file of pendingFiles) {
           try {
-            const postUrl = await generateUploadUrl({});
+            const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
             const res = await fetch(postUrl, {
               method: 'POST',
               body: file,

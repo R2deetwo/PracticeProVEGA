@@ -39,6 +39,19 @@ export function normalizePhoneForWa(rawPhone: string | null | undefined): string
 }
 
 /**
+ * Does a stored recipient value look like a phone number (vs an email or
+ * portal id)? Guards the wa.me handoff surfaces: opening wa.me/<digits>
+ * for an EMAIL recipient builds a broken deep link (the email's digits
+ * become a garbage phone). 10–15 digits and no '@' reads as a phone.
+ */
+export function looksLikePhone(raw: string | null | undefined): boolean {
+  const s = String(raw || '').trim();
+  if (!s || s.includes('@')) return false;
+  const digits = s.replace(/[^\d]/g, '');
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+/**
  * Build a wa.me deep link that opens a WhatsApp conversation with `phone`
  * and `text` prefilled. Without a phone it opens WhatsApp's share-picker
  * with just the text (the user picks the chat). Empty/absent text omits

@@ -51,7 +51,10 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // api.sentry.markMessageAsRead workaround used before Convex was deployed.
   const markInboundRead = useMutation(api.portals.markInboundMessagesReadByTenant);
   const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
-  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  // MESSAGING AUDIT: portal-scoped upload URL — generateUploadUrl
+  // (requireFirmUser) rejects Tenant/Client roles, so the old call
+  // failed every portal attachment upload.
+  const generateUploadUrl = useMutation(api.myFunctions.generatePortalUploadUrl);
 
   // State
   const [messageContent, setMessageContent] = useState('');
@@ -214,7 +217,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       const fileNames: string[] = [];
       for (const { file, name } of pendingFiles) {
         try {
-          const postUrl = await generateUploadUrl({});
+          const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
           const res = await fetch(postUrl, { method: 'POST', body: file });
           if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
           const { storageId } = await res.json();

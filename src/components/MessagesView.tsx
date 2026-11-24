@@ -42,6 +42,7 @@ import {
 import type { InboxSectionId } from '../messaging/sections';
 import { ListItemSkeleton } from './ui/Skeleton';
 import { useConfirm } from './ui/ConfirmDialog';
+import { Button } from './ui/Button';
 import { AutoExpandingChatInput } from './ui/AutoExpandingChatInput';
 import { InlineTicketReply } from './messaging/InlineTicketReply';
 import { ChatMessageBubble } from './ui/ChatMessageBubble';
@@ -199,7 +200,7 @@ const MessagesView: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
     const { currentUser, bearerToken } = useAuth();
-    const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat, addItem: actionsAddItem } = useDataActions();
+    const { handleMarkNotificationsRead, handleEditMessage, handleDeleteMessage, handleDeleteChat } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast, activePeers } = useUI();
     const { isProperty, isLegal, isUnified, hasPropertyFeatures } = useProduct();
 
@@ -822,7 +823,12 @@ const MessagesView: React.FC = () => {
             : api.portals.getServiceRequestById;
         const argKey = ticketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
         try {
-            const rec = await convex.query(queryFn, { [argKey]: ticketInfo.id } as any);
+            // STRICT-IDENTITY FIX (messaging audit): getTicketById/
+            // getServiceRequestById auth-first — without the bearer this
+            // refresh always threw "Unauthenticated" (silently caught),
+            // so the inline status select showed the PRE-update status
+            // until a full reload.
+            const rec = await convex.query(queryFn, { [argKey]: ticketInfo.id, sessionToken: (bearerToken ?? undefined) || undefined } as any);
             setLinkedTicketRecords(prev => ({ ...prev, [ticketInfo.id]: rec }));
         } catch {}
     };
@@ -896,15 +902,119 @@ const MessagesView: React.FC = () => {
     // (Auto-scroll for the team-DM thread is now owned by MessageThread —
     // the old teamChatEndRef effect was removed with it.)
 
-    const renderSidebarPreview = (msg: ChatMessage | undefined) => {
-        if (!msg) return 'No messages yet';
-        if (msg.content?.startsWith('[FILE:')) {
-            return <span className="flex items-center text-slate-600 dark:text-zinc-400">{msg.authorId === currentUser?.id ? 'You: ' : ''}<DocumentIcon className="w-3 h-3 inline mr-1 text-slate-400" /> File</span>;
-        }
-        return <span className={(msg as any).status === 'failed' ? 'text-red-500 italic' : ''}>{msg.authorId === currentUser?.id ? 'You: ' : ''}{msg.content}</span>;
-    }
+    // AUDIT CLEANUP: renderSidebarPreview (dead — no caller since the
+    // inbox preview moved to stored lastMessagePreview fields) and the
+    // unused retryMessage/handleSendMessage/actionsAddItem destructures
+    // were removed with this pass.
 
     // ── TASK 15: Bulk conversation deletion + Mark all as read ──
+
+    // Shared cascade for deleting ONE conversation (soft-delete every
+    // message for compliance, then hard-delete the conversation record
+    // so it leaves the list). Used by both the bulk flow and the single
+    // thread-header trash button.
+    const deleteConversationCascade = async (convId: string) => {
+        // Fetch messages for this conversation and soft-delete them
+        const msgs: any = await convex.query(api.portals.getConversationMessages, { conversationId: convId, sessionToken: bearerToken ?? undefined });
+        if (Array.isArray(msgs)) {
+            for (const msg of msgs) {
+                try {
+                    await adminDeletePortalMsg({
+                        messageId: String(msg._id),
+                        adminId: currentUser?.id || '',
+                        firmId: currentUser?.firmId || '',
+                        // ROUND A2: server verifies the staff session.
+                        sessionToken: bearerToken ?? undefined,
+                    });
+                } catch { /* message may already be deleted */ }
+            }
+        }
+        // Delete the conversation record itself
+        try {
+            await hardDeleteConv({ conversationId: convId, sessionToken: bearerToken ?? undefined });
+        } catch { /* may not exist */ }
+    };
+
+    // ── SINGLE-THREAD DELETE (thread header trash) ──────────────────────
+    // ROUTES BY TYPE (messaging audit): the old handler always called
+    // deleteInboundMessage — whose validator only accepts
+    // atrium_inbound_messages ids. On a client/resident conversation it
+    // rejected the conversation id (unhandled rejection, nothing visibly
+    // happened); on a legacy portal message the failure was silently
+    // swallowed. Each type now reaches the mutation that actually
+    // deletes it.
+    const handleDeleteThread = async () => {
+        if (!selectedInboundMsg) return;
+        if (selectedInboundMsg._inboxType === 'conversation') {
+            const conv = (portalConversations as any[]).find((c: any) => String(c._id) === String(selectedInboxId));
+            const name = conv?.participantName || 'this contact';
+            const ok = await confirm({
+                title: 'Delete this conversation?',
+                message: `The conversation with ${name} and all its messages will be permanently removed. This action cannot be undone.`,
+                confirmLabel: 'Delete',
+                cancelLabel: 'Cancel',
+                danger: true,
+            });
+            if (!ok) return;
+            try {
+                await deleteConversationCascade(String(selectedInboxId));
+                addToast('Conversation deleted.', { type: 'success' });
+                setSelectedConvIds(prev => {
+                    const next = new Set(prev);
+                    next.delete(String(selectedInboxId));
+                    return next;
+                });
+                setSelectedInboxId(null);
+                setSelectedSection(null);
+            } catch (err: any) {
+                addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
+            }
+            return;
+        }
+        if (selectedInboundMsg._inboxType === 'portal') {
+            const ok = await confirm({
+                title: 'Delete this message?',
+                message: 'This message will be removed from the inbox. A record will be retained for compliance.',
+                confirmLabel: 'Delete',
+                cancelLabel: 'Cancel',
+                danger: true,
+            });
+            if (!ok) return;
+            try {
+                // Legacy portal message → the portal soft-delete (NOT the
+                // inbound-message delete, which rejected this id).
+                await adminDeletePortalMsg({
+                    messageId: String(selectedInboundMsg._id),
+                    adminId: currentUser?.id || '',
+                    firmId: currentUser?.firmId || '',
+                    sessionToken: bearerToken ?? undefined,
+                });
+                addToast('Message deleted.', { type: 'success' });
+                setSelectedInboxId(null);
+                setSelectedSection(null);
+            } catch (err: any) {
+                addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+            }
+            return;
+        }
+        // Inbound WhatsApp/Email row — the only type the old code handled.
+        const ok = await confirm({
+            title: 'Delete this message?',
+            message: 'This message will be permanently removed from the inbox.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        try {
+            await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+            addToast('Message deleted.', { type: 'success' });
+            setSelectedInboxId(null);
+            setSelectedSection(null);
+        } catch (err: any) {
+            addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+        }
+    };
 
     // Toggle a conversation's selection checkbox
     const toggleConvSelection = (convId: string, e: React.MouseEvent) => {
@@ -917,14 +1027,14 @@ const MessagesView: React.FC = () => {
         });
     };
 
-    // Select all conversations
+    // Select all conversations — both Client and Resident rows carry the
+    // selection checkbox and the bulk cascade is role-agnostic, so the
+    // old `participantRole !== 'Client'` exclusion (dead code from Task 15's
+    // first cut) only made "Select all" silently skip client threads.
     const selectAllConversations = () => {
-        const allConvIds = new Set<string>(
-            (portalConversations as any[])
-                .filter((c: any) => c.participantRole !== 'Client')
-                .map((c: any) => String(c._id))
-        );
-        setSelectedConvIds(allConvIds);
+        setSelectedConvIds(new Set<string>(
+            (portalConversations as any[]).map((c: any) => String(c._id))
+        ));
     };
 
     // Clear selection
@@ -943,29 +1053,9 @@ const MessagesView: React.FC = () => {
         if (!ok) return;
         setIsBulkDeleting(true);
         try {
-            // Delete each conversation's messages, then the conversation itself.
-            // We use adminDeletePortalMessage for each message (cross-firm guarded).
             for (const convId of selectedConvIds) {
                 try {
-                    // Fetch messages for this conversation and delete them
-                    const msgs: any = await convex.query(api.portals.getConversationMessages, { conversationId: convId, sessionToken: bearerToken ?? undefined });
-                    if (Array.isArray(msgs)) {
-                        for (const msg of msgs) {
-                            try {
-                                await adminDeletePortalMsg({
-                                    messageId: String(msg._id),
-                                    adminId: currentUser?.id || '',
-                                    firmId: currentUser?.firmId || '',
-                                    // ROUND A2: server verifies the staff session.
-                                    sessionToken: bearerToken ?? undefined,
-                                });
-                            } catch { /* message may already be deleted */ }
-                        }
-                    }
-                    // Delete the conversation record itself
-                    try {
-                        await hardDeleteConv({ conversationId: convId, sessionToken: bearerToken ?? undefined });
-                    } catch { /* may not exist */ }
+                    await deleteConversationCascade(convId);
                 } catch (e) {
                     console.warn('[MessagesView] Bulk delete failed for conversation:', convId, e);
                 }
@@ -1021,6 +1111,13 @@ const MessagesView: React.FC = () => {
                     attachments: adminAttachments.length > 0 ? adminAttachments.map(a => a.storageId) : undefined,
                     attachmentNames: adminAttachments.length > 0 ? adminAttachments.map(a => a.name) : undefined,
                     threadTicketId: activeThreadTicketId || undefined,
+                    // STRICT-IDENTITY FIX (messaging audit): this call went out
+                    // WITHOUT the bearer — requireStaffCaller rejected every
+                    // general conversation reply with "Unauthenticated" while
+                    // ticket-thread replies worked (InlineTicketReply passed
+                    // it). Same Round A2 pattern as every other call here.
+                    userEmail: currentUser?.email,
+                    sessionToken: (bearerToken ?? undefined) || undefined,
                 });
                 addToast('Reply sent.', { type: 'success' });
                 setInboxReply('');
@@ -1046,13 +1143,23 @@ const MessagesView: React.FC = () => {
             const integrationStatus = coreState.firmDetails?.automationSettings?.chakra?.isActive ? 'connected' : 'simulated';
             if (integrationStatus === 'connected') {
                 const channel = selectedInboundMsg.channel as any;
+                // HANDOFF, not a send: the actual delivery happens in the
+                // compose modal (channel routing, template fallback, per-
+                // recipient logging). The text the user ALREADY typed carries
+                // over — previously it was silently discarded here (the modal
+                // opened empty) while the toast below claimed "Reply sent".
                 setComposePrefill({
                     tenantName: selectedInboundMsg.senderName,
                     tenantEmail: channel === 'email' ? selectedInboundMsg.senderContact : undefined,
                     tenantPhone: channel === 'whatsapp' ? selectedInboundMsg.senderContact : undefined,
                     channel,
+                    message: inboxReply.trim() || undefined,
                 });
                 setShowCompose(true);
+                // Keep the composer text as the user's draft — if they cancel
+                // the compose modal nothing is lost.
+                addToast('Continue in the compose window — your message carried over. Review and send.', { type: 'info', duration: 5000 });
+                return;
             } else {
                 // Save to audit log so reply is not lost
                 try {
@@ -1072,8 +1179,12 @@ const MessagesView: React.FC = () => {
                         triggeredBy: 'manual_reply_offline',
                     });
                 } catch (e) { console.warn('[Inbox] Could not save reply to audit log:', e); }
+                // HONEST FEEDBACK (messaging audit): the reply was NOT
+                // delivered — WhatsApp/Email isn't configured, so it was
+                // only logged for manual delivery. The old "Reply sent."
+                // success toast lied about what happened.
+                addToast('Saved to your send log — the channel is not connected, so the reply was not delivered. Finish it from the Sent tab.', { type: 'info', duration: 6000 });
             }
-            addToast('Reply sent.', { type: 'success' });
             setInboxReply('');
         } catch (e: any) {
             addToast(e.message || 'Failed to send reply.', { type: 'error' });
@@ -1248,9 +1359,22 @@ const MessagesView: React.FC = () => {
                             {selectedConvIds.size > 0 && (
                                 <div className="flex-shrink-0 py-2 px-4 border-b border-slate-200 dark:border-zinc-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-between gap-2">
                                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                                        {selectedConvIds.size} selected
+                                        {selectedConvIds.size} of {(portalConversations as any[]).length} selected
                                     </span>
                                     <div className="flex items-center gap-1.5">
+                                        {/* Select all / adjust the bulk selection in-bar (was dead
+                                            code until this round — selectAllConversations existed
+                                            but nothing invoked it). Button primitive per ADR-0004. */}
+                                        {selectedConvIds.size < (portalConversations as any[]).length && (
+                                            <Button
+                                                variant="bare"
+                                                onClick={selectAllConversations}
+                                                className="px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 transition-colors"
+                                                title="Select every conversation for bulk deletion"
+                                            >
+                                                Select all
+                                            </Button>
+                                        )}
                                         <button
                                             onClick={clearSelection}
                                             className="px-2 py-1 text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors"
@@ -1294,6 +1418,17 @@ const MessagesView: React.FC = () => {
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                         </button>
                                     )}
+                                    {/* Bulk-manage entry point: select every conversation
+                                        (and every row checkbox) in one tap. Button primitive
+                                        per ADR-0004. */}
+                                    <Button
+                                        variant="bare"
+                                        onClick={selectAllConversations}
+                                        className="px-2 py-1 text-2xs font-bold text-slate-500 hover:text-primary-600 dark:text-zinc-400 dark:hover:text-primary-400 flex-shrink-0 transition-colors"
+                                        title="Select all conversations for bulk delete"
+                                    >
+                                        Select all
+                                    </Button>
                                 </div>
                             )}
 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col">
@@ -1993,7 +2128,7 @@ const MessagesView: React.FC = () => {
                                                     const file = e.target.files?.[0];
                                                     if (!file) return;
                                                     try {
-                                                        const postUrl = await generateUploadUrl({});
+                                                        const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
                                                         if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                                                         const { storageId } = await res.json();
@@ -2030,7 +2165,7 @@ const MessagesView: React.FC = () => {
                                                     showVoiceButton={true}
                                                     onVoiceRecorded={async (blob, duration) => {
                                                         try {
-                                                            const postUrl = await generateUploadUrl({});
+                                                            const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                                                             const res = await fetch(postUrl, { method: 'POST', body: blob });
                                                             if (res.ok) {
                                                                 const { storageId } = await res.json();
@@ -2131,24 +2266,10 @@ const MessagesView: React.FC = () => {
                                                 </span>
                                             )}
                                             <button
-                                                onClick={async () => {
-                                                    const ok = await confirm({
-                                                        title: 'Delete this message?',
-                                                        message: 'This message will be permanently removed from the inbox.',
-                                                        confirmLabel: 'Delete',
-                                                        cancelLabel: 'Cancel',
-                                                        danger: true,
-                                                    });
-                                                    if (!ok) return;
-                                                    if (selectedInboundMsg._inboxType === 'portal') {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
-                                                    } else {
-                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                                                    }
-                                                    setSelectedInboxId(null);
-                                                }}
+                                                onClick={handleDeleteThread}
                                                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
-                                                title="Delete message"
+                                                title={selectedInboundMsg._inboxType === 'conversation' ? 'Delete this conversation' : 'Delete this message'}
+                                                aria-label={selectedInboundMsg._inboxType === 'conversation' ? 'Delete this conversation' : 'Delete this message'}
                                             >
                                                 <TrashIcon className="w-4 h-4" />
                                             </button>
@@ -2462,7 +2583,7 @@ const MessagesView: React.FC = () => {
                                                                         continue;
                                                                     }
                                                                     try {
-                                                                        const postUrl = await generateUploadUrl({});
+                                                                        const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
                                                                         if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                                                                         const { storageId } = await res.json();

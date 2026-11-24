@@ -84,6 +84,10 @@ export interface ComposeModalPrefill {
   contactId?: string;
   contactName?: string;
   recipientType?: RecipientType;
+  // MESSAGING AUDIT: callers that already have message TEXT (the inbox
+  // reply handoff — the user typed a reply before hitting send) seed the
+  // composer with it instead of discarding it when the modal opens.
+  message?: string;
 }
 
 // ── Selectable Recipient type ────────────────────────────────────────────
@@ -197,8 +201,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const [isAiDrafting, setIsAiDrafting] = useState(false);
   const [countryCode, setCountryCode] = useState('+234');
   const [amount, setAmount] = useState(() => prefill?.rentAmount ? String(prefill.rentAmount) : '');
-  const [customText, setCustomText] = useState('');
-  const [isEdited, setIsEdited] = useState(false);
+  // Prefilled message body (inbox reply handoff): marked as user-edited
+  // so the template auto-generator below does NOT overwrite it.
+  const [customText, setCustomText] = useState(() => (prefill?.message ?? '').trim());
+  const [isEdited, setIsEdited] = useState(() => !!(prefill?.message ?? '').trim());
   const [serviceCharge, setServiceCharge] = useState('');
   const [legalFee, setLegalFee] = useState('');
   const [agencyFee, setAgencyFee] = useState('');

@@ -353,7 +353,10 @@ const ClientDashboard: React.FC = () => {
             markRead({ conversationId: activeConversationId, sessionToken: bearerToken ?? undefined }).catch(() => { /* non-blocking */ });
         }
     }, [activeConversationId, conversationMessages, markRead]);
-    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+    // MESSAGING AUDIT: portal-scoped upload URL — generateUploadUrl
+  // (requireFirmUser) rejects Tenant/Client roles, so the old call
+  // failed every portal attachment upload.
+  const generateUploadUrl = useMutation(api.myFunctions.generatePortalUploadUrl);
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
     const clientMattersLoading = clientMattersResult === undefined && !!effectiveFirmId;
@@ -549,7 +552,7 @@ const ClientDashboard: React.FC = () => {
             const fileNames: string[] = [];
             for (const { file, name } of pendingFiles) {
                 try {
-                    const postUrl = await generateUploadUrl({});
+                    const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                     const res = await fetch(postUrl, { method: 'POST', body: file });
                     if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                     const { storageId } = await res.json();
@@ -1568,7 +1571,7 @@ const ClientDashboard: React.FC = () => {
             if (requestFiles.length > 0) {
                 for (const file of requestFiles) {
                     try {
-                        const postUrl = await generateUploadUrl({});
+                        const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                         const res = await fetch(postUrl, { method: 'POST', body: file });
                         if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                         const { storageId } = await res.json();

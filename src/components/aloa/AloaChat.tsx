@@ -1736,7 +1736,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     addToast(`${file.name} is too large (max 20MB).`, { type: 'error' });
                     continue;
                 }
-                const postUrl = await generateUploadUrl({});
+                // STRICT-IDENTITY FIX (messaging audit): generateUploadUrl
+                // auth-first — without the bearer every ALOA attachment
+                // upload failed with "Unauthenticated".
+                const postUrl = await generateUploadUrl({ sessionToken: (bearerToken ?? undefined) || undefined });
                 const res = await fetch(postUrl, { method: 'POST', body: file });
                 if (!res.ok) {
                     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
