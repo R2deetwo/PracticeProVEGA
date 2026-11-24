@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { View, ModalType, AppState, Task, Document, User, NotePage, HistoryEntry, Invoice, UserRole, Theme, TaskStatus, ClientMessage, Contact, Lead, AppMode, SubscriptionPlan } from '../types';
 import { readPendingIdentity, clearPendingIdentity } from '../utils/professionalIdentity';
 import { resolveEmailAction, isSafePendingRedirectPath } from '../utils/emailActions';
+// 2026-11-24 — colleague-invite links (?invite=INV-1234): park the join code
+// and auto-open the signup modal (auth is modal-only; /signup has no route).
+import { parseInviteCodeParam, PENDING_INVITE_STORAGE_KEY } from '../utils/colleagueInvite';
 import { useMatterState } from '../contexts/MatterContext';
 import { useFinanceState } from '../contexts/FinanceContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
@@ -999,6 +1002,21 @@ export const App: React.FC = () => {
         if (params.get('recoveryCode') && params.get('email') && !isAuthenticated) {
             // Small delay so the modal pipeline is mounted first
             setTimeout(() => openModal('login'), 300);
+        }
+        // 2026-11-24 — COLLEAGUE INVITE LINKS (/signup?invite=INV-1234). The
+        // app has no /signup ROUTE (auth is modal-only — an anonymous visitor
+        // at that URL sees the public hub), so a colleague clicking the join
+        // link from WhatsApp needs the signup modal AUTO-OPENED here, the
+        // same pattern as the recovery link. The code is parked for the
+        // OnboardingWizard's "Join Existing" step; an ALREADY-authenticated
+        // user gets the code parked for JoinFirmModal (Connect New Workspace).
+        const inviteCode = parseInviteCodeParam(params.get('invite'));
+        if (inviteCode) {
+            try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, inviteCode); } catch { /* storage unavailable — wizard falls back to manual entry */ }
+            if (!isAuthenticated) {
+                // Small delay so the modal pipeline is mounted first
+                setTimeout(() => openModal('signup'), 300);
+            }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

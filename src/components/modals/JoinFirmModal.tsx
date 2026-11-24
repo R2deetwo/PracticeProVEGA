@@ -7,6 +7,10 @@ import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { ShieldCheckIcon, LockClosedIcon, OfficeBuildingIcon, CheckCircleIcon, WarningIcon } from '../../constants';
 import { SubscriptionPlan } from '../../types';
+// 2026-11-24 — colleague invite: an EXISTING user who clicked a colleague's
+// join link (parked at /signup?invite=…, then bounced to login because the
+// email already exists) gets the code prefilled here too.
+import { readPendingInviteCode, takePendingInviteCode } from '../../utils/colleagueInvite';
 
 interface JoinFirmModalProps {
   onClose: () => void;
@@ -20,7 +24,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
   const { isProperty } = useProduct();
   
   const [step, setStep] = useState<'input' | 'confirm'>('input');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => readPendingInviteCode() || '');
   const [foundFirmName, setFoundFirmName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,9 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
       const newFirmId = await joinFirm(cleanCode);
       
       if (newFirmId) {
+        // 2026-11-24: consume the colleague-invite parking on a successful
+        // join so a later modal re-open never re-joins.
+        takePendingInviteCode();
         if (!isHighTier) {
           const oldStorageKey = `practicepro_state_${currentUser?.id}`;
           localStorage.removeItem(oldStorageKey);

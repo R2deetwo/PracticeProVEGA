@@ -25,6 +25,10 @@ export const VEGA_DEMO_APP_STATE: AppState = {
         address: 'Plot 14, Admiralty Way, Lekki Phase 1, Lagos',
         subscriptionPlan: SubscriptionPlan.Enterprise,
         subscriptionAddons: { lawReports: true },
+        // 2026-11-24: the demo firm carries a (non-production) access code so
+        // the colleague-invite surfaces (Sidebar row / FirmSettings Team card)
+        // render in the demo exactly as they do on a real workspace.
+        inviteCode: 'INV-4821',
         firmSpecialties: [FirmSpecialty.Maritime, FirmSpecialty.Corporate, FirmSpecialty.Tax, FirmSpecialty.RealEstate, FirmSpecialty.OilGas],
         aiSettings: { enableAllAiFeatures: true, enableJurisdictionalAnalysis: true },
         practiceJurisdictions: {
@@ -349,6 +353,9 @@ export const ATRIUM_DEMO_APP_STATE: AppState = {
         name: 'Atrium Management Partners',
         address: '100 Property Avenue, VI, Lagos',
         subscriptionPlan: SubscriptionPlan.Enterprise,
+        // 2026-11-24: same as the Vega demo firm — a (non-production) access
+        // code so the colleague-invite surfaces render in the Atrium demo.
+        inviteCode: 'INV-2094',
         subscriptionAddons: { lawReports: false },
         firmSpecialties: [FirmSpecialty.RealEstate],
         aiSettings: { enableAllAiFeatures: true, enableJurisdictionalAnalysis: false },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { whatsappSupportUrl } from '../../utils/whatsappShare';
 
 import { Z_CLASS } from '../../overlays/constants';
 /**
@@ -203,6 +204,19 @@ const ContactSalesDrawer: React.FC<{
                             <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed max-w-xs">
                                 Thank you. One of our consultants will reach out to you within one business day{formData.phone ? ' via WhatsApp or phone' : ' via your email'}.
                             </p>
+                            {/* 2026-11-24 WhatsApp audit: the support handoff is wired —
+                                "message us" surfaces deep-link the real WhatsApp Business
+                                line (the same number the platform's automation sends
+                                from) instead of leaving the phone preference as the only
+                                WhatsApp path. One quiet link, user-initiated. */}
+                            <a
+                                href={whatsappSupportUrl()}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
+                            >
+                                Or chat with us on WhatsApp now →
+                            </a>
                             <button
                                 onClick={handleClose}
                                 className="mt-8 px-6 py-2.5 rounded-lg text-sm font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"

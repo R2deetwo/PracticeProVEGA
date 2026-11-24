@@ -139,7 +139,19 @@ export function buildAutomatedEmailHtml(args: AutomatedEmailArgs): string {
 </div>`.trim();
 }
 
-/** WhatsApp footer — the non-email twin (no link, same disclosure). */
-export function buildAutomatedWhatsAppSuffix(firmName: string): string {
-  return `\n\n— Automated notice from ${firmName} via PracticePro`;
+/** WhatsApp footer — the non-email twin. Automated free-form WhatsApp
+ * sends (the core's sendWhatsAppCore "automated" path) append this so the
+ * recipient sees how the message was sent, with a working link back to
+ * the platform. Manual sends (a lawyer's own compose) stay clean, and
+ * template sends can never carry appended text (Meta requires the exact
+ * approved body) — those two never get this suffix.
+ * 2026-11-24: the link is included per the owner directive ("include a
+ * subtle, clean link back to the workspace so recipients see how it was
+ * sent") — practicepro.ng does not resolve (NXDOMAIN), so the live
+ * production URL is used. */
+export const PRACTICEPRO_PLATFORM_URL = "https://practice-pro-vega.vercel.app";
+
+export function buildAutomatedWhatsAppSuffix(firmName?: string | null): string {
+  const from = firmName ? `from ${firmName} ` : "";
+  return `\n\n— Automated notice ${from}via PracticePro (${PRACTICEPRO_PLATFORM_URL})`;
 }

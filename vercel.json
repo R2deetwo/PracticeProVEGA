@@ -5,6 +5,14 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/vega",
+      "destination": "/vega.html"
+    },
+    {
+      "source": "/atrium",
+      "destination": "/atrium.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

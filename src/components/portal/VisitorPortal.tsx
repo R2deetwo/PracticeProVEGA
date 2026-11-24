@@ -23,6 +23,11 @@ import { VisitorIcon, CheckIcon, ClockIcon, XCircleIcon, SendIcon, ShareIcon, Ma
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useConfirm } from '../ui/ConfirmDialog';
+// 2026-11-24 WhatsApp audit: the pass share routes through the shared wa.me
+// builder so the VISITOR's phone (Nigerian local formats) normalises — and
+// the chat opens prefilled to the person the pass was made for, instead of
+// a text-only share the resident then has to aim.
+import { whatsappShareUrl } from '../../utils/whatsappShare';
 
 interface VisitorPortalProps {
     firmId: string;
@@ -65,7 +70,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const [expiryWindow, setExpiryWindow] = useState(portalSettings?.vmsDefaultExpiryHours ?? 6);
     const [deliveryMethod, setDeliveryMethod] = useState<'client_share' | 'portal_api'>('client_share');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [lastGenerated, setLastGenerated] = useState<{ tokenCode: string; passRef?: string; message: string } | null>(null);
+    const [lastGenerated, setLastGenerated] = useState<{ tokenCode: string; passRef?: string; message: string; visitorPhone?: string } | null>(null);
     // ROUND SENTRY 1: optional display-only extras (never widen the window)
     const [expectedArrival, setExpectedArrival] = useState('');
     const [accessNote, setAccessNote] = useState('');
@@ -123,7 +128,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
             });
 
             if (deliveryMethod === 'client_share' && result.message) {
-                setLastGenerated({ tokenCode: result.tokenCode!, passRef: (result as any).passRef, message: result.message });
+                setLastGenerated({ tokenCode: result.tokenCode!, passRef: (result as any).passRef, message: result.message, visitorPhone: visitorPhone.trim() || undefined });
             } else if (deliveryMethod === 'portal_api') {
                 addToast(`Code ${result.tokenCode} sent to ${visitorPhone} via WhatsApp.`, { type: 'success' });
             } else {
@@ -144,7 +149,10 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 
     const handleShareViaWhatsApp = () => {
         if (!lastGenerated) return;
-        const url = `https://wa.me/?text=${encodeURIComponent(lastGenerated.message)}`;
+        // 2026-11-24: prefill the VISITOR's chat when their phone is on the
+        // pass (normalised 080… → 23480…); without a phone it stays a
+        // text-only share (the resident picks the chat in WhatsApp).
+        const url = whatsappShareUrl(lastGenerated.visitorPhone, lastGenerated.message);
         window.open(url, '_blank');
     };
 

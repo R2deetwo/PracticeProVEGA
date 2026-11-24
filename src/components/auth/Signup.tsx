@@ -23,6 +23,11 @@ import {
  PRODUCT_ACCENT_COLORS,
 } from '../../utils/signupProduct';
 import { AuthHeader, AUTH_THEMES, resolveAuthThemeId } from './authTheme';
+// 2026-11-24: colleague-invite links (/signup?invite=INV-1234) park the
+// join code here; the OnboardingWizard consumes it on its "Join Existing"
+// step so a chambers colleague clicking the link lands joined to the
+// workspace with zero manual code typing.
+import { parseInviteCodeParam, PENDING_INVITE_STORAGE_KEY } from '../../utils/colleagueInvite';
 
 interface SignupProps {
  onSwitchToLogin: () => void;
@@ -77,6 +82,21 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const recordTermsAcceptance = useMutation(api.myFunctions.recordTermsAcceptance);
 
  const [passwordError, setPasswordError] = React.useState<string | null>(null);
+
+ // 2026-11-24 — COLLEAGUE INVITE PARKING: a join link shared by a chambers
+ // colleague or co-counsel (/signup?invite=INV-1234) parks the code in
+ // sessionStorage (same pattern as pp_migration_email). The account is
+ // created through this form as usual; the OnboardingWizard then opens
+ // straight onto its "Join Existing" step with the code prefilled — the
+ // invited lawyer never types the code. sessionStorage so a stale link
+ // never survives a fresh browser session.
+ React.useEffect(() => {
+  try {
+   const params = new URLSearchParams(window.location.search);
+   const code = parseInviteCodeParam(params.get('invite'));
+   if (code) sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, code);
+  } catch { /* storage unavailable — the wizard falls back to manual entry */ }
+ }, []);
 
  // On mount, check if the user came here from the migration flow or via a direct product selection on Landing Page
  React.useEffect(() => {

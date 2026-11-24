@@ -25,6 +25,11 @@ import { useMessagesBadge } from '../hooks/useMessagesBadge';
 // the constants import; kept adjacent to its single render site below.)
 const GettingStartedChecklist = lazyWithReload(() => import('./GettingStartedChecklist'));
 
+// 2026-11-24: the colleague-invite panel rides the same lazy pattern —
+// owner-level users with an expanded sidebar render it, nobody else pays
+// for the bytes.
+const InviteColleagueRow = lazyWithReload(() => import('./workspace/InviteColleagueRow'));
+
 // ARIA-X inline icon
 const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -332,6 +337,24 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     </div>
                 )}
             </div>
+
+            {/* Invite Colleague (2026-11-24 owner directive) — one quiet,
+                understated row under the workspace header: copy the join
+                link or share the pre-written WhatsApp invitation. Gated to
+                the workspace owner level (solo or admin — the same level
+                that sees the code in FirmSettings); hidden when the
+                sidebar is retracted (no room, and the understated tone
+                should not become an icon shouting). */}
+            {!isSidebarRetracted && permissions.canManageFirmDetails && currentUser?.firmId && (
+                <React.Suspense fallback={null}>
+                    <InviteColleagueRow
+                        firmName={coreState.firmDetails.name || (isProperty ? 'My Agency' : 'My Firm')}
+                        inviteCode={(coreState.firmDetails as any).inviteCode}
+                        inviterName={currentUser.name || currentUser.email || ''}
+                        isLegal={isLegal}
+                    />
+                </React.Suspense>
+            )}
 
             {/* Getting Started Checklist — Phase 2 widget from docs/archive/specs/SETUP_WIZARD_DESIGN.md.
                 Persistent, dismissible, auto-completes items when actions are done.

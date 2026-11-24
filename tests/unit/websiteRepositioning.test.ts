@@ -1925,7 +1925,10 @@ describe("W4 — structured data: Organization + per-product apps", () => {
   it("declares the company as an Organization", () => {
     expect(index).toContain('"@type": "Organization"');
     expect(index).toContain("PracticePro Systems Limited");
-    expect(index).toContain('"@id": "https://practicepro.ng/#organization"');
+    // R76 (2026-11-24): practicepro.ng never resolved (NXDOMAIN) — the
+    // structured data now carries the LIVE deploy origin, so the id/url
+    // graph is a graph of URLs that actually resolve.
+    expect(index).toContain('"@id": "https://practice-pro-vega.vercel.app/#organization"');
   });
 
   it("one SoftwareApplication per product, published by the company", () => {
@@ -1935,10 +1938,11 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(index).toContain('"name": "Atrium"');
     expect(index).not.toContain('"PracticePro Vega"');
     expect(index).not.toContain('"PracticePro Atrium"');
-    expect(index).toContain('"url": "https://practicepro.ng/vega"');
-    expect(index).toContain('"url": "https://practicepro.ng/atrium"');
+    // R76: live deploy origin (see the Organization test above).
+    expect(index).toContain('"url": "https://practice-pro-vega.vercel.app/vega"');
+    expect(index).toContain('"url": "https://practice-pro-vega.vercel.app/atrium"');
     expect(index).toContain(
-      '"publisher": { "@id": "https://practicepro.ng/#organization" }'
+      '"publisher": { "@id": "https://practice-pro-vega.vercel.app/#organization" }'
     );
   });
 

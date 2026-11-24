@@ -26,6 +26,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
+import { whatsappShareUrl } from '../../utils/whatsappShare';
 // D3 / ADR-0004: this file's raw form elements migrated to the ui/
 // primitives ('bare' + the exact legacy class strings — zero visual change)
 // so the D3 additions (My Bookings cancel button) don't grow the
@@ -436,7 +437,12 @@ const EstateCommunityResidentView: React.FC<Props> = ({
                           <a href={`tel:${p.phone}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">📞 {p.phone}</a>
                         )}
                         {p.whatsapp && (
-                          <a href={`https://wa.me/${p.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">💬 WhatsApp</a>
+                          /* 2026-11-24 WhatsApp audit: the inline wa.me build
+                             skipped Nigerian normalisation — a vendor storing
+                             "08012345678" produced wa.me/08012345678, which
+                             WhatsApp cannot route. Route through the shared
+                             normaliser (080… → 23480…). */
+                          <a href={whatsappShareUrl(p.whatsapp, '')} target="_blank" rel="noopener noreferrer" className="text-emerald-600 dark:text-emerald-400 hover:underline">💬 WhatsApp</a>
                         )}
                         {p.email && (
                           <a href={`mailto:${p.email}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">✉ {p.email}</a>

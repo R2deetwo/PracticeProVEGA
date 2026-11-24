@@ -3,10 +3,11 @@
  * generate-brand-assets.cjs — renders the product identity assets that
  * cannot be hand-authored as text:
  *
- *   public/brand/{vega,atrium}/favicon-48.png        (48x48 PNG favicon fallback)
- *   public/brand/{vega,atrium}/apple-touch-icon.png  (180x180 home-screen icon)
+ *   public/brand/{vega,atrium,komplete}/favicon-48.png   (48x48 PNG favicon fallback)
+ *   public/brand/{vega,atrium,komplete}/apple-touch-icon.png (180x180 home-screen icon)
  *   public/assets/landing/og-vega.png                (1200x630 social card)
  *   public/assets/landing/og-atrium.png              (1200x630 social card)
+ *   public/assets/landing/og-brand.png              (1200x630 social card — the HUB)
  *
  * Favicons are screenshotted from the standalone SVG marks in
  * public/brand/. OG cards are rendered from inline HTML with the REAL
@@ -80,6 +81,49 @@ const ATRIUM_MARK = `
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
+/** The company P-tile mark (the index.html favicon construction — green
+ *  rounded tile, white P) at card-footer scale. Used on the hub OG card. */
+const BRAND_MARK = `
+<svg width="64" height="50" viewBox="14 8 36 28" aria-hidden="true">
+  <path d="M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z" fill="#16A34A"/>
+  <path d="M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z" fill="#FFFFFF"/>
+  <path d="M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z" fill="#16A34A"/>
+</svg>`;
+
+// R76 (2026-11-24, owner WhatsApp-share audit): the HUB social card, in the
+// light-enterprise register the product cards wear — pristine white, the
+// faint 48px grid, deep-slate display type, brand-green accents. The old
+// og-brand.png was a DARK card, and every WhatsApp share of the hub URL
+// rendered a dark square in the group chat. No gavels, no scales, no
+// columns — the abstract P tile only.
+const BRAND_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  ${GROTESK5}${GROTESK7}${PLEX}${PLEX5}
+  * { margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body { background: #FFFFFF; font-family: 'Space Grotesk', sans-serif; position: relative; }
+  body::before { content: ''; position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(to right, transparent 0, transparent 47px, rgba(15,23,42,0.045) 47px, rgba(15,23,42,0.045) 48px),
+      repeating-linear-gradient(to bottom, transparent 0, transparent 47px, rgba(15,23,42,0.045) 47px, rgba(15,23,42,0.045) 48px); }
+  .wrap { position: absolute; inset: 0; padding: 88px 96px 200px; box-sizing: border-box; display: flex; }
+  .left { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .kicker { font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 19px; letter-spacing: 0.32em; color: #16A34A; text-transform: uppercase; margin-bottom: 26px; }
+  h1 { font-size: 118px; font-weight: 700; color: #0F172A; letter-spacing: -0.02em; line-height: 1; }
+  .rule { width: 76px; height: 4px; background: #16A34A; border-radius: 2px; margin: 34px 0 30px; }
+  .tag { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 31px; color: #475569; line-height: 1.45; max-width: 620px; }
+  .footer { position: absolute; left: 96px; bottom: 72px; display: flex; align-items: center; gap: 24px; }
+  .footer .by { font-family: 'IBM Plex Mono', monospace; font-size: 18px; letter-spacing: 0.28em; color: #64748B; text-transform: uppercase; }
+  .footer .url { font-family: 'IBM Plex Mono', monospace; font-size: 19px; letter-spacing: 0.22em; color: #64748B; }
+</style></head><body>
+  <div class="wrap"><div class="left">
+    <div class="kicker">PracticePro Systems</div>
+    <h1>PracticePro</h1>
+    <div class="rule"></div>
+    <div class="tag">Build systems that help scale your business — custom software, client portals, payments and AI automation, from Lagos for businesses anywhere.</div>
+  </div></div>
+  <div class="footer">${BRAND_MARK}<span class="by">A PracticePro product</span><span class="url">BUILT IN LAGOS, NIGERIA</span></div>
+</body></html>`;
+
 const VEGA_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
   ${GROTESK5}${GROTESK7}${PLEX}${PLEX5}
   * { margin: 0; padding: 0; }
@@ -109,7 +153,7 @@ const VEGA_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     <div class="rule"></div>
     <div class="tag">Legal workflow automation for Nigerian law firms — matters, drafting and court-rule calendaring in one workspace.</div>
   </div></div>
-  <div class="footer">${VEGA_MARK_SMALL}<span class="by">A PracticePro product</span><span class="url">PRACTICEPRO.NG/VEGA</span></div>
+  <div class="footer">${VEGA_MARK_SMALL}<span class="by">A PracticePro product</span><span class="url">BUILT IN LAGOS, NIGERIA</span></div>
 </body></html>`;
 
 const ATRIUM_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -139,7 +183,7 @@ const ATRIUM_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     <div class="rule"></div>
     <div class="tag">The property management OS for Nigerian portfolios — rent, service charge and residents in one place.</div>
   </div></div>
-  <div class="footer"><span class="mark-plate">${ATRIUM_MARK_SMALL}</span><span class="by">A PracticePro product</span><span class="url">PRACTICEPRO.NG/ATRIUM</span></div>
+  <div class="footer"><span class="mark-plate">${ATRIUM_MARK_SMALL}</span><span class="by">A PracticePro product</span><span class="url">BUILT IN LAGOS, NIGERIA</span></div>
 </body></html>`;
 
 async function shootSvg(page, svgPath, size, outPath, scale = 1) {
@@ -197,6 +241,11 @@ async function shootCard(page, html, outPath) {
 
   console.log('Rendering OG social cards:');
   fs.mkdirSync(path.join(PUBLIC, 'assets/landing'), { recursive: true });
+  // R76: the hub card joins the set — regenerating it replaces the retired
+  // dark-mode og-brand.png with the light-enterprise register.
+  if (want('brand') || want('hub')) {
+    await shootCard(page, BRAND_CARD, path.join(PUBLIC, 'assets/landing/og-brand.png'));
+  }
   if (want('vega')) {
     await shootCard(page, VEGA_CARD, path.join(PUBLIC, 'assets/landing/og-vega.png'));
   }

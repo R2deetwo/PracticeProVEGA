@@ -15,6 +15,9 @@ import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, for
 // corrupted value ("[object Object]" from the click-event leak) made Convex's
 // v.union validator THROW and broke onboarding entirely for affected users.
 import { normalizeSignupProduct } from '../../utils/signupProduct';
+// 2026-11-24 — colleague invite: the join link's parked code opens the
+// wizard directly on "Join Existing", prefilled.
+import { readPendingInviteCode, takePendingInviteCode } from '../../utils/colleagueInvite';
 import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '../../utils/jurisdictionConfig';
 // PROFESSIONAL IDENTITY (user feedback 2026-09-16): the "How should you
 // appear in correspondence?" card (professional title + legal form) moved
@@ -213,7 +216,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     // Resuming a wizard that already created the firm → skip workspace/plan.
     return (currentUser?.firmId && readWizardFlag()) ? 3 : 1;
   });
-  const [mode, setMode] = useState<'create' | 'join'>('create');
+  // 2026-11-24 — COLLEAGUE INVITE: a join link shared by a chambers
+  // colleague or co-counsel (/signup?invite=INV-1234, parked in Signup)
+  // opens the wizard directly on "Join Existing" with the code prefilled —
+  // the invited lawyer never types the code. The parked value survives
+  // wizard re-mounts in the same tab (read, not take) and is cleared on a
+  // SUCCESSFUL join below.
+  const [mode, setMode] = useState<'create' | 'join'>(() => (readPendingInviteCode() ? 'join' : 'create'));
   const [firmName, setFirmName] = useState('');
   // TASK 54: userProduct is null when absent/corrupted — the 'legal' fallback
   // here predates the incident and only fires for records with NO product.
@@ -227,7 +236,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // the cheapest tier and keeps the trial button visible. Either way the
   // first thing a free-first user sees is now the most affordable option.
   const [selectedTierId, setSelectedTierId] = useState<TierId>('Core');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => readPendingInviteCode() || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDataMigration, setIsDataMigration] = useState(false);
   // R12 FIX (overlap bug): the "What's included" expansion is now React state
@@ -374,6 +383,9 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     try {
       const fid = await joinFirm(cleanCode);
       if (fid) {
+        // 2026-11-24: the colleague-invite parking is consumed on a
+        // successful join so a later wizard re-run never re-joins.
+        takePendingInviteCode();
         setTimeout(() => window.location.reload(), 800);
       } else {
         throw new Error('Invalid Invite Code or Firm not found.');

@@ -7,6 +7,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 import { EditIcon, TrashIcon, SearchIcon, UserCircleIcon, PlusIcon, GavelIconLarge, CalculatorIcon, DocumentIcon, ZapIcon, GlobeIcon, LockClosedIcon, ShieldCheckIcon, RevertIcon, OfficeBuildingIcon, BillingIcon } from '../../constants';
 import RpcGuidanceAgent from '../RpcGuidanceTip';
+import InviteColleagueRow from '../workspace/InviteColleagueRow';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -454,6 +455,17 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                             </div>
                         </div>
                     </div>
+
+                    {/* 2026-11-24 owner directive — the dignified handoff for the
+                        code above: copy a clean join link or share the pre-written
+                        WhatsApp invitation. Same panel the Sidebar renders; nothing
+                        auto-sends. */}
+                    <InviteColleagueRow
+                        firmName={firmDetails.name || (isProperty ? 'My Agency' : 'My Firm')}
+                        inviteCode={firmDetails.inviteCode}
+                        inviterName={currentUser?.name || currentUser?.email || ''}
+                        isLegal={!isProperty}
+                    />
 
                     <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
                         <div className="relative w-full sm:w-64">

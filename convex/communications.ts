@@ -4,6 +4,7 @@ import { logError } from "./observability";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { resolveCaller, assertSameFirm } from "./callerAuth";
+import { buildAutomatedWhatsAppSuffix } from "./emailBranding";
 
 // Chakra's WhatsApp plan-upgrade billing page — the action link surfaced in
 // admin UI whenever the gateway returns the 402 billing gate (Task 37 live
@@ -18,6 +19,8 @@ export const CHAKRA_WHATSAPP_BILLING_URL =
 // (crons, schedulers, portal flows, the retry dispatcher) can reach it
 // directly. This wrapper is kept for the established
 // internal.communications.sendWhatsAppInternal convention.
+// 2026-11-24: automated free-form sends through this wrapper carry the
+// attribution suffix (see sendWhatsAppCore's `automated` flag).
 export const sendWhatsAppInternal = internalAction({
   args: {
     to: v.string(),
@@ -26,6 +29,12 @@ export const sendWhatsAppInternal = internalAction({
     templateName: v.optional(v.string()),
     templateVars: v.optional(v.array(v.string())),
     templateLanguage: v.optional(v.string()),
+    // Attribution (2026-11-24): free-form sends through the AUTOMATED path
+    // carry the "— Automated notice … via PracticePro (link)" suffix. The
+    // public gate passes false (a user's own compose stays clean); the
+    // server-side callers (crons, portals dispatch, visitor passes,
+    // scheduler sends) omit it and default to automated=true.
+    automated: v.optional(v.boolean()),
     // Template retry configuration (mirrors sendWhatsApp's public args) —
     // lets cron-driven automation use the window-fallback too.
     fallback: v.optional(v.object({
@@ -52,7 +61,9 @@ export const sendWhatsAppInternal = internalAction({
     retryTemplateLocales: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
-    return await ctx.runAction(internal.communications.sendWhatsAppCore, args);
+    // AUTOMATED wrapper — free-form sends carry the attribution suffix
+    // (an explicit `automated: false` from a caller still opts out).
+    return await ctx.runAction(internal.communications.sendWhatsAppCore, { ...args, automated: args.automated ?? true });
   },
 });
 
@@ -147,7 +158,10 @@ export const sendWhatsApp = action({
     if (!allowed) {
       return { success: false, simulated: false, errorClass: "rate_limited", error: "Rate limit exceeded (30 WhatsApp messages/minute). Please try again shortly." };
     }
-    return await ctx.runAction(internal.communications.sendWhatsAppCore, coreArgs);
+    // MANUAL compose (a staff member's own message) — never carries the
+    // automated attribution suffix. Direct core callers (crons, portals,
+    // visitor passes, scheduler sends) default to automated=true.
+    return await ctx.runAction(internal.communications.sendWhatsAppCore, { ...coreArgs, automated: false });
   },
 });
 
@@ -278,6 +292,15 @@ export const sendEmailCore = internalAction({
 //   CHAKRA_PHONE_NUMBER_ID  — Found in Chakra Chat → WhatsApp setup → gear icon
 //   CHAKRA_WA_API_VERSION   — e.g. "v19.0" (default used if not set)
 //
+/** The firm's display name for automated-message footers (best-effort). */
+export const getFirmNameInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args): Promise<string | null> => {
+    const firm: any = await ctx.db.get(args.firmId as any).catch(() => null);
+    return firm?.name ? String(firm.name) : null;
+  },
+});
+
 export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core (was the public sendWhatsApp). The public gate (auth + firm binding + rate limit) is defined above and delegates here.
   args: {
     to: v.string(),           // Recipient phone number in international format: +2348012345678
@@ -339,6 +362,14 @@ export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core 
     // When a template-first send fails with a name+locale lookup miss,
     // automatically retry the other common English locales (default true).
     retryTemplateLocales: v.optional(v.boolean()),
+    // Attribution (2026-11-24, owner directive "include a subtle, clean link
+    // back to the workspace so recipients see how it was sent"): when true
+    // (the DEFAULT — cron/scheduler/portal/VMS callers omit it), free-form
+    // sends carry the "— Automated notice … via PracticePro (link)" suffix.
+    // The public sendWhatsApp gate passes false (manual compose). Template
+    // sends can NEVER carry appended text (Meta requires the exact approved
+    // body) — the suffix applies to the free-form attempt only.
+    automated: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
     // Check and increment quota — type explicitly to avoid circular inference
@@ -519,11 +550,33 @@ export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core 
     }
 
     // ── SEND PATH 2: free-form first, template fallback on window errors ─
+    // Automated free-form sends carry the attribution suffix (2026-11-24):
+    // "— Automated notice from <firm> via PracticePro (link)". Best-effort
+    // firm-name lookup — a failed lookup still suffixes without the name.
+    // The raw messageText stays untouched for the template retry below
+    // (a template body is Meta-fixed and must never carry appended text).
+    const isAutomated = args.automated !== false;
+    let freeFormBody = args.messageText;
+    if (isAutomated) {
+      let firmName: string | null = null;
+      try {
+        firmName = await ctx.runQuery(
+          internal.communications.getFirmNameInternal,
+          { firmId: args.firmId },
+        );
+      } catch (e: any) {
+        await logError(ctx, {
+          scope: "messaging", name: "communications:whatsapp:firmNameLookup",
+          error: e, severity: "warning", firmId: args.firmId,
+        });
+      }
+      freeFormBody = `${args.messageText}${buildAutomatedWhatsAppSuffix(firmName)}`;
+    }
     const free = await doSend({
       messaging_product: "whatsapp",
       to: normalised,
       type: "text",
-      text: { preview_url: false, body: args.messageText },
+      text: { preview_url: false, body: freeFormBody },
     });
     if (free.ok) {
       const out = { success: true, simulated: false, messageId: free.messageId };

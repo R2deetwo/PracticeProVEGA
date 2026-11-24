@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
 
+/** R76 (2026-11-24): the live canonical origin. practicepro.ng does NOT
+ *  resolve (NXDOMAIN) — every og:url the hook wrote pointed at a dead
+ *  domain. The static shells (vega.html / atrium.html) and this runtime
+ *  swap now both use the deploy origin. Flip this one constant when the
+ *  brand domain is bought and pointed. */
+const LIVE_ORIGIN = 'https://practice-pro-vega.vercel.app';
+
 /**
  * useProductBranding — per-product document identity (owner direction:
  * "this applies to the logos, favicons, icons, etc").
@@ -51,26 +58,26 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium' | 'komplete', ProductBrand
         title: 'Vega — Legal Practice OS for Nigerian Law Firms | PracticePro',
         description:
             'Case management, AI-assisted drafting with ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from intake to judgment, in one workspace. A PracticePro product.',
-        url: 'https://practicepro.ng/vega',
+        url: `${LIVE_ORIGIN}/vega`,
         faviconSvg: '/brand/vega/favicon.svg',
         faviconPng: '/brand/vega/favicon-48.png',
         appleTouch: '/brand/vega/apple-touch-icon.png',
         appleTitle: 'Vega',
         themeColor: '#FFFFFF',
-        ogImage: '/assets/landing/og-vega.png',
+        ogImage: `${LIVE_ORIGIN}/assets/landing/og-vega.png`,
         ogImageAlt: 'PracticePro Vega — the legal practice OS for Nigerian law firms',
     },
     atrium: {
         title: 'Atrium — Property Management OS for Nigerian Portfolios | PracticePro',
         description:
             "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT. A PracticePro product.",
-        url: 'https://practicepro.ng/atrium',
+        url: `${LIVE_ORIGIN}/atrium`,
         faviconSvg: '/brand/atrium/favicon.svg',
         faviconPng: '/brand/atrium/favicon-48.png',
         appleTouch: '/brand/atrium/apple-touch-icon.png',
         appleTitle: 'Atrium',
         themeColor: '#059669',
-        ogImage: '/assets/landing/og-atrium.png',
+        ogImage: `${LIVE_ORIGIN}/assets/landing/og-atrium.png`,
         ogImageAlt: 'PracticePro Atrium — the property management OS for Nigerian portfolios',
     },
     komplete: {
@@ -81,13 +88,13 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium' | 'komplete', ProductBrand
         title: 'Komplete — Legal & Property in One Workspace | PracticePro',
         description:
             'Vega and Atrium on one workspace — matters, drafting, court-rule calendaring, properties, rent and residents — for firms that run both sides of the practice.',
-        url: 'https://practicepro.ng/komplet',
+        url: `${LIVE_ORIGIN}/komplet`,
         faviconSvg: '/brand/komplete/favicon.svg',
         faviconPng: '/brand/komplete/favicon-48.png',
         appleTouch: '/brand/komplete/apple-touch-icon.png',
         appleTitle: 'Komplete',
         themeColor: '#0B1220',
-        ogImage: '/assets/landing/og-vega.png',
+        ogImage: `${LIVE_ORIGIN}/assets/landing/og-vega.png`,
         ogImageAlt: 'PracticePro Komplete — legal and property in one workspace',
     },
 };

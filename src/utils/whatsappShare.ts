@@ -1,18 +1,22 @@
 /**
- * whatsappShare — the "next best thing" after the WhatsApp API integration
- * was retired (2026-09-14).
+ * whatsappShare — the client-side WhatsApp handoff layer.
  *
- * CONTEXT: PracticePro no longer connects to the Chakra/Meta WhatsApp
- * Business API. Automated flows (Sentry receipts, service-charge reminders,
- * late notices) now go email-first. But WhatsApp remains how Nigerian
- * landlords and tenants actually talk — so every place that USED to
- * auto-send a WhatsApp message now offers a one-tap HANDOFF instead:
- * the message (with any codes / links / references embedded) is composed
- * by the app, and wa.me opens WhatsApp with it prefilled to the right
- * number. The user reviews and hits send. No API, no quota, no templates.
+ * CONTEXT (updated 2026-11-24): the platform's server-side WhatsApp
+ * integration is LIVE again (Chakra/Meta Business API — template sends,
+ * automated reminders, the whole Task 81/81.5 pipeline). This module is
+ * the COMPLEMENT, not a replacement: every surface where the USER
+ * initiates the send (invite links, status re-shares, colleague invites,
+ * support chats) opens WhatsApp with the message prefilled via wa.me —
+ * the user reviews it and hits send. No API quota, no template, no
+ * 24h-window constraints, works on every device.
  *
  * These are pure URL builders — safe for tests, SSR, and webviews.
  */
+
+/** The platform's WhatsApp Business line (+234 816 312 2497) — the same
+ * number the server-side automation sends from. Support chats and
+ * "message us" handoffs deep-link here. */
+export const PRACTICEPRO_SUPPORT_PHONE = '2348163122497';
 
 /**
  * Normalise a stored phone number to wa.me's expected E.164-ish digits.
@@ -37,28 +41,34 @@ export function normalizePhoneForWa(rawPhone: string | null | undefined): string
 /**
  * Build a wa.me deep link that opens a WhatsApp conversation with `phone`
  * and `text` prefilled. Without a phone it opens WhatsApp's share-picker
- * with just the text (the user picks the chat).
+ * with just the text (the user picks the chat). Empty/absent text omits
+ * the `?text=` parameter entirely (a trailing empty param renders a
+ * broken-looking "empty message" prefilled chat on some WhatsApp builds).
  */
 export function whatsappShareUrl(
   phone: string | null | undefined,
   text: string
 ): string {
-  const encoded = encodeURIComponent(text || '');
   const normalized = normalizePhoneForWa(phone);
-  return normalized
-    ? `https://wa.me/${normalized}?text=${encoded}`
-    : `https://wa.me/?text=${encoded}`;
+  const trimmed = (text || '').trim();
+  if (!normalized) {
+    return trimmed
+      ? `https://wa.me/?text=${encodeURIComponent(trimmed)}`
+      : 'https://wa.me/';
+  }
+  return trimmed
+    ? `https://wa.me/${normalized}?text=${encodeURIComponent(trimmed)}`
+    : `https://wa.me/${normalized}`;
 }
 
 /**
- * Same link, but for the PRACTICEPRO SUPPORT chat (founder-facing FABs,
- * "message us" buttons). Uses the published support number; falls back to
- * a text-only share so the user can still send the question anywhere.
+ * Direct chat deep link to the PracticePro support WhatsApp line — used
+ * by "message us" / "chat with us" surfaces so a question lands in the
+ * business inbox in one tap, with the question prefilled for review.
  */
-export const PRACTICEPRO_SUPPORT_PHONE = '2340000000000'; // placeholder — set the real support line
 export function whatsappSupportUrl(question?: string): string {
   const text = question
     ? `Hello PracticePro team — ${question}`
     : 'Hello PracticePro team — I have a question about my account.';
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${PRACTICEPRO_SUPPORT_PHONE}?text=${encodeURIComponent(text)}`;
 }
