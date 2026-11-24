@@ -937,6 +937,11 @@ export interface VegaTemplateDef {
   bodyText: string;
   /** The message type the auto-mapper should map it to. */
   messageType: string;
+  /** Sample values per {{n}} slot, in order — Meta's create payload
+   * requires example.body_text for BODY components with variables, and
+   * the automated reviewer evaluates them (round 1 created without
+   * examples and every template was auto-REJECTED). */
+  exampleVars: string[];
 }
 
 export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
@@ -945,16 +950,20 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
     category: "UTILITY",
     messageType: "invoice_reminder",
     // House style = the APPROVED atrium_rent_reminder shape (same "Pay to:"
-    // block, same payment-reference footer). Round 1 (2026-11-24) was
-    // auto-REJECTED: it carried the firm name as a VARIABLE ("from {{4}}") —
-    // Meta rejects templates where the sender identity is a fill-in slot.
-    // The business is identified by the WhatsApp display name; the bank
-    // block's account name carries the firm at send time.
+    // block, same payment-reference footer). Round 1 (2026-11-24) lessons:
+    //   - no firm name as a VARIABLE ("from {{4}}") — Meta rejects templates
+    //     where the sender identity is a fill-in slot;
+    //   - transactional phrasing only ("This is a reminder that…", matching
+    //     the approved atrium_late_reminder) — Meta's July-2025 auto-
+    //     categorizer classifies by TEXT, and a payment reminder it reads as
+    //     promotional gets filed MARKETING and rejected;
+    //   - example.body_text is required for variable review.
     bodyText:
       "Hello {{1}},\n\n" +
-      "This is a friendly reminder that your invoice {{2}} of NGN {{3}} is due on {{4}}.\n\n" +
+      "This is a reminder that your invoice {{2}} of NGN {{3}} is due on {{4}}.\n\n" +
       "Pay to:\nBank: {{5}}\nAccount Name: {{6}}\nAccount Number: {{7}}\n\n" +
       "Please use the invoice number as your payment reference. Thank you.",
+    exampleVars: ["Tunde Adeyemi", "INV-2026-089", "1,400,000", "15 December 2026", "Providus Bank", "Acme Chambers", "0123456789"],
   },
   {
     name: "vega_court_reminder",
@@ -968,6 +977,7 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
       "This is a reminder that the next hearing in {{2}} comes up on {{3}} at {{4}}.\n\n" +
       "Please be seated before the case is called. Kindly reach out if you need copies of the processes before the date.\n\n" +
       "Thank you.",
+    exampleVars: ["Tunde Adeyemi", "Adeyemi v. Kola", "15 December 2026", "Lagos High Court, Ikeja"],
   },
   {
     name: "vega_document_ready",
@@ -978,6 +988,7 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
       "Your {{2}} has been prepared and is ready for your review in your client portal.\n\n" +
       "Kindly review and revert with any comments or approvals.\n\n" +
       "Thank you.",
+    exampleVars: ["Tunde Adeyemi", "Tenancy Agreement"],
   },
   {
     name: "vega_appointment_reminder",
@@ -988,6 +999,7 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
       "This is a reminder of your consultation on {{2}} at {{3}}.\n\n" +
       "If you need to reschedule, kindly reply to this message.\n\n" +
       "Thank you.",
+    exampleVars: ["Tunde Adeyemi", "15 December 2026", "10:00 AM at our office"],
   },
   {
     name: "vega_engagement_followup",
@@ -999,6 +1011,7 @@ export const VEGA_TEMPLATE_DEFS: VegaTemplateDef[] = [
       "Hello {{1}},\n\n" +
       "Thank you for meeting with us. If you would like us to proceed with your matter, simply reply to this message and we will send the next steps and our engagement terms.\n\n" +
       "We look forward to working with you.",
+    exampleVars: ["Tunde Adeyemi"],
   },
 ];
 
@@ -1022,6 +1035,10 @@ export const createVegaTemplates = internalAction({
     // fetches include Meta's rejected_reason, the bulk listing does not)
     // and return status + reason without creating anything.
     inspect: v.optional(v.boolean()),
+    // Graph API version override for creation (defaults to the deployment's
+    // CHAKRA_WA_API_VERSION, currently v19.0). Chakra's own docs create
+    // with v24.0; pass e.g. "v24.0" to match.
+    apiVersion: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{
     success: boolean;
@@ -1034,7 +1051,8 @@ export const createVegaTemplates = internalAction({
       error?: string;
     }>;
   }> => {
-    const { TOKEN, PLUGIN_ID, PHONE_ID, WA_VER } = chakraCreds();
+    const { TOKEN, PLUGIN_ID, PHONE_ID } = chakraCreds();
+    const WA_VER = args.apiVersion || process.env.CHAKRA_WA_API_VERSION || "v19.0";
     if (!TOKEN || !PHONE_ID) {
       return {
         success: false,
@@ -1142,7 +1160,14 @@ export const createVegaTemplates = internalAction({
         name: def.name,
         language: "en",
         category: def.category,
-        components: [{ type: "BODY", text: def.bodyText }],
+        parameter_format: "POSITIONAL",
+        components: [{
+          type: "BODY",
+          text: def.bodyText,
+          // Meta requires sample values for variable review (round-1
+          // creates without examples were all auto-REJECTED).
+          ...(def.exampleVars.length ? { example: { body_text: [def.exampleVars] } } : {}),
+        }],
       };
       try {
         const url = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates`;
@@ -1159,7 +1184,13 @@ export const createVegaTemplates = internalAction({
         // { data: [{ id, status }] }; Chakra may wrap in _data.
         const created = data?.id || data?._data?.id || data?.data?.[0]?.id;
         if (res.ok && created) {
-          results.push({ name: def.name, outcome: "created", httpStatus: res.status, status: String(data?.status || data?._data?.status || data?.data?.[0]?.status || "PENDING") });
+          results.push({
+            name: def.name, outcome: "created", httpStatus: res.status,
+            status: String(data?.status || data?._data?.status || data?.data?.[0]?.status || "PENDING"),
+            // What Meta actually classified it as (its July-2025 auto-
+            // categorizer may override the declared category).
+            category: String(data?.category || data?._data?.category || data?.data?.[0]?.category || def.category),
+          } as any);
         } else {
           results.push({
             name: def.name,
