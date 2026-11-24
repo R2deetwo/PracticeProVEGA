@@ -3444,3 +3444,109 @@ law-reporting vendor and the two Sentry DSNs remain owner-only actions.
   the moment the engine runs.
 - LIVE PROBE: https://practice-pro-vega.vercel.app → HTTP 200, the black
   boot overlay intact (`background: #000000`).
+
+## Task 90 — Antigravity follow-up: Aloa Vox dictation hardening (WebM init segment), endorsement formatting, and the APK outer-gap fix (owner report 2026-11-25)
+
+Owner report: the Android build shows dead white bands — a strip between
+the status bar and the ALOA Vox header, and a strip between the bottom tab
+bar and the gesture lip. Same message: verify Antigravity's claimed Aloa
+Vox / endorsement changes. AUDIT RESULT FIRST: **none of Antigravity's
+claimed code ever landed in the repo** — no `extractWebmInitSegment`, no
+chunked-recording init handling, no `ENDORSEMENT_FORMAT_SYSTEM_PROMPT`, no
+`formatEndorsement` action, no Format button, and the claimed test file
+`tests/unit/fieldDictationAndEndorsement.test.ts` did not exist (its
+session died on the 503s before anything was written to disk). What DID
+land was the task's design intent — implemented here for real.
+
+### 1. The dictation engine's real bug — mid-take WebM batches were undecodable
+
+`MediaRecorder.start(1000)` emits the EBML header + Segment + Info +
+Tracks ONLY in the first chunk; every later timeslice chunk is
+Cluster-only. All three periodic dictation engines (useFieldDictation,
+NoteEditor, SaveToNoteForm) drained chunks every ~10s and decoded each
+batch standalone — the FIRST batch carried its own header (worked), every
+subsequent batch failed decode ("Transcription error" toast) and then
+lied "No speech detected". Fix, applied identically to all three:
+
+- `src/utils/webmToWav.ts`: `extractWebmInitSegment(blob)` — a real EBML
+  walk (magic check → EBML header → Segment, descending through unknown
+  sizes → first Cluster cut), returning `{ initSegment, remainder }` or
+  null for non-EBML (Safari audio/mp4, ogg), empty, truncated or
+  garbage blobs; `buildBatchBlob(init, chunks, mime)` prepends the init
+  segment to every later batch. Valid WebM is never corrupted — the
+  pieces concatenate back to the exact original bytes (unit-tested).
+- Non-WebM recorders get no init segment → periodic slicing disables
+  itself for the take; the whole self-contained stream transcribes once
+  at stop (Safari-safe, no false failures).
+- The retry in `convertBlobToWav` re-reads a FRESH ArrayBuffer from the
+  Blob — the first `decodeAudioData` call detaches the buffer it was
+  handed; re-passing the same object (the old code) always threw.
+- False-toast guards: a take that already streamed words is never nagged
+  "too short"/"No speech detected" on its final drain
+  (`appendedAnyRef`); NoteEditor's equivalent (`aiGotAnyTextRef`) already
+  held.
+
+### 2. Endorsement formatting — the missing Antigravity deliverable, built
+
+- `convex/voiceCapture.ts`: `ENDORSEMENT_FORMAT_SYSTEM_PROMPT` (exported
+  for tests) + `formatEndorsement` action — same auth/rate-limit/key
+  resolution chain as editSelection (`voice_formatendorsement:<uid>`,
+  20/min). Guardrails: filler out, facts frozen EXACTLY as dictated, the
+  matter title/suit number are REFERENCE-ONLY grounding (never copied
+  into the note), already-clean notes return unchanged, empty model
+  output falls back to the original words.
+- `voiceCaptureService.formatEndorsement()` — the frontend method.
+- `TeamDiscussionTab`: a manual **Format** button (Button primitive,
+  SparklesIcon) + auto-format on dictation stop via the hook's new
+  `onFinish({ appended })` callback (fires once, user-stops only — the
+  unmount release never triggers caller side effects). Double-trigger
+  guard (one in-flight slot shared by both paths) + snapshot guard (the
+  result applies only while the field still holds exactly what was sent
+  — fresher user edits always win).
+
+### 3. The APK outer gaps — Capacitor 8's SystemBars legacy path double-insetting
+
+Root cause chain: Capacitor 8's SystemBars plugin takes a "passthrough"
+path only when the device WebView is ≥ v140 AND the viewport-fit
+detection has settled; otherwise its LEGACY path pads the WebView's
+parent by the system-bar insets and zeroes env(safe-area-inset-*). On
+the founder's device (older WebView, the reason env() resolved 0 and the
+header-under-status-bar bug existed) that legacy path stacked with our
+own `--native-safe-*` bridge → the webview already sat between the bars
+AND the app padded 24px more inside → the reported dead white bands top
+and bottom. Fix, one inset owner end-to-end:
+
+- `capacitor.config.ts`: `SystemBars.insetsHandling: 'disable'` — the
+  WebView never gets parent-padded by the plugin.
+- `MainActivity.java`: `WindowCompat.setDecorFitsSystemWindows(false)` —
+  the window is edge-to-edge on EVERY OS version (Android 15+ enforces
+  it; ≤ 14 needs the call), so the WebView fills the whole screen.
+- `src/index.css`: `--safe-area-top/bottom` become
+  `max(env(safe-area-inset-*), var(--native-safe-*))` and every
+  safe-area utility (`.pt-safe/.pb-safe/.py-safe/.pb-safe-extra/.pb-nav`)
+  consumes them — ALL views clear the bars on old-WebView devices, not
+  just the Vox shell (which already carried its own max()). `< ALOA`
+  carries no lock icon (verified — locks are the Free-tier bottom-nav
+  buttons, rendered by the Button primitive with shrink-0 icons and
+  nowrap labels); "Legal Pad" cannot wrap (whitespace-nowrap on all
+  three nav buttons).
+- Known trade-off, documented: pre-129 WebViews lose the plugin's IME
+  parent padding (which only existed in the white-gap legacy path
+  anyway); keyboard layout rests on `interactive-widget=resizes-content`
+  as before.
+
+### 4. Gates
+
+vitest 3727 passed | 1 skipped (3728) — the new
+`tests/unit/fieldDictationAndEndorsement.test.ts` (16 tests: EBML
+extraction incl. byte-identity reassembly + non-EBML/garbage/empty
+nulls, buildBatchBlob ordering, prompt no-invention guardrails) · root
+tsc 0 · convex tsc 0 · eslint 0 errors · identity audit PASSED ·
+design-tokens PASS · ui-primitives ratchet held 2212 → 2212 (the first
+Format button draft used a raw <button> and was caught by the ratchet —
+reworked onto the Button primitive) · vite production build SUCCESS.
+
+Deployment: Convex production deploy (the new action) + Vercel frontend
++ a new APK build (`npm run apk:release`) — the outer-gap fix lives in
+the native/config layer, so the APK rebuild is the load-bearing step;
+web-only deploys will not fix the bands on device.

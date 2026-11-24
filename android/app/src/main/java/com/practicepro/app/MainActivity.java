@@ -10,6 +10,7 @@ import com.getcapacitor.BridgeActivity;
 import com.practicepro.app.plugins.ContentProtectionPlugin;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 /**
@@ -87,6 +88,19 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ContentProtectionPlugin.class);
         super.onCreate(savedInstanceState);
+        // ── EDGE-TO-EDGE, EVERY OS VERSION (owner bug report 2026-11-25: the
+        // outer white gaps above the ALOA Vox header and below the bottom
+        // tab bar). Android 15+ (targetSdk 35+) enforces edge-to-edge anyway,
+        // but Android ≤ 14 does not — without this call the WebView sits
+        // BETWEEN the bars there and the system-bar bands show the window
+        // background (the reported dead white strips). One inset owner for
+        // every version: the WebView fills the whole window, insets reach
+        // the web layer via the bridge below + env() where the WebView
+        // supports it (Chromium ≥ 140). NOTE: Capacitor 8's own SystemBars
+        // insets handling is DISABLED in capacitor.config.ts — its legacy
+        // path pads the WebView's parent on old WebViews and DOUBLE-insets
+        // the content (the original white-gap bug).
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         applyFlagSecure();
         bridgeSystemBarInsetsToWebView();
 

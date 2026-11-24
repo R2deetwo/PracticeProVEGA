@@ -1305,31 +1305,41 @@ html.font-size-lg .line-clamp-2 {
  */
 
 /* Safe area insets — handles notches, status bars, and bottom gestures.
- * Applied via .pb-safe, .pt-safe, .px-safe utility classes. */
+ * Applied via .pb-safe, .pt-safe, .px-safe utility classes.
+ *
+ * NATIVE FLOOR (owner bug report 2026-11-25): on Android 15+ edge-to-edge
+ * APKs, Chromium only maps env(safe-area-inset-*) correctly from WebView
+ * v140 — older device WebViews (common on Nigerian-market Transsion builds)
+ * resolve env() to 0. MainActivity bridges the REAL system-bar insets as
+ * --native-safe-top / --native-safe-bottom (0px when absent: plain browsers,
+ * desktop, old APKs). max() picks whichever source reports correctly — one
+ * inset, never two. Views with their own max(env, var(--native-safe-*))
+ * insets (the Vox shell) are unaffected. */
 :root {
-  --safe-area-top: env(safe-area-inset-top, 0px);
-  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-top: max(env(safe-area-inset-top, 0px), var(--native-safe-top, 0px));
+  --safe-area-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px));
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 }
 
 /* Padding utilities that respect safe areas */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-area-bottom);
 }
 .pt-safe {
   /* SAFE-AREA INSET — proper mobile-only top padding.
-     On desktop browsers: env(safe-area-inset-top) resolves to 0px,
-     so NO padding is added (no gap above the header).
-     On mobile APK / mobile browsers with a notch/status bar:
-     env(safe-area-inset-top) resolves to the actual safe area inset
-     (e.g., 24px or 44px), so the header sits below the status bar.
+     On desktop browsers: env(safe-area-inset-top) resolves to 0px AND no
+     --native-safe-top is published (browser context), so NO padding is
+     added (no gap above the header).
+     On the mobile APK: max(env(), var(--native-safe-top)) clears the real
+     status bar height whether or not the device WebView maps env()
+     correctly (see the :root NATIVE FLOOR note).
 
      PREVIOUS BUG: used max(1rem, env(...)) which added at least 16px
      on ALL devices including desktop, causing a visible gap above the
-     header on desktop browsers. Fixed by using pure env() with 0px
-     fallback — desktop gets 0, mobile gets the real inset. */
-  padding-top: env(safe-area-inset-top, 0px);
+     header on desktop browsers. Fixed by using the var with 0px
+     fallbacks — desktop gets 0, mobile gets the real inset. */
+  padding-top: var(--safe-area-top);
 }
 .pl-safe {
   padding-left: env(safe-area-inset-left, 0px);
@@ -1342,8 +1352,8 @@ html.font-size-lg .line-clamp-2 {
   padding-right: env(safe-area-inset-right, 0px);
 }
 .py-safe {
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
 }
 
 /* Minimum touch target size — ensures all buttons are at least 44x44px
@@ -1803,17 +1813,17 @@ body.aloax-is-processing .aloax-nav-badge {
   }
 
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-area-bottom);
   }
 
   /* Extra safe-area utilities */
   .pb-safe-extra {
-    padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px), 1.25rem);
   }
 
   /* Bottom nav height + safe area for scrollable content */
   .pb-nav {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem);
+    padding-bottom: calc(4rem + max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px)) + 1rem);
   }
 
   /* ── Chat input dock — canonical utility for chat reply containers ──

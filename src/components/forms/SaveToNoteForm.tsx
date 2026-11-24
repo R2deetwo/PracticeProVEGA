@@ -16,7 +16,7 @@ import { acquireMicStream, releaseMicStream } from '../../services/voice/micStre
 // dedicated backend transcription service (Whisper → Gemini chain) instead
 // of the direct geminiService path.
 import { transcribeBatch } from '../../services/voice/voiceCaptureService';
-import { convertBlobToWav } from '../../utils/webmToWav';
+import { convertBlobToWav, extractWebmInitSegment, buildBatchBlob, WebmInitSplit } from '../../utils/webmToWav';
 
 import { Z_CLASS } from '../../overlays/constants';
 interface SaveToNoteFormProps {
@@ -88,6 +88,15 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
     // boundaries (no duplicated or dropped words at the seams). Reset at the
     // start of each recording session.
     const lastTranscriptTailRef = useRef('');
+    // WebM init segment (2026-11-25): MediaRecorder timeslices carry the
+    // header only in chunk 1 — later Cluster-only batches are undecodable
+    // without the init prepended (see webmToWav.ts header note).
+    const initSegmentRef = useRef<Blob | null>(null);
+    const initSplitPromiseRef = useRef<Promise<WebmInitSplit | null> | null>(null);
+    const chunkedModeRef = useRef<boolean | null>(null); // false = non-WebM → whole-take mode
+    // True once any periodic drain landed words — suppresses the false
+    // "too short"/"No speech detected" toasts on the final drain.
+    const appendedAnyRef = useRef(false);
 
     // Sync refs for event handlers
     useEffect(() => {
@@ -128,7 +137,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             setTranscriptionStatus('processing');
             try {
                 const mimeType = activeMimeTypeRef.current;
-                const combinedBlob = new Blob(blobs, { type: mimeType });
+                const combinedBlob = buildBatchBlob(initSegmentRef.current, blobs, mimeType);
 
                 // Convert WebM to WAV before sending to Gemini.
                 // Gemini's inline-data API does NOT support audio/webm —
@@ -158,6 +167,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 });
 
                 if (transcription && transcription.trim()) {
+                    appendedAnyRef.current = true;
                     // APPEND to existing content (don't overwrite).
                     // This is the key fix — previously each periodic transcription
                     // call replaced the entire content, losing all prior text.
@@ -234,10 +244,36 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 audioChunksRef.current = [];
                 // A1: fresh session — no continuation from a previous recording
                 lastTranscriptTailRef.current = '';
+                initSegmentRef.current = null;
+                initSplitPromiseRef.current = null;
+                chunkedModeRef.current = null;
+                appendedAnyRef.current = false;
 
                 recorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        audioChunksRef.current.push(event.data);
+                    if (event.data.size === 0) return;
+                    audioChunksRef.current.push(event.data);
+                    // FIRST chunk: split once into init segment + Cluster tail;
+                    // later batches are re-headed with the init (webmToWav.ts).
+                    if (!initSplitPromiseRef.current) {
+                        initSplitPromiseRef.current = extractWebmInitSegment(event.data)
+                            .then((split) => {
+                                if (split) {
+                                    initSegmentRef.current = split.initSegment;
+                                    chunkedModeRef.current = true;
+                                    if (split.remainder) {
+                                        audioChunksRef.current = [split.remainder, ...audioChunksRef.current.slice(1)];
+                                    } else {
+                                        audioChunksRef.current = audioChunksRef.current.slice(1);
+                                    }
+                                } else {
+                                    chunkedModeRef.current = false;
+                                }
+                                return split;
+                            })
+                            .catch(() => {
+                                chunkedModeRef.current = false;
+                                return null;
+                            });
                     }
                 };
 
@@ -253,20 +289,30 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     // Android AudioRecord release and locks the next take).
                     releaseMicStream();
 
-                    const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
-                    if (totalSize < 500) {
-                        addToast("Recording was too short. Hold the mic button and speak for at least 2 seconds.", { type: 'info' });
-                        setTranscriptionStatus('idle');
-                        return;
-                    }
+                    const finalize = async () => {
+                        // The first-chunk split must settle before the final
+                        // batch is assembled (same reason as the periodic tick).
+                        try { await initSplitPromiseRef.current; } catch { /* fallback set */ }
+                        const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
+                        const appendedBefore = appendedAnyRef.current;
+                        if (totalSize < 500) {
+                            // A take that already streamed its words is NOT
+                            // "too short" — never nag after partial transcription.
+                            if (!appendedBefore) {
+                                addToast("Recording was too short. Hold the mic button and speak for at least 2 seconds.", { type: 'info' });
+                            }
+                            setTranscriptionStatus('idle');
+                            return;
+                        }
 
-                    // Process final chunks — don't check isProcessingTranscriptionRef,
-                    // just run it. The periodic interval has been cleared by now.
-                    processTranscription(finalChunks).then((text) => {
-                        if (!text) {
+                        // Process final chunks — don't check isProcessingTranscriptionRef,
+                        // just run it. The periodic interval has been cleared by now.
+                        const text = await processTranscription(finalChunks);
+                        if (!text && !appendedBefore) {
                             addToast("No speech detected in the recording. Try speaking louder or closer to the microphone.", { type: 'info' });
                         }
-                    });
+                    };
+                    void finalize();
                 };
 
                 // Start recording
@@ -278,9 +324,13 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 // race on contentRef and clobber each other's text.
                 transcriptionIntervalRef.current = setInterval(async () => {
                     if (isProcessingTranscriptionRef.current) return; // Skip if still processing
+                    // Non-WebM recorders (Safari mp4 etc.) have no init segment —
+                    // keep accumulating; the whole take transcribes once at stop.
+                    if (chunkedModeRef.current === false) return;
                     if (mediaRecorderRef.current?.state === 'recording' && audioChunksRef.current.length > 0) {
                         isProcessingTranscriptionRef.current = true;
                         try {
+                            await initSplitPromiseRef.current;
                             const chunksToProcess = audioChunksRef.current;
                             audioChunksRef.current = [];
                             await processTranscription(chunksToProcess);

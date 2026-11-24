@@ -453,6 +453,26 @@ export async function editSelection(args: {
   });
 }
 
+// ─── ENDORSEMENT FORMATTING (matter timeline composer) ──────────────────────
+
+/**
+ * Tidy a dictated case endorsement — filler out, structure in, facts frozen
+ * exactly as dictated (see ENDORSEMENT_FORMAT_SYSTEM_PROMPT). Powers the
+ * endorsement composer's manual Format button and the auto-format that runs
+ * when Aloa Vox dictation stops (TeamDiscussionTab). One shot, no storage.
+ */
+export async function formatEndorsement(args: {
+  endorsementText: string;
+  matterTitle?: string;
+  matterSuitNumber?: string;
+}): Promise<{ formatted: string }> {
+  return convex.action(api.voiceCapture.formatEndorsement, {
+    ...args,
+    callerApiKey: getGeminiApiKey() || undefined,
+    sessionToken: readSessionBearer(),
+  });
+}
+
 // ─── PERSONAL DICTIONARY & SPOKEN SNIPPETS (voiceTools) ─────────────────────
 
 export async function listDictionary(): Promise<VoiceDictionaryEntry[]> {

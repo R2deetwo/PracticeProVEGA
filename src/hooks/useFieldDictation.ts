@@ -7,18 +7,32 @@
  * Gemini, api.voiceCapture.transcribeBatch — no storage row, no capture
  * pipeline) and APPENDS the words into the field's own state.
  *
- * The engine is lifted verbatim from the battle-tested SaveToNoteForm
- * dictation block (periodic 10s transcription, append-not-overwrite,
- * continuation-tail seam healing, mic permission inside the user gesture,
- * shared mic stream claim via micStream.ts). Differences:
+ * The engine is lifted from the SaveToNoteForm dictation block (periodic 10s
+ * transcription, append-not-overwrite, continuation-tail seam healing, mic
+ * permission inside the user gesture, shared mic stream claim via
+ * micStream.ts). Differences:
  *   - the field's value lives in the CALLER (onAppend merges text);
  *   - a session-lock heartbeat keeps the idle countdown alive mid-take;
  *   - stampVoxUsedAt() marks the launch for the 7-day Overview-card rule.
+ *
+ * WEBM INIT SEGMENT (2026-11-25): MediaRecorder.start(1000) puts the WebM
+ * header + Info + Tracks ONLY in the first chunk; later chunks are
+ * Cluster-only and are NOT independently decodable. The first chunk is split
+ * once (extractWebmInitSegment); its init segment is prepended to EVERY
+ * later periodic batch AND the final onstop drain, so mid-take batches stop
+ * failing decode with "Transcription error" + a false "No speech detected"
+ * after the first successful drain. Non-WebM recorders (audio/mp4 Safari /
+ * iOS, audio/ogg, exotic Android codecs) get no init segment — periodic
+ * slicing is disabled for them and the whole take transcribes once at stop
+ * (a complete, self-contained stream). A take that already streamed text is
+ * never nagged with "too short"/"No speech detected" toasts on its final
+ * drain. onFinish fires once per user-initiated stop AFTER the final drain
+ * settles — the unmount release never triggers caller side effects.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { acquireMicStream, releaseMicStream } from '../services/voice/micStream';
 import { transcribeBatch, blobToBase64 } from '../services/voice/voiceCaptureService';
-import { convertBlobToWav } from '../utils/webmToWav';
+import { convertBlobToWav, extractWebmInitSegment, buildBatchBlob, WebmInitSplit } from '../utils/webmToWav';
 import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../utils/microphonePermission';
 import { markUserActivity } from './useIdleTimer';
 import { stampVoxUsedAt } from '../utils/voxUsageTracking';
@@ -31,6 +45,11 @@ export interface UseFieldDictationOptions {
     onAppend: (text: string) => void;
     /** Toast/error surface — receives human-readable failure copy. */
     onError: (message: string, opts?: { type?: 'error' | 'info' }) => void;
+    /** Called ONCE after the final drain settles on a USER-initiated stop
+     *  (never for the unmount release). `appended` = at least one periodic
+     *  or final chunk landed words in the field. Surfaces use it to run
+     *  post-take work (e.g. auto-formatting the dictated endorsement). */
+    onFinish?: (result: { appended: boolean }) => void;
 }
 
 export interface FieldDictation {
@@ -43,7 +62,7 @@ export interface FieldDictation {
     toggle: () => void;
 }
 
-export function useFieldDictation({ onAppend, onError }: UseFieldDictationOptions): FieldDictation {
+export function useFieldDictation({ onAppend, onError, onFinish }: UseFieldDictationOptions): FieldDictation {
     const [isRecording, setIsRecording] = useState(false);
     const [status, setStatus] = useState<DictationStatus>('idle');
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -62,26 +81,43 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
     const audioCtxRef = useRef<AudioContext | null>(null);
     const onAppendRef = useRef(onAppend);
     const onErrorRef = useRef(onError);
+    const onFinishRef = useRef(onFinish);
     onAppendRef.current = onAppend;
     onErrorRef.current = onError;
+    onFinishRef.current = onFinish;
+
+    // WebM init-segment state (see header note).
+    const initSegmentRef = useRef<Blob | null>(null);
+    const initSplitPromiseRef = useRef<Promise<WebmInitSplit | null> | null>(null);
+    /** null = undetermined · true = WebM batches prepend the init segment ·
+     *  false = non-WebM recorder — accumulate everything, transcribe once. */
+    const chunkedModeRef = useRef<boolean | null>(null);
+    /** True once ANY chunk's words landed in the field — gates the
+     *  "too short"/"No speech detected" toasts on the final drain. */
+    const appendedAnyRef = useRef(false);
+    /** Why recording stopped — onFinish fires only for 'user'. */
+    const stopReasonRef = useRef<'user' | 'unmount'>('user');
 
     const supported = typeof window !== 'undefined' &&
         typeof window.MediaRecorder !== 'undefined';
 
-    /** Transcribe blobs → append. Mirrors SaveToNoteForm: <500 bytes = noise. */
+    /** Transcribe blobs → append. Mirrors SaveToNoteForm: <500 bytes = noise.
+     *  The batch is assembled with the captured init segment prepended. */
     const processChunks = useCallback(async (blobs: Blob[]): Promise<string> => {
         if (blobs.length === 0) return '';
         const totalSize = blobs.reduce((s, b) => s + b.size, 0);
         if (totalSize < 500) return '';
         setStatus('processing');
         try {
-            const wavBlob = await convertBlobToWav(new Blob(blobs, { type: activeMimeRef.current }));
+            const batchBlob = buildBatchBlob(initSegmentRef.current, blobs, activeMimeRef.current);
+            const wavBlob = await convertBlobToWav(batchBlob);
             const base64Audio = await blobToBase64(wavBlob);
             const { text } = await transcribeBatch({
                 audioBase64: base64Audio,
                 continuationTail: tailRef.current || undefined,
             });
             if (text && text.trim()) {
+                appendedAnyRef.current = true;
                 tailRef.current = text.trim().split(/\s+/).slice(-10).join(' ');
                 onAppendRef.current(text.trim());
                 return text;
@@ -139,13 +175,49 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
             }
             activeMimeRef.current = mimeType;
             tailRef.current = '';
+            initSegmentRef.current = null;
+            initSplitPromiseRef.current = null;
+            chunkedModeRef.current = null;
+            appendedAnyRef.current = false;
 
             const recorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = recorder;
             audioChunksRef.current = [];
 
             recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+                if (event.data.size === 0) return;
+                audioChunksRef.current.push(event.data);
+                // FIRST chunk: split into the init segment + Cluster tail,
+                // exactly once. The stored init segment is prepended to every
+                // later batch; the raw first chunk is replaced by its tail so
+                // the audio it carries is never duplicated.
+                if (!initSplitPromiseRef.current) {
+                    initSplitPromiseRef.current = extractWebmInitSegment(event.data)
+                        .then((split) => {
+                            if (split) {
+                                initSegmentRef.current = split.initSegment;
+                                chunkedModeRef.current = true;
+                                if (split.remainder) {
+                                    audioChunksRef.current = [
+                                        split.remainder,
+                                        ...audioChunksRef.current.slice(1),
+                                    ];
+                                } else {
+                                    // header-only first chunk — the init IS it.
+                                    audioChunksRef.current = audioChunksRef.current.slice(1);
+                                }
+                            } else {
+                                // Non-WebM (mp4/ogg) or unparseable — whole-
+                                // recording mode: periodic slicing disabled.
+                                chunkedModeRef.current = false;
+                            }
+                            return split;
+                        })
+                        .catch(() => {
+                            chunkedModeRef.current = false;
+                            return null;
+                        });
+                }
             };
 
             recorder.onstop = () => {
@@ -154,23 +226,39 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
                 const finalChunks = audioChunksRef.current;
                 audioChunksRef.current = [];
                 releaseMicStream();
-                const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
-                if (totalSize < 500) {
-                    onErrorRef.current(
-                        'Recording was too short — hold the mic button and speak for at least 2 seconds.',
-                        { type: 'info' }
-                    );
-                    setStatus('idle');
-                    return;
-                }
-                processChunks(finalChunks).then((text) => {
-                    if (!text) {
-                        onErrorRef.current(
-                            'No speech detected in the recording. Try speaking louder or closer to the microphone.',
-                            { type: 'info' }
-                        );
+                void (async () => {
+                    // The first-chunk split must be settled before the final
+                    // batch is assembled (same reason as the periodic tick).
+                    try { await initSplitPromiseRef.current; } catch { /* fallback already set */ }
+                    const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
+                    const appendedBefore = appendedAnyRef.current;
+                    if (totalSize < 500) {
+                        // A take that already streamed its words is NOT
+                        // "too short" — never nag after partial transcription.
+                        if (!appendedBefore) {
+                            onErrorRef.current(
+                                'Recording was too short — hold the mic button and speak for at least 2 seconds.',
+                                { type: 'info' }
+                            );
+                        }
+                        setStatus('idle');
+                    } else {
+                        const text = await processChunks(finalChunks);
+                        // Only claim "No speech detected" when NOTHING ever
+                        // landed — earlier periodic drains make it false.
+                        if (!text && !appendedBefore) {
+                            onErrorRef.current(
+                                'No speech detected in the recording. Try speaking louder or closer to the microphone.',
+                                { type: 'info' }
+                            );
+                        }
                     }
-                });
+                    // User-initiated stop → the caller may now run its
+                    // post-take work (e.g. formatting the endorsement).
+                    if (stopReasonRef.current === 'user') {
+                        onFinishRef.current?.({ appended: appendedAnyRef.current });
+                    }
+                })();
             };
 
             recorder.start(1000);
@@ -183,12 +271,16 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
             timerRef.current = window.setInterval(() => {
                 setElapsedSeconds((s) => (s < 600 ? s + 1 : s));
             }, 1000);
-            // Near-live feel: transcribe the accumulated chunks every 10s.
+            // Near-live feel: transcribe the accumulated chunks every 10s —
+            // WebM-only (init segment prepended); non-WebM recorders keep
+            // accumulating and transcribe once at stop.
             periodicRef.current = window.setInterval(async () => {
                 if (processingRef.current) return;
+                if (chunkedModeRef.current === false) return;
                 if (mediaRecorderRef.current?.state === 'recording' && audioChunksRef.current.length > 0) {
                     processingRef.current = true;
                     try {
+                        await initSplitPromiseRef.current;
                         const chunks = audioChunksRef.current;
                         audioChunksRef.current = [];
                         await processChunks(chunks);
@@ -210,7 +302,8 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
         }
     }, [processChunks]);
 
-    const stop = useCallback(() => {
+    const stop = useCallback((opts?: { reason?: 'user' | 'unmount' }) => {
+        stopReasonRef.current = opts?.reason === 'unmount' ? 'unmount' : 'user';
         // Clear the periodic interval FIRST so it doesn't race the final onstop.
         if (periodicRef.current) { clearInterval(periodicRef.current); periodicRef.current = null; }
         if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
@@ -232,9 +325,10 @@ export function useFieldDictation({ onAppend, onError }: UseFieldDictationOption
         void start();
     }, [start, stop]);
 
-    // A1 hygiene: if the field unmounts mid-dictation, release the mic.
+    // A1 hygiene: if the field unmounts mid-dictation, release the mic —
+    // silently (no onFinish side effects for a surface the user left).
     useEffect(() => () => {
-        if (isRecordingRef.current) stop();
+        if (isRecordingRef.current) stop({ reason: 'unmount' });
     }, [stop]);
 
     return { isRecording, status, elapsedSeconds, voiceEnergy, supported, toggle };

@@ -45,6 +45,26 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
   },
   plugins: {
+    // ── SYSTEM BARS / EDGE-TO-EDGE (owner bug report 2026-11-25: the outer
+    //    white gaps above the ALOA Vox header and below the bottom tab bar) ──
+    // insetsHandling 'disable' turns OFF Capacitor 8's SystemBars insets
+    // machinery. Its legacy path (taken whenever the device WebView is older
+    // than v140 — common on Nigerian-market Transsion/Tecno builds — or the
+    // viewport-fit detection has not settled) PADS the WebView's parent view
+    // by the system-bar insets, which paints the window background in those
+    // bands AND zeroes env(safe-area-inset-*) for the web layer. Combined
+    // with our own MainActivity --native-safe-* bridge, that DOUBLE-inset
+    // produced exactly the reported symptom: a dead white band between the
+    // status bar and the header, and another between the tab bar and the
+    // gesture lip.
+    // With it disabled, the WebView fills the window edge-to-edge (MainActivity
+    // forces setDecorFitsSystemWindows(false) on every OS version) and the
+    // ONE inset source is the MainActivity bridge + env(): the web layer's
+    // max(env(safe-area-inset-*), var(--native-safe-*)) resolves whichever
+    // source reports correctly for that device's WebView.
+    SystemBars: {
+      insetsHandling: 'disable',
+    },
     SplashScreen: {
       launchShowDuration: 2000,
       backgroundColor: '#000000',

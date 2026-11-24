@@ -15,10 +15,31 @@
  * faster Convex proxy round-trips for the 10-second dictation chunks and the
  * NoteEditor AI-audio fallback. Source rates at or below 16 kHz pass through
  * untouched (never upsampled).
+ *
+ * PERIODIC CHUNKING (2026-11-25): extractWebmInitSegment + buildBatchBlob
+ * support the ~10s periodic-transcription engines (useFieldDictation,
+ * NoteEditor, SaveToNoteForm). MediaRecorder.start(1000) emits the WebM
+ * header + Info + Tracks ONLY in the first chunk; every later chunk is
+ * Cluster-only and is NOT decodable on its own — decoding a mid-take batch
+ * used to fail with "Transcription error" (and then a false "No speech
+ * detected") after the first successful periodic drain. The fix: split the
+ * first chunk once (init segment + cluster tail) and prepend that init
+ * segment to every later batch.
  */
 
 // Target sample rate for ASR payloads — see header note.
 const ASR_SAMPLE_RATE = 16000;
+
+// How far into the first chunk we scan for the first Cluster. Real WebM
+// init segments (EBML header + SeekHead + Info + Tracks, Opus audio) are
+// well under 1 KB; 8 KB is generous. If no Cluster appears within this
+// window the blob is not a normal MediaRecorder stream — bail (null).
+const MAX_INIT_SCAN_BYTES = 8 * 1024;
+
+// EBML element IDs we care about (already vint-encoded byte sequences).
+const EBML_HEADER_ID = 0x1a45dfa3; // [1A 45 DF A3]
+const SEGMENT_ID = 0x18538067; // [18 53 80 67]
+const CLUSTER_ID = 0x1f43b675; // [1F 43 B6 75]
 
 // Shared AudioContext — reused across all convertBlobToWav calls
 let sharedAudioContext: AudioContext | null = null;
@@ -46,12 +67,16 @@ export async function convertBlobToWav(blob: Blob): Promise<Blob> {
         audioBuffer = await Promise.race([decodePromise, timeoutPromise]);
     } catch (err) {
         // If decode fails, try with a fresh AudioContext (sometimes the
-        // shared context gets into a bad state)
+        // shared context gets into a bad state). CRITICAL: the first
+        // decodeAudioData call DETACHES the ArrayBuffer it was handed —
+        // re-passing the same object throws. The retry re-reads a FRESH
+        // copy from the source Blob (Blob.arrayBuffer() always copies).
         try { audioContext.close(); } catch {}
         sharedAudioContext = null;
         const freshContext = getAudioContext();
+        const freshBuffer = await blob.arrayBuffer();
         audioBuffer = await Promise.race([
-            freshContext.decodeAudioData(arrayBuffer),
+            freshContext.decodeAudioData(freshBuffer),
             new Promise<never>((_, reject) => {
                 setTimeout(() => reject(new Error('decodeAudioData timed out (retry)')), 10000);
             }),
@@ -108,6 +133,159 @@ export function closeAudioContext(): void {
         try { sharedAudioContext.close(); } catch {}
         sharedAudioContext = null;
     }
+}
+
+// ─── PERIODIC CHUNKING SUPPORT ─────────────────────────────────────────────
+
+/** One parsed EBML element header (ID vint + size vint). */
+interface EbmlElementHead {
+    /** Element ID including its marker bits (e.g. 0x1f43b675 = Cluster). */
+    id: number;
+    /** Payload byte size; -1 = "unknown" (all-ones size vint, streamed files). */
+    size: number;
+    /** Offset where the payload starts (after both vints). */
+    dataStart: number;
+    /** Offset just past the payload = dataStart + size (invalid when -1). */
+    end: number;
+}
+
+/** Read an unsigned vint (value bits only, marker cleared) at `pos`. */
+function readVintValue(bytes: Uint8Array, pos: number): { value: number; length: number } | null {
+    if (pos >= bytes.length) return null;
+    const first = bytes[pos];
+    let length = 1;
+    for (let mask = 0x80; mask > 0; mask >>= 1) {
+        if (first & mask) break;
+        length++;
+        if (length > 8) return null; // invalid vint
+    }
+    if (pos + length > bytes.length) return null; // truncated vint
+    let value = first & (0xff >> length);
+    for (let i = 1; i < length; i++) {
+        value = value * 256 + bytes[pos + i];
+    }
+    return { value, length };
+}
+
+/** Read an element ID vint at `pos` — value KEEPS the marker bits, per the
+ *  Matroska ID convention (Cluster = 0x1f43b675, not 0x0f43b675). */
+function readElementId(bytes: Uint8Array, pos: number): { id: number; length: number } | null {
+    if (pos >= bytes.length) return null;
+    const first = bytes[pos];
+    let length = 1;
+    for (let mask = 0x80; mask > 0; mask >>= 1) {
+        if (first & mask) break;
+        length++;
+        if (length > 8) return null;
+    }
+    if (pos + length > bytes.length) return null;
+    let id = first;
+    for (let i = 1; i < length; i++) {
+        id = id * 256 + bytes[pos + i];
+    }
+    return { id, length };
+}
+
+/** Parse one element header at `pos` (ID + size). */
+function readElementHead(bytes: Uint8Array, pos: number): EbmlElementHead | null {
+    const idv = readElementId(bytes, pos);
+    if (!idv) return null;
+    const sizePos = pos + idv.length;
+    const sizev = readVintValue(bytes, sizePos);
+    if (!sizev) return null;
+    const dataStart = sizePos + sizev.length;
+    // "Unknown" size: every value bit set (streamed elements, e.g. Segment).
+    const maxForLength = Math.pow(2, 8 * sizev.length - sizev.length) - 1;
+    const size = sizev.value === maxForLength ? -1 : sizev.value;
+    return { id: idv.id, size, dataStart, end: dataStart + size };
+}
+
+/** The split of a WebM first chunk: everything before the first Cluster
+ *  (the "init segment") and the Cluster tail that follows it. */
+export interface WebmInitSplit {
+    initSegment: Blob;
+    /** The first Cluster onward of the scanned chunk; null when the chunk
+     *  contained no Cluster at all (a header-only first chunk). */
+    remainder: Blob | null;
+}
+
+/**
+ * extractWebmInitSegment — locate the WebM/Matroska initialization data
+ * (EBML header + Segment header + Info + Tracks) that precedes the first
+ * Cluster (0x1F43B675) in a MediaRecorder blob.
+ *
+ * Returns null when the blob is empty, too short, not EBML at all
+ * (audio/mp4 from Safari/iOS, audio/ogg, random bytes) or unparseable —
+ * callers must then fall back to whole-recording mode (no periodic slicing).
+ * Valid WebM is never corrupted: the returned pieces concatenate back to
+ * the exact original bytes.
+ */
+export async function extractWebmInitSegment(blob: Blob): Promise<WebmInitSplit | null> {
+    if (!blob || blob.size === 0) return null;
+    const scanLength = Math.min(blob.size, MAX_INIT_SCAN_BYTES);
+    const head = new Uint8Array(await blob.slice(0, scanLength).arrayBuffer());
+
+    // Magic must be the EBML header ID 0x1A45DFA3 — anything else is not a
+    // Matroska/WebM stream (mp4 starts with a size + "ftyp", ogg "OggS").
+    if (head.length < 8) return null;
+    if (head[0] !== 0x1a || head[1] !== 0x45 || head[2] !== 0xdf || head[3] !== 0xa3) {
+        return null;
+    }
+
+    let pos = 0;
+    // 1) EBML header element — verify and skip it whole.
+    const ebmlHead = readElementHead(head, pos);
+    if (!ebmlHead || ebmlHead.id !== EBML_HEADER_ID || ebmlHead.size < 0 || ebmlHead.end > head.length) {
+        return null;
+    }
+    pos = ebmlHead.end;
+
+    // 2) Segment element — consume its header, then descend into it even
+    //    when the size is "unknown" (MediaRecorder streams it that way).
+    const segment = readElementHead(head, pos);
+    if (!segment || segment.id !== SEGMENT_ID) return null;
+    pos = segment.dataStart;
+
+    // 3) Walk the Segment children until the first Cluster.
+    let clusterStart = -1;
+    while (pos < head.length) {
+        const child = readElementHead(head, pos);
+        if (!child) break; // truncated header — stop scanning
+        if (child.id === CLUSTER_ID) {
+            clusterStart = pos;
+            break;
+        }
+        if (child.size < 0 || child.end > head.length) break; // can't skip past an unknown/huge child
+        pos = child.end;
+    }
+
+    if (clusterStart >= 0) {
+        return {
+            initSegment: blob.slice(0, clusterStart),
+            remainder: blob.slice(clusterStart),
+        };
+    }
+
+    // No Cluster found. If we scanned the ENTIRE chunk it is a header-only
+    // first chunk (recorders sometimes emit init and the first cluster in
+    // separate chunks) — the whole blob is the init segment.
+    if (scanLength === blob.size) {
+        return { initSegment: blob.slice(0), remainder: null };
+    }
+
+    // No Cluster within the scan window of a larger blob — not a normal
+    // MediaRecorder stream; bail to the safe fallback.
+    return null;
+}
+
+/**
+ * buildBatchBlob — assemble one decodable batch: [initSegment, ...chunks]
+ * when an init segment was captured, or the chunks alone (the first batch
+ * of a take already carries its own header). Order is preserved.
+ */
+export function buildBatchBlob(initSegment: Blob | null, chunks: Blob[], mimeType: string): Blob {
+    const parts: BlobPart[] = initSegment ? [initSegment, ...chunks] : [...chunks];
+    return new Blob(parts, { type: mimeType });
 }
 
 function encodeWav(samples: Int16Array, sampleRate: number): ArrayBuffer {

@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NotePage, User, ModalType, UserRole, TaskStatus, TaskPriority } from '../../types';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
-import { CalendarIcon, TasksIcon, TrashIcon, PlusIcon, EditIcon, CheckIcon, XIcon, MicrophoneIcon } from '../../constants';
+import { CalendarIcon, TasksIcon, TrashIcon, PlusIcon, EditIcon, CheckIcon, XIcon, MicrophoneIcon, SparklesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -9,6 +9,7 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { sanitize } from '../../utils/sanitization';
 import { useFieldDictation } from '../../hooks/useFieldDictation';
 import { extractDatedMention, formatDatedMention, endorsementTitleFrom } from '../../utils/endorsementDateParser';
+import { formatEndorsement } from '../../services/voice/voiceCaptureService';
 import { Button } from '../ui';
 
 /** Notes authored elsewhere (DraftPro, ALOA drafts) can carry rich HTML.
@@ -154,21 +155,36 @@ const EndorsementTimelineItem: React.FC<{
 
 const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, users, currentUser, onAddNote, onUpdateNote, openModal, onDeleteNote, filterType = 'user' }) => {
     const [content, setContent] = useState('');
+    const [formatting, setFormatting] = useState(false);
     const { addToast } = useUI();
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
     const { addItem, handleAddTask } = useDataActions();
 
+    // The composer value mirrored in a ref — formatting applies its result
+    // only when the field still holds exactly what was sent, so the
+    // lawyer's fresher keystrokes are never overwritten mid-flight.
+    const contentRef = useRef(content);
+    useEffect(() => { contentRef.current = content; }, [content]);
+    // Double-trigger guard: auto-format-on-stop and the manual Format
+    // button share one in-flight slot.
+    const formattingRef = useRef(false);
+
     // ── ALOA VOX in the composer (owner brief 2026-11-24: "when you say
     //    post endorsement… we should have the ability to use Aloa Vox").
     //    The mic dictates straight into the endorsement box — the same
     //    Whisper→Gemini transcription engine the rest of the app uses,
-    //    appending near-live every ~10 seconds.
+    //    appending near-live every ~10 seconds. On stop, once the final
+    //    drain settles and words actually landed, the dictated endorsement
+    //    auto-formats (the same engine as the manual Format button).
     const dictation = useFieldDictation({
         onAppend: (text) => {
             setContent((prev) => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n${text}` : text));
         },
         onError: (message, opts) => addToast(message, opts),
+        onFinish: ({ appended }) => {
+            if (appended) void runFormat();
+        },
     });
 
     const eventTypeNames = useMemo(
@@ -180,6 +196,39 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
         [matterState.matters, matterId]
     );
     const matterTitle: string | undefined = matter?.title;
+    const matterSuitNumber: string | undefined = matter?.suitNumber;
+
+    // ── FORMAT THE ENDORSEMENT (owner brief 2026-11-24 + audit follow-up
+    //    2026-11-25): one shared engine for the manual Format button and the
+    //    auto-format that fires when dictation stops. Filler out, structure
+    //    in — every fact frozen exactly as dictated (the backend prompt
+    //    forbids inventing dates, coram, amounts or citations). Guards:
+    //    (a) one in-flight call at a time (no double-trigger), (b) the
+    //    result applies only when the field still holds the snapshot that
+    //    was sent — fresher user edits win.
+    const runFormat = async () => {
+        if (formattingRef.current) return;
+        const snapshot = contentRef.current;
+        if (!snapshot.trim()) return;
+        formattingRef.current = true;
+        setFormatting(true);
+        try {
+            const { formatted } = await formatEndorsement({
+                endorsementText: snapshot,
+                matterTitle,
+                matterSuitNumber,
+            });
+            if (contentRef.current === snapshot) {
+                setContent(formatted);
+                addToast('Endorsement formatted — check it before posting.', { type: 'success', duration: 5000 });
+            }
+        } catch (e: any) {
+            addToast(e?.message || 'Formatting failed — your words are unchanged.', { type: 'error' });
+        } finally {
+            formattingRef.current = false;
+            setFormatting(false);
+        }
+    };
 
     const postEndorsementNote = () => {
         onAddNote(matterId, `Endorsement by ${currentUser.name}`, content, 'endorsement');
@@ -346,6 +395,21 @@ const TeamDiscussionTab: React.FC<TeamDiscussionTabProps> = ({ matterId, notes, 
                         >
                             <CalendarIcon className="w-4 h-4" /> <span>+ Event</span>
                         </button>
+                        {/* FORMAT — tidy the dictated endorsement: filler out,
+                            facts kept exactly as dictated. Same engine the
+                            auto-format-on-stop uses; the in-flight guard makes
+                            double-triggering a no-op. */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={SparklesIcon}
+                            onClick={() => void runFormat()}
+                            disabled={!content.trim() || formatting}
+                            title="Tidy the endorsement — filler out, every fact kept exactly as dictated"
+                            className="!px-2.5 whitespace-nowrap text-slate-500 dark:text-zinc-400 hover:bg-white dark:hover:bg-zinc-700 rounded-lg"
+                        >
+                            {formatting ? 'Formatting…' : 'Format'}
+                        </Button>
                     </div>
 
                     <button

@@ -3086,3 +3086,78 @@ export const draftVoiceEdit = action({
     return { intent, text: intent === "delete" ? "" : text || selected };
   },
 });
+
+// ─── ENDORSEMENT FORMATTING (owner brief 2026-11-24: Aloa Vox into the ──────
+//     matter endorsement composer — Antigravity audit follow-up 2026-11-25) ──
+
+/**
+ * ENDORSEMENT_FORMAT_SYSTEM_PROMPT — exported for unit tests. Tidies a
+ * dictated case endorsement WITHOUT inventing anything: filler removal and
+ * structure only. The matter context lines (title / suit number) are
+ * REFERENCE-ONLY grounding so the model never "corrects" a name it half
+ * heard — they are never a licence to add facts the lawyer did not say.
+ */
+export const ENDORSEMENT_FORMAT_SYSTEM_PROMPT = `You tidy a Nigerian lawyer's spoken case endorsement (a note dictated into the matter timeline) so it reads as a clean professional entry — WITHOUT changing what was said.
+
+RULES:
+1. Remove filler and false starts ("erm", "okay so", "let me", repeated phrases, self-corrections where the final wording survives) and fix punctuation and capitalisation.
+2. Preserve the lawyer's voice: first-person, plain professional register.
+3. NEVER add anything the note does not say: no names, dates, amounts, courts, coram, case citations, suit numbers, legal conclusions, jurisdictions, participants or next steps that are not already in the dictated text. If the note mentions no date, no court and no amount, the formatted endorsement has none either.
+4. Keep every fact EXACTLY as dictated: names, dates, amounts (₦), suit numbers, statutes, Latin maxims, Nigerian legal terminology. Do not "correct", normalise or paraphrase them into something else.
+5. The MATTER CONTEXT (title / suit number), when supplied, is reference only — use it to avoid mangling a name or suit number it happens to contain; never copy anything from it into the endorsement.
+6. Structure only what was said: short paragraphs; "- " bullets only when the lawyer listed distinct items; a numbered list only when they enumerated steps in order.
+7. Nigerian English spellings (judgement, colour, learnt) are correct — never Americanise.
+8. Return ONLY the formatted endorsement text — no headings, no explanations, no quotes around it, no markdown fences.
+9. If the note is already clean, return it unchanged.`;
+
+/**
+ * formatEndorsement — the engine behind the endorsement composer's Format
+ * button and the auto-format-on-dictation-stop (TeamDiscussionTab). One
+ * shot: no storage row, no capture pipeline — the text in, the tidied
+ * text out. Grounded by an optional matter title/suit number pair so a
+ * half-heard name is not silently "corrected" into something else.
+ */
+export const formatEndorsement = action({
+  args: {
+    endorsementText: v.string(),
+    matterTitle: v.optional(v.string()),
+    matterSuitNumber: v.optional(v.string()),
+    callerApiKey: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ formatted: string }> => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const allowed = await ctx.runMutation(
+      internal.securityHelpers.consumeRateLimit,
+      { key: `voice_formatendorsement:${auth.userId}`, maxRequests: 20 }
+    );
+    if (!allowed) throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    const endorsement = (args.endorsementText || "").trim().slice(0, 20_000);
+    if (!endorsement) throw new Error("Dictate or type the endorsement first, then format it.");
+
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
+    if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
+
+    const matterTitle = (args.matterTitle || "").trim().slice(0, 300);
+    const matterSuitNumber = (args.matterSuitNumber || "").trim().slice(0, 100);
+    const matterContext =
+      matterTitle || matterSuitNumber
+        ? `MATTER CONTEXT (reference only — NEVER copy from it into the endorsement):\n` +
+          `Title: ${matterTitle || "(not stated)"}\nSuit number: ${matterSuitNumber || "(not stated)"}\n\n`
+        : "";
+
+    const out = await geminiText({
+      apiKey: gemini.key,
+      system: ENDORSEMENT_FORMAT_SYSTEM_PROMPT,
+      user:
+        matterContext +
+        `DICTATED ENDORSEMENT (format THIS only):\n"""${endorsement}"""`,
+      maxTokens: 2048,
+    });
+    const formatted = out.trim();
+    // The model returning nothing is not a reason to eat the lawyer's words.
+    return { formatted: formatted || endorsement };
+  },
+});
+

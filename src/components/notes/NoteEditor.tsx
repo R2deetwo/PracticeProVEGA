@@ -10,7 +10,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
-import { convertBlobToWav } from '../../utils/webmToWav';
+import { convertBlobToWav, extractWebmInitSegment, buildBatchBlob, WebmInitSplit } from '../../utils/webmToWav';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -171,6 +171,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const aiTailRef = useRef('');               // last words of the previous segment
     const aiProcessingRef = useRef(false);      // guards concurrent segment calls
     const aiGotAnyTextRef = useRef(false);      // drives the "no speech detected" toast
+    // WebM init segment (2026-11-25): MediaRecorder timeslices carry the
+    // header only in chunk 1 — later Cluster-only batches are undecodable
+    // without the init prepended (see webmToWav.ts header note).
+    const aiInitSegmentRef = useRef<Blob | null>(null);
+    const aiInitSplitPromiseRef = useRef<Promise<WebmInitSplit | null> | null>(null);
+    const aiChunkedModeRef = useRef<boolean | null>(null); // false = non-WebM → whole-take mode
     const [aiTranscribing, setAiTranscribing] = useState(false); // status bar indicator
 
     // ─── APPEND BY VOICE (owner addendum, 2026-11-18) ───────────────────
@@ -289,7 +295,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
 
         setAiTranscribing(true);
         try {
-            const combined = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+            const combined = buildBatchBlob(aiInitSegmentRef.current, chunks, chunks[0]?.type || 'audio/webm');
             const wavBlob = await convertBlobToWav(combined);
             const base64Audio: string = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -360,9 +366,36 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             aiChunksRef.current = [];
             aiTailRef.current = '';
             aiGotAnyTextRef.current = false;
+            aiInitSegmentRef.current = null;
+            aiInitSplitPromiseRef.current = null;
+            aiChunkedModeRef.current = null;
 
             recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) aiChunksRef.current.push(e.data);
+                if (e.data.size === 0) return;
+                aiChunksRef.current.push(e.data);
+                // FIRST chunk: split once into init segment + Cluster tail;
+                // later batches are re-headed with the init (webmToWav.ts).
+                if (!aiInitSplitPromiseRef.current) {
+                    aiInitSplitPromiseRef.current = extractWebmInitSegment(e.data)
+                        .then((split) => {
+                            if (split) {
+                                aiInitSegmentRef.current = split.initSegment;
+                                aiChunkedModeRef.current = true;
+                                if (split.remainder) {
+                                    aiChunksRef.current = [split.remainder, ...aiChunksRef.current.slice(1)];
+                                } else {
+                                    aiChunksRef.current = aiChunksRef.current.slice(1);
+                                }
+                            } else {
+                                aiChunkedModeRef.current = false;
+                            }
+                            return split;
+                        })
+                        .catch(() => {
+                            aiChunkedModeRef.current = false;
+                            return null;
+                        });
+                }
             };
 
             recorder.start(1000); // 1s timeslices — segments drain every ~10s
@@ -373,11 +406,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
 
             aiTimerRef.current = setInterval(async () => {
                 if (aiProcessingRef.current) return;
+                // Non-WebM recorders (Safari mp4 etc.) have no init segment —
+                // keep accumulating; the whole take transcribes once at stop.
+                if (aiChunkedModeRef.current === false) return;
                 if (aiRecorderRef.current?.state === 'recording' && aiChunksRef.current.length > 0) {
                     aiProcessingRef.current = true;
-                    const batch = aiChunksRef.current;
-                    aiChunksRef.current = [];
-                    try { await processAiAudioChunks(batch); }
+                    try {
+                        await aiInitSplitPromiseRef.current;
+                        const batch = aiChunksRef.current;
+                        aiChunksRef.current = [];
+                        await processAiAudioChunks(batch);
+                    }
                     finally { aiProcessingRef.current = false; }
                 }
             }, 10_000);
@@ -401,6 +440,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             }
             const finalChunks = aiChunksRef.current;
             aiChunksRef.current = [];
+            // The first-chunk split must settle before the final batch is
+            // assembled (mirrors the periodic tick).
+            try { await aiInitSplitPromiseRef.current; } catch { /* fallback set */ }
             try { await processAiAudioChunks(finalChunks); } catch { /* keep whatever raw we have */ }
             if (!aiGotAnyTextRef.current) {
                 addToast('No speech detected. Speak a little louder or closer to the microphone.', { type: 'info' });
