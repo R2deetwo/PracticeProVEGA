@@ -3646,3 +3646,29 @@ Phases 1–2 + the Phase 3 product calls, implemented and gated:
 No convex/ changes in this task → Convex production deploy NOT
 required; Vercel frontend production deploy + APK CI build carry the
 change.
+
+### Task 91 — production verification addendum (2026-11-25)
+
+- PUSHED dae43cb7 (after rebase over the build-1304 version churn —
+  only public/version.json conflicted, resolved to the remote's newer
+  build). CI on dae43cb7: Tests, E2E smoke, Deploy to Staging, CodeQL,
+  Build Android APK — ALL SUCCESS (build-1305 / v1.0.894 auto-committed
+  after the APK built: 41dda697 + e6b0682b).
+- Production deploy (vercel-production-deploy.yml, pinned to
+  dae43cb7…7524c547): SUCCESS. NOTE for future dispatches — the
+  workflow's checkout needs the FULL 40-char SHA; my first dispatch with
+  the short prefix failed at 'Checkout the commit to deploy' ("a branch
+  or tag with the name 'dae43cb7' could not be found") and was re-run
+  with the full SHA. Convex production NOT re-deployed — zero convex/
+  changes in this task; the Task 90 functions remain live.
+- LIVE PROBE: https://practice-pro-vega.vercel.app → HTTP 200;
+  version.json healthy at sha dae43cb7 (builtAt 2026-11-24T20:08:59Z).
+  BUNDLE MARKERS VERIFIED in the deployed assets: the identity lock
+  "in RESEARCH MODE" in the main bundle, "Research mode: ask anything
+  about your" (ResearchChat convergence) in the ResearchView chunk, and
+  "Sent your message to Research Studio." + "Chat note —" (the
+  every-message Research affordance + text-source path) in the
+  AloaPanel chunk.
+- APK: build-1305 (v1.0.894) built by CI with the change; the next
+  owner device install picks it up (web-layer change — the web deploy
+  already serves it to browser users).
