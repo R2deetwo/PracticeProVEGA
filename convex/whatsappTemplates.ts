@@ -1045,10 +1045,12 @@ export const createVegaTemplates = internalAction({
     wabaId?: string;
     results: Array<{
       name: string;
-      outcome: "created" | "exists" | "failed" | "dry_run";
+      outcome: "created" | "updated" | "exists" | "failed" | "dry_run";
       httpStatus?: number;
-      status?: string; // Meta template status when known
+      status?: string;  // Meta template status when known
+      category?: string; // the category Meta actually assigned
       error?: string;
+      rawResponse?: string;
     }>;
   }> => {
     const { TOKEN, PLUGIN_ID, PHONE_ID } = chakraCreds();
@@ -1082,8 +1084,9 @@ export const createVegaTemplates = internalAction({
       return { success: false, results: [{ name: "*", outcome: "failed", error: "Could not resolve the WABA id for the configured phone number." }] };
     }
 
-    // 2) List existing template names (idempotency check + live status).
-    const existing = new Map<string, string>(); // name(lowercased) → status
+    // 2) List existing templates (idempotency check + live status + ids
+    //    for the in-place UPDATE path on REJECTED entries).
+    const existing = new Map<string, { id?: string; status: string; category?: string }>();
     try {
       let after: string | undefined;
       let pages = 0;
@@ -1095,7 +1098,11 @@ export const createVegaTemplates = internalAction({
         try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
         if (!res.ok || !data) break;
         for (const t of (Array.isArray(data?.data) ? data.data : [])) {
-          if (t?.name) existing.set(String(t.name).toLowerCase(), String(t.status || "UNKNOWN"));
+          if (t?.name) existing.set(String(t.name).toLowerCase(), {
+            id: t.id ? String(t.id) : undefined,
+            status: String(t.status || "UNKNOWN"),
+            category: t.category ? String(t.category) : undefined,
+          });
         }
         after = data?.paging?.cursors?.after;
         pages++;
@@ -1136,23 +1143,58 @@ export const createVegaTemplates = internalAction({
     }
 
     // 3) POST each missing template through the pass-through.
-    const results: Array<{ name: string; outcome: "created" | "exists" | "failed" | "dry_run"; httpStatus?: number; status?: string; error?: string }> = [];
+    const results: Array<{ name: string; outcome: "created" | "updated" | "exists" | "failed" | "dry_run"; httpStatus?: number; status?: string; category?: string; error?: string; rawResponse?: string }> = [];
     for (const def of defs) {
-      const existingStatus = existing.get(def.name.toLowerCase());
-      if (existingStatus && existingStatus.toUpperCase() !== "REJECTED") {
-        results.push({ name: def.name, outcome: "exists", status: existingStatus });
+      const prior = existing.get(def.name.toLowerCase());
+      if (prior && prior.status.toUpperCase() !== "REJECTED") {
+        results.push({ name: def.name, outcome: "exists", status: prior.status, category: prior.category });
         continue;
       }
-      // A REJECTED template occupies the name but is unusable. Delete it
-      // first (best-effort through the pass-through) so the corrected body
-      // can be recreated under the same name.
-      if (existingStatus) {
+      // A REJECTED template occupies the name but is unusable. UPDATE it
+      // in place by template id (Chakra pass-through:
+      // POST .../message_template/{id}) — Meta resubmits an edited
+      // rejected template for review with the new body. If the update
+      // fails, fall back to DELETE (name + hsm_id) then recreate; Meta
+      // frees names asynchronously, so the recreate settles 2s.
+      if (prior) {
+        if (prior.id) {
+          try {
+            const updUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/message_template/${prior.id}`;
+            const updRes = await fetch(updUrl, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                category: def.category,
+                components: [{
+                  type: "BODY",
+                  text: def.bodyText,
+                  ...(def.exampleVars.length ? { example: { body_text: [def.exampleVars] } } : {}),
+                }],
+              }),
+            });
+            const updRaw = await updRes.text();
+            let updData: any = null;
+            try { updData = updRaw ? JSON.parse(updRaw) : null; } catch { updData = null; }
+            if (updRes.ok && (updData?.id || updData?.success)) {
+              results.push({
+                name: def.name, outcome: "updated", httpStatus: updRes.status,
+                status: String(updData?.status || "PENDING"),
+                category: String(updData?.category || def.category),
+              });
+              continue;
+            }
+            // Update failed — fall through to delete + recreate.
+            results.push({ name: def.name, outcome: "failed", httpStatus: updRes.status, error: `In-place update failed: ${updRaw.slice(0, 200)}` });
+          } catch (e: any) {
+            results.push({ name: def.name, outcome: "failed", error: `In-place update request failed: ${e?.message || e}` });
+          }
+        }
         try {
-          const delUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(def.name)}`;
+          const delUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(def.name)}${prior.id ? `&hsm_id=${encodeURIComponent(prior.id)}` : ""}`;
           await fetch(delUrl, { method: "DELETE", headers });
           // Meta frees the name asynchronously — give it a beat before the
           // recreate, or the POST races the delete and 400s.
-          await new Promise((r) => setTimeout(r, 1500));
+          await new Promise((r) => setTimeout(r, 2000));
         } catch { /* best-effort — the POST below reports if the name is still taken */ }
       }
       if (args.dryRun) {
