@@ -2,6 +2,7 @@ import { query, mutation, action, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireStaffCaller, requireFounderCaller } from "./callerAuth";
+import { deriveCurrencyStatus } from "./legal/currency";
 
 /**
  * legalKnowledge — the Legal Knowledge Engine service (Task 51).
@@ -104,6 +105,14 @@ export const searchKnowledge = action({
           instrumentTitle: instrument?.title ?? p.instrumentKey,
           instrumentVersion: instrument?.versionLabel ?? null,
           lastVerifiedAt: instrument?.lastVerifiedAt ?? null,
+          // Workstream B (2026-11-24): the ONE currency vocabulary, derived
+          // from the parent instrument's status + verification signal —
+          // consumers (ALOA grounding text) append the caveat for
+          // anything that is not active_verified.
+          currencyStatus: deriveCurrencyStatus({
+            status: instrument?.status ?? null,
+            verified: instrument?.verificationStatus === "founder_reviewed" || Boolean(instrument?.lastVerifiedAt),
+          }),
         };
       }),
       ...formRows.map((f: any) => {
@@ -122,6 +131,10 @@ export const searchKnowledge = action({
           instrumentTitle: instrument?.title ?? null,
           institutionKey: f.institutionKey,
           lastVerifiedAt: instrument?.lastVerifiedAt ?? null,
+          currencyStatus: deriveCurrencyStatus({
+            status: instrument?.status ?? null,
+            verified: instrument?.verificationStatus === "founder_reviewed" || Boolean(instrument?.lastVerifiedAt),
+          }),
         };
       }),
     ];

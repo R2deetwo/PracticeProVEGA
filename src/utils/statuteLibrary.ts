@@ -58,6 +58,13 @@ export interface StatuteSection {
     /** Plain-language summary of what the provision requires. */
     summary: string;
     appliesTo: ContractDocType[];
+    /** Workstream B (2026-11-24) — the ONE currency vocabulary
+     *  (src/legal/currencyStatus.ts). These entries were verified as in
+     *  force during the R48 audit (see the module header) — that is the
+     *  repo's own verification record, so they carry active_verified. Any
+     *  future entry whose currency nobody has verified omits it and
+     *  honestly reads as unverified_archive at the consumer. */
+    currencyStatus?: 'active_verified' | 'amended_partial' | 'superseded_or_repealed' | 'unverified_archive';
 }
 
 export const STATUTE_LIBRARY: StatuteSection[] = [
@@ -66,42 +73,49 @@ export const STATUTE_LIBRARY: StatuteSection[] = [
         section: '18(1)', heading: 'Pre-incorporation contracts conditional on incorporation',
         summary: 'A contract purportedly made by or on behalf of a company before it is formed takes effect only as one conditional on the company being incorporated.',
         appliesTo: ['shareholders', 'joint_venture', 'nda', 'general'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'labour-s7', jurisdiction: 'federal', statute: 'Labour Act', area: 'Employment',
         section: '7(1)', heading: 'Written particulars of terms within three months',
         summary: 'Not later than three months after employment begins, the employer must give the worker written particulars of the terms of employment.',
         appliesTo: ['employment'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'labour-s18', jurisdiction: 'federal', statute: 'Labour Act', area: 'Employment',
         section: '18(1)', heading: 'Minimum notice of termination by length of service',
         summary: 'The statutory notice of termination scales with length of service — from one day where service is three months or less, rising to longer periods for longer service.',
         appliesTo: ['employment'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'fccpa-s17', jurisdiction: 'federal', statute: 'FCCPA 2018', area: 'Competition',
         section: '17', heading: 'Agreements in restraint of competition prohibited',
         summary: 'Agreements which have as their object or effect the prevention, restriction or distortion of competition in the Nigerian market are prohibited.',
         appliesTo: ['employment', 'shareholders', 'joint_venture', 'nda', 'general'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'fccpa-s24', jurisdiction: 'federal', statute: 'FCCPA 2018', area: 'Competition',
         section: '24', heading: 'Abuse of a dominant position prohibited',
         summary: 'It is prohibited for one or more undertakings to abuse a dominant position in the market — including by tying or exclusive dealing.',
         appliesTo: ['general', 'joint_venture', 'commercial_lease'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'lagos-tenancy-s4', jurisdiction: 'lagos', statute: 'Lagos Tenancy Law 2011', area: 'Tenancy',
         section: '4', heading: 'Advance rent capped — 6 months (monthly) / 12 months (yearly)',
         summary: 'It is unlawful for a landlord or agent to demand or receive from a sitting tenant rent in advance beyond the statutory limits: not more than 6 months for a monthly tenant, and not more than 12 months for a yearly tenancy (s.4(2)).',
         appliesTo: ['commercial_lease', 'general'],
+        currencyStatus: 'active_verified',
     },
     {
         id: 'lagos-tenancy-s25', jurisdiction: 'lagos', statute: 'Lagos Tenancy Law 2011', area: 'Tenancy',
         section: '25', heading: 'Notice to quit by tenancy type',
         summary: 'The notice periods for determining a tenancy run by tenancy type; a term cannot shorten or waive the statutory notice to quit.',
         appliesTo: ['commercial_lease', 'general'],
+        currencyStatus: 'active_verified',
     },
 ];
 

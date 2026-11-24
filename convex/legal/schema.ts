@@ -171,6 +171,13 @@ export const legalInstruments = defineTable({
   commencementDate: v.optional(v.string()),
   year: v.optional(v.number()),
   status: v.string(), // in_force | amended | repealed | unknown
+  // Workstream B (2026-11-24) — the ONE currency vocabulary consumers see:
+  // active_verified | amended_partial | superseded_or_repealed |
+  // unverified_archive. Derived from status + amendmentTracker + the
+  // verification signal at ingest (convex/legal/currency.ts); legacy rows
+  // without the field read as unverified_archive at query time and the
+  // backfill fills them in.
+  currencyStatus: v.optional(v.string()),
   // Hierarchical tree, flattened: Part → Section → Subsection (+ proviso).
   structure: v.array(
     v.object({
@@ -195,7 +202,8 @@ export const legalInstruments = defineTable({
   .index("by_key", ["key"])
   .index("by_title", ["title"])
   .index("by_type", ["instrumentType"])
-  .index("by_status", ["status"]);
+  .index("by_status", ["status"])
+  .index("by_currency", ["currencyStatus"]);
 
 /** Legal-boundary hierarchical chunks (spec §4): statutes chunk along
  *  Part → Section → Subsection (+ proviso); judgments along
@@ -210,6 +218,11 @@ export const legalChunks = defineTable({
   embedding: v.optional(v.array(v.number())), // 768-dim, same pipeline as statutes
   citations: v.array(v.string()), // statutory refs found in this chunk
   warnings: v.array(v.string()), // amended | overruled | repealed | stale | unverified
+  // Workstream B (2026-11-24) — chunk-level currency (inherits the
+  // instrument's derivation unless a chunk carries its own, e.g. a
+  // repealed section inside an amended act). Consumers display the
+  // badge per chunk: the EXACT cited provision, not just the document.
+  currencyStatus: v.optional(v.string()),
   sourceUrl: v.string(),
   rawDocumentHash: v.string(),
   lastVerifiedAt: v.number(),

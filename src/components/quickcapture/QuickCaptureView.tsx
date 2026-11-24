@@ -554,13 +554,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       );
   }, [qc.capture, draftSource]);
 
-  // ── VOX ENTITLEMENT (owner spec 2026-11-20): Vox is a MIDDLE-TIER-AND-
-  //    ABOVE feature. Free-tier users still SEE Vox (discoverability) —
-  //    with a lock badge on the mic and a tier chip — but every attempt to
-  //    record (mic, Conversation mode, Legal Pad, Add More) opens the
-  //    dedicated upgrade modal wired to the billing flow with Growth
-  //    pre-selected. The backend independently rejects Free-tier uploads
-  //    (UPGRADE_REQUIRED_FOR_VOX) — this is the polite front of that gate.
+  // ── VOX ENTITLEMENT (owner spec 2026-11-20, Pro-target since
+  //    2026-11-23): Vox is a PRO-AND-ABOVE feature (tierLimits.canUseVox:
+  //    Pro | Enterprise | Komplete). Free-tier users still SEE Vox
+  //    (discoverability) — with a lock badge on the mic and a tier chip —
+  //    but every attempt to record (mic, Conversation mode, Legal Pad,
+  //    Add More) opens the dedicated upgrade modal wired to the billing
+  //    flow with Pro pre-selected. The backend independently rejects
+  //    non-Pro uploads (UPGRADE_REQUIRED_FOR_VOX) — this is the polite
+  //    front of that gate.
   const { canUseVox } = useFeatures();
   const [showVoxUpsell, setShowVoxUpsell] = useState(false);
   const guardVox = useCallback(
@@ -1375,7 +1377,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     variant="primary"
                     size="lg"
                     className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
-                    aria-label={canUseVox ? "Start recording" : "Unlock ALOA Vox — available on Growth and above"}
+                    aria-label={canUseVox ? "Start recording" : "Unlock ALOA Vox — available on Pro and above"}
                     onClick={() => {
                       guardVox(() => {
                         medium();
@@ -1396,7 +1398,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                       aria-hidden
                     >
                       <LockClosedIcon className="w-3 h-3 text-primary-600" />
-                      <span className="text-2xs font-bold text-primary-600 uppercase tracking-wide">Growth</span>
+                      <span className="text-2xs font-bold text-primary-600 uppercase tracking-wide">Pro</span>
                     </span>
                   )}
                 </div>
@@ -1405,7 +1407,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 </p>
                 <p className="text-xs text-slate-500 text-center max-w-xs">
                   {!canUseVox
-                    ? "ALOA Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Growth and above."
+                    ? "ALOA Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Pro and above."
                     : conversationMode
                       ? "Client consultations, witness conferences, settlement meetings, court hearings — each speaker is separated and labelled for you."
                       : "Dictate a note, a task or a question — no forms first. We'll suggest where it should go when you stop."}

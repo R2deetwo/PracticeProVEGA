@@ -29,7 +29,10 @@
  * Security follows the house rules: every public function authenticates by
  * session bearer (never caller-supplied identity), is firm+user scoped,
  * rate-limited, payload-capped, and re-checks ownership server-side. Vox
- * is Growth-tier-and-above (same entitlement as the rest of Vox).
+ * is Pro-and-above (tierLimits.canUseVox: Pro | Enterprise | Komplete —
+ * the same entitlement the client's useFeatures().canUseVox applies).
+ * Stale wording said "Growth"; the code has gated on Pro since
+ * 2026-11-23 (owner: "It should be in Pro, not in Growth anymore").
  *
  * Architecture note (same trap as voiceCapture): actions reach the database
  * only through internal.voxSessionsInternal.* — never internal.<this
@@ -804,7 +807,16 @@ export const finalizeSession = action({
     // timestamps; default labels mirror the quick-capture staging card.
     const labels = defaultSpeakerLabels(speakerSet as any);
     const roleFor = (role: string): string => {
-      if (role === "counsel" || role === "client" || role === "witness") return role;
+      // Same vocabulary the diarization prompt suggests (voiceCapture.ts
+      // buildSpeakerReconcilePrompt: counsel | client | opposing_counsel |
+      // witness | judge | court_official | other) — previously everything
+      // outside counsel/client/witness collapsed to "other", so an
+      // opposing-counsel speaker (the whole point of labeling turns in
+      // settlement meetings) was indistinguishable from a stranger.
+      if (
+        role === "counsel" || role === "client" || role === "opposing_counsel" ||
+        role === "witness" || role === "judge" || role === "court_official"
+      ) return role;
       return "other";
     };
     const turns: VoxTurnView[] = timed.map((t, i) => {
@@ -1223,7 +1235,8 @@ export const renameSpeaker = mutation({
     const toLabel = args.toLabel.trim().slice(0, 80);
     if (!toLabel) throw new Error("The new label cannot be empty.");
     const role =
-      args.role === "counsel" || args.role === "client" || args.role === "witness" || args.role === "other"
+      args.role &&
+      ["counsel", "client", "opposing_counsel", "witness", "judge", "court_official", "other"].includes(args.role)
         ? args.role
         : undefined;
     const segRows: any[] = await ctx.db

@@ -223,6 +223,42 @@ describe('legal-boundary chunking (chunker.py port)', () => {
         expect(proviso?.text).toContain('Provided that');
     });
 
+    // ── Workstream B (2026-11-24): High Court Civil Procedure Rules
+    // family — Order → Rule → Sub-rule boundaries (mirrors the Python
+    // chunker 1:1).
+    const rulesOfCourtText = [
+        'THE HIGH COURT OF LAGOS STATE (CIVIL PROCEDURE) RULES 2019',
+        '',
+        'ORDER 1 — GENERAL PROVISIONS',
+        'In these Rules, unless the context otherwise requires, the Interpretation Act applies to these Rules.',
+        'ORDER 28 — PLEADINGS',
+        'RULE 1 — Forms of pleadings',
+        'Pleadings shall be in Form 1 with such modifications as circumstances may require for the particular case.',
+        'RULE 3 — Close of pleadings',
+        '(1) Pleadings shall close fourteen days after the delivery of the last pleading.',
+        '(2) The court may extend the time for pleadings where good cause is shown for that extension.',
+        'ORDER 32 — EVIDENCE',
+        'Evidence at trial shall be given orally in open court in the presence of the parties and their counsel.',
+    ].join('\n');
+
+    it('chunks rules of court along Order → Rule → Sub-rule boundaries', () => {
+        const chunks = chunkInstrument(rulesOfCourtText);
+        const paths = chunks.map((c) => c.boundaryPath.join('/'));
+        expect(paths).toContain('ORDER 1');
+        expect(paths).toContain('ORDER 28/Rule 1');
+        expect(paths).toContain('ORDER 28/Rule 3/(1)');
+        expect(paths).toContain('ORDER 28/Rule 3/(2)');
+        expect(paths).toContain('ORDER 32');
+        // The boundary path is exactly what a practitioner cites:
+        expect(chunks.find((c) => c.boundaryPath.join('/') === 'ORDER 28/Rule 3/(2)')?.text)
+            .toContain('extend the time for pleadings');
+    });
+
+    it('a "(2)" line under a SECTION (statute) still parses as a subsection, not a sub-rule', () => {
+        const chunks = chunkInstrument(instrumentText);
+        expect(chunks.map((c) => c.boundaryPath.join('/'))).toContain('PART I/Section 2/(1)');
+    });
+
     it('splits oversized chunks on sentence boundaries, never mid-sentence', () => {
         const sentences = Array.from({ length: 120 }, (_, i) => `Sentence number ${i} with several words in it.`).join(' ');
         const chunks = chunkInstrument(sentences);

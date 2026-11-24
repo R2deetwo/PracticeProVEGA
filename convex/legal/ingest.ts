@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { estimateTokens, urlHash } from "./shared";
+import { deriveCurrencyStatus } from "./currency";
 
 /**
  * legal/ingest — document + chunk ingestion (spec §1–§4).
@@ -102,6 +103,10 @@ const chunksValidator = v.array(
     citations: v.optional(v.array(v.string())),
     warnings: v.optional(v.array(v.string())),
     embedding: v.optional(v.array(v.number())),
+    // Workstream B (2026-11-24): optional per-chunk currency override
+    // (e.g. a repealed section the ingester detected inside an
+    // otherwise in-force instrument); absent = inherit the document's.
+    currencyStatus: v.optional(v.string()),
   }),
 );
 
@@ -214,8 +219,18 @@ export const ingestDocumentInternal = internalMutation({
         .query("legal_instruments")
         .withIndex("by_key", (q) => q.eq("key", args.instrument!.key))
         .first();
+      // Workstream B (2026-11-24): ONE currency vocabulary on every row —
+      // derived from the legacy status + amendmentTracker + the verified
+      // signal. Absent/unknown honestly lands on unverified_archive.
+      const currencyStatus = deriveCurrencyStatus({
+        status: args.instrument.status,
+        amended: args.instrument.amendmentTracker?.amended,
+        repealed: args.instrument.amendmentTracker?.repealed,
+        verified: true, // ingest = re-verified against the fetched source
+      });
       const doc = {
         ...args.instrument,
+        currencyStatus,
         sourceUrl: args.artifact.sourceUrl,
         rawDocumentHash: args.artifact.sha256,
         lastVerifiedAt: now,
@@ -240,6 +255,19 @@ export const ingestDocumentInternal = internalMutation({
     for (const c of oldChunks) await ctx.db.delete(c._id);
 
     let embedded = 0;
+    // The document-level currency computed above (instruments) or the
+    // honest default (judgments: case law currency is carried by the
+    // treatments/casesCited graph, not a repeal registry — unverified
+    // until the freshness sweep verifies a citator signal).
+    const docCurrency =
+      documentType === "instrument" && args.instrument
+        ? deriveCurrencyStatus({
+            status: args.instrument.status,
+            amended: args.instrument.amendmentTracker?.amended,
+            repealed: args.instrument.amendmentTracker?.repealed,
+            verified: true,
+          })
+        : ("unverified_archive" as const);
     for (const chunk of args.chunks) {
       if (chunk.embedding && chunk.embedding.length === 768) embedded++;
       await ctx.db.insert("legal_chunks", {
@@ -252,6 +280,10 @@ export const ingestDocumentInternal = internalMutation({
         embedding: chunk.embedding && chunk.embedding.length === 768 ? chunk.embedding : undefined,
         citations: chunk.citations ?? [],
         warnings: chunk.warnings ?? ["unverified"],
+        // Chunk-level currency: an explicit per-chunk status (e.g. a
+        // repealed section the ingester detected) wins; otherwise the
+        // chunk inherits the document's derivation.
+        currencyStatus: chunk.currencyStatus ?? docCurrency,
         sourceUrl: args.artifact.sourceUrl,
         rawDocumentHash: args.artifact.sha256,
         lastVerifiedAt: now,
@@ -353,5 +385,68 @@ export const dedupProbeInternal = internalQuery({
       artifactCompleted,
       canSkipDownload: artifactCompleted,
     };
+  },
+});
+
+// ─── CURRENCY STATUS BACKFILL (Workstream B, 2026-11-24) ──────────────────
+// One-off (re-runnable, idempotent) migration for legacy rows ingested
+// before the currencyStatus field existed: derive each instrument's
+// status from its legacy status + amendmentTracker, then stamp every
+// chunk with its document's currency (chunks never carry their own
+// override pre-migration). Rows that already carry a currencyStatus are
+// left untouched — the field is only ever ADDED by this pass.
+export const backfillCurrencyStatus = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{
+    instrumentsScanned: number;
+    instrumentsFilled: number;
+    chunksFilled: number;
+  }> => {
+    let instrumentsScanned = 0;
+    let instrumentsFilled = 0;
+    let chunksFilled = 0;
+
+    const instruments = await ctx.db.query("legal_instruments").collect();
+    for (const doc of instruments) {
+      instrumentsScanned++;
+      if (doc.currencyStatus) continue;
+      const currencyStatus = deriveCurrencyStatus({
+        status: (doc as any).status,
+        amended: (doc as any).amendmentTracker?.amended,
+        repealed: (doc as any).amendmentTracker?.repealed,
+        // Legacy rows were ingested from a fetched source — verified as
+        // fetched, but nobody re-checked the citator afterwards. Honest
+        // default: unverified_archive unless the status says in_force
+        // AND the row was ingested through the normal pipeline.
+        verified: Boolean(doc.lastVerifiedAt),
+      });
+      await ctx.db.patch(doc._id, { currencyStatus });
+      instrumentsFilled++;
+
+      const chunks = await ctx.db
+        .query("legal_chunks")
+        .withIndex("by_document", (q) =>
+          q.eq("documentType", "instrument").eq("documentKey", doc.key),
+        )
+        .collect();
+      for (const c of chunks) {
+        if (c.currencyStatus) continue;
+        await ctx.db.patch(c._id, { currencyStatus });
+        chunksFilled++;
+      }
+    }
+
+    // Judgment chunks: no instrument parent — honest default.
+    const judgmentChunks = await ctx.db
+      .query("legal_chunks")
+      .withIndex("by_document", (q) => q.eq("documentType", "judgment"))
+      .collect();
+    for (const c of judgmentChunks) {
+      if (c.currencyStatus) continue;
+      await ctx.db.patch(c._id, { currencyStatus: "unverified_archive" });
+      chunksFilled++;
+    }
+
+    return { instrumentsScanned, instrumentsFilled, chunksFilled };
   },
 });

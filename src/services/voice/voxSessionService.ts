@@ -226,7 +226,10 @@ export async function renameVoxSpeaker(args: {
   clientLocalId: string;
   fromLabel: string;
   toLabel: string;
-  role?: "counsel" | "client" | "witness" | "other";
+  // Same vocabulary the diarization prompt proposes and the server's
+  // renameSpeaker validates (opposing_counsel + judge/court_official
+  // joined the set 2026-11-24 — see voxSessions.ts roleFor).
+  role?: "counsel" | "client" | "opposing_counsel" | "witness" | "judge" | "court_official" | "other";
 }): Promise<{ renamed: number }> {
   return convex.mutation(api.voxSessions.renameSpeaker, {
     ...args,

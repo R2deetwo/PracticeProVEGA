@@ -2164,11 +2164,23 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             return results.map((r: any) => {
                                 const unverified = r.verificationStatus === 'needs_founder_review'
                                     ? ' [pending founder verification]' : '';
+                                // Workstream B (2026-11-24): currency caveat —
+                                // the grounding prompt must never let the model
+                                // assert a repealed/superseded or unverified
+                                // provision as current law. Same four-value
+                                // vocabulary as every consumer badge
+                                // (src/legal/currencyStatus.ts).
+                                const currency = String(r.currencyStatus || 'unverified_archive');
+                                const currencyNote =
+                                    currency === 'active_verified' ? '' :
+                                    currency === 'amended_partial' ? ' [currency: as amended — cite the amended text]' :
+                                    currency === 'superseded_or_repealed' ? ' [currency: REPEALED/SUPERSEDED — historical reference only, do NOT cite as current law]' :
+                                    ' [currency: unverified archive — confirm still in force before relying on it]';
                                 if (r.kind === 'provision') {
                                     const version = r.instrumentVersion ? ` (${r.instrumentVersion})` : '';
-                                    return `[${r.instrumentTitle}${version} — ${r.ref}: ${r.heading}]${unverified}\n${r.text}`;
+                                    return `[${r.instrumentTitle}${version} — ${r.ref}: ${r.heading}]${unverified}${currencyNote}\n${r.text}`;
                                 }
-                                return `[${r.institutionKey}${r.instrumentTitle ? `, per ${r.instrumentTitle}` : ''} — ${r.formNumber ? r.formNumber + ': ' : ''}${r.title}]${unverified}\n${r.purpose ?? ''}${r.fee ? `\nFee: ${r.fee}` : ''}`;
+                                return `[${r.institutionKey}${r.instrumentTitle ? `, per ${r.instrumentTitle}` : ''} — ${r.formNumber ? r.formNumber + ': ' : ''}${r.title}]${unverified}${currencyNote}\n${r.purpose ?? ''}${r.fee ? `\nFee: ${r.fee}` : ''}`;
                             }).join('\n\n');
                         } catch (e) {
                             console.warn('[LegalRepo] Search skipped:', e);

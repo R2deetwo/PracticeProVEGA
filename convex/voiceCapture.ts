@@ -1903,7 +1903,8 @@ export const finalizeCapture = action({
   handler: async (ctx, args): Promise<FinalizeCaptureResult> => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     // VOX ENTITLEMENT: finalize drives Smart Clean, triage, the Legal Pad
-    // merge and the diarization reconcile pass — Growth and above only.
+    // merge and the diarization reconcile pass — Pro and above only
+    // (tierLimits.canUseVox; stale comment said Growth).
     await requireVoxEntitlement(ctx, auth.firmId);
     const allowed = await ctx.runMutation(
       internal.securityHelpers.consumeRateLimit,

@@ -25,6 +25,12 @@ _SECTION = re.compile(r"^\s*(?:SECTION|Section|s\.|S\.)\s*(\d+[A-Za-z]?)\.?\s*[�
 _SUBSECTION = re.compile(r"^\s*\((\d+[a-z]?)\)\s+(.*)$")
 _PROVISO = re.compile(r"^\s*Provided\s+that\b", re.IGNORECASE)
 _SCHEDULE = re.compile(r"^\s*SCHEDULE\s+([0-9A-Z]*)", re.IGNORECASE)
+
+# High Court Civil Procedure Rules family (2026-11-24, Workstream B):
+# Order -> Rule -> Sub-rule. Mirrors the TS chunker (src/legal/ingestionEngine/chunk.ts) 1:1.
+_ORDER = re.compile(r"^\s*ORDER\s+([0-9IVXLC]+[A-Za-z]?)\s*[—\-–:]?\s*(.*)$", re.IGNORECASE)
+_RULE = re.compile(r"^\s*(?:RULE|RULES)\s+(\d+[A-Za-z]?)\.?\s*[—\-–:]?\s*(.*)$", re.IGNORECASE)
+_SUBRULE = re.compile(r"^\s*\((\d+[a-z]?)\)\s+(.*)$")
 _NUMBERED_PARA = re.compile(r"^\s*(\d+)\.\s+(.*)$")
 
 _ISSUES = re.compile(r"^\s*(?:ISSUES?\s+FOR\s+DETERMINATION|ISSUES?\s+RAISED|THE\s+ISSUES?)\b", re.IGNORECASE)
@@ -136,6 +142,26 @@ def chunk_instrument(text: str) -> list[Chunk]:
             heading = stripped
             buf = [stripped]
             continue
+        # Rules of court — BEFORE the statute patterns (a sub-rule "(2)"
+        # must attach to the enclosing Rule, not to a Section).
+        if m := _ORDER.match(stripped):
+            _flush(chunks, path, heading, buf)
+            path = [f"ORDER {m.group(1)}"]
+            heading = (m.group(2) or f"Order {m.group(1)}").strip()
+            buf = [f"ORDER {m.group(1)} — {heading}"]
+            continue
+        if (m := _RULE.match(stripped)) and len(path) >= 1 and path[0].upper().startswith("ORDER "):
+            _flush(chunks, path, heading, buf)
+            path = [*path[:1], f"Rule {m.group(1)}"]
+            heading = (m.group(2) or f"Rule {m.group(1)}").strip()
+            buf = [f"Rule {m.group(1)} — {heading}"]
+            continue
+        if (m := _SUBRULE.match(stripped)) and len(path) >= 2 and path[1].lower().startswith("rule "):
+            _flush(chunks, path, heading, buf)
+            path = [*path[:2], f"({m.group(1)})"]
+            heading = f"{path[1]} ({m.group(1)})"
+            buf = [stripped]
+            continue
         if m := _SECTION.match(stripped):
             _flush(chunks, path, heading, buf)
             path = [*(path[:1]), f"Section {m.group(1)}"]
@@ -145,7 +171,7 @@ def chunk_instrument(text: str) -> list[Chunk]:
         if (m := _SUBSECTION.match(stripped)) and len(path) >= 2:
             _flush(chunks, path, heading, buf)
             path = [*path[:2], f"({m.group(1)})"]
-            heading = f"Section {path[1]} ({m.group(1)})" if len(path) > 1 else f"({m.group(1)})"
+            heading = f"{path[1]} ({m.group(1)})" if len(path) > 1 else f"({m.group(1)})"
             buf = [stripped]
             continue
         if _PROVISO.match(stripped):

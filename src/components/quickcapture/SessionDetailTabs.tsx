@@ -61,9 +61,17 @@ const ISSUE_CATEGORY_META: Record<string, { title: string; hint: string }> = {
 const ROLE_OPTIONS = [
   { value: "counsel", label: "Counsel" },
   { value: "client", label: "Client" },
+  { value: "opposing_counsel", label: "Opposing Counsel" },
   { value: "witness", label: "Witness" },
+  { value: "judge", label: "Judge / Court" },
+  { value: "court_official", label: "Court Official" },
   { value: "other", label: "Other" },
 ];
+
+/** Chip label for a stored speaker role — snake_case ids read as raw
+ *  uppercase in the transcript; show the same label the picker uses. */
+const roleChipLabel = (role: string): string =>
+  ROLE_OPTIONS.find((o) => o.value === role)?.label || role;
 
 const RoleChip: React.FC<{
   label: string;
@@ -207,7 +215,7 @@ const TranscriptTab: React.FC<{
               <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100">{t.speakerLabel}</span>
               {t.speakerRole !== "other" ? (
                 <span className="text-2xs font-medium text-slate-400 dark:text-zinc-500 uppercase tracking-wide">
-                  {t.speakerRole}
+                  {roleChipLabel(t.speakerRole)}
                 </span>
               ) : null}
             </div>

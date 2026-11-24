@@ -28,6 +28,11 @@ const MAPPABLE_TYPES = [
   // Vega (legal):
   'court_reminder', 'invoice_reminder', 'document_ready',
   'appointment_reminder', 'engagement_followup',
+  // VMS (2026-11-24 gap set): the server's TYPE_KEYWORDS/auto-mapper has
+  // carried visitor_pass since the gap templates landed — the manual
+  // mapping editor here omitted it, hiding a live mappable type from
+  // the settings UI.
+  'visitor_pass',
 ] as const;
 
 const VAR_FIELD_LABELS: Record<string, string> = {

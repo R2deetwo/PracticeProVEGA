@@ -6,6 +6,10 @@
  * STATUTES  : Part → Section → Subsection (+ Proviso). Each chunk carries
  *             its full boundary path so retrieval returns COMPLETE legal
  *             context ("Part C / Section 18 / (3) / proviso").
+ * RULES OF COURT : Order → Rule → Sub-rule (2026-11-24, Workstream B —
+ *             the High Court Civil Procedure Rules family chunks along
+ *             its own hierarchy, not the statute one; "Order 28 Rule 3(2)"
+ *             is exactly what a practitioner cites).
  * JUDGMENTS : Issue → Reasoning → Ratio heuristics; paragraph fallback
  *             windows never split mid-sentence.
  *
@@ -29,6 +33,17 @@ const SECTION_RE = /^\s*(?:SECTION|Section|s\.|S\.)\s*(\d+[A-Za-z]?)\.?\s*[—\-
 const SUBSECTION_RE = /^\s*\((\d+[a-z]?)\)\s+(.*)$/;
 const PROVISO_RE = /^\s*Provided\s+that\b/i;
 const SCHEDULE_RE = /^\s*SCHEDULE\s+([0-9A-Z]*)/i;
+
+// High Court Civil Procedure Rules family (2026-11-24, Workstream B):
+// Order → Rule → Sub-rule. "ORDER 28" / "ORDER XXVIII" (roman numerals in
+// older prints), "RULE 3", sub-rules as "(2)" under a rule (same visual
+// shape as a statute subsection, so the RULE context must already be on
+// the path). Kept 1:1 with the Python chunker.
+const ORDER_RE = /^\s*ORDER\s+([0-9IVXLC]+[A-Za-z]?)\s*[—\-–:]?\s*(.*)$/i;
+const RULE_RE = /^\s*(?:RULE|RULES)\s+(\d+[A-Za-z]?)\.?\s*[—\-–:]?\s*(.*)$/i;
+// Sub-rule under a rule: "(2)" — only meaningful when the path already
+// ends with a Rule (mirrors SUBSECTION_RE's path.length >= 2 guard).
+const SUBRULE_RE = /^\s*\((\d+[a-z]?)\)\s+(.*)$/;
 
 const ISSUES_RE = /^\s*(?:ISSUES?\s+FOR\s+DETERMINATION|ISSUES?\s+RAISED|THE\s+ISSUES?)\b/i;
 const RATIO_RE = /^\s*(?:RATIO\s+DECIDENDI|RESOLUTION|HOLD\s*:|I\s+RESOLVE|APPEAL\s+DISMISSED|APPEAL\s+ALLOWED)\b/i;
@@ -140,6 +155,32 @@ export function chunkInstrument(text: string): Chunk[] {
             buf = [stripped];
             continue;
         }
+        // High Court Civil Procedure Rules family — checked BEFORE the
+        // statute patterns: an "ORDER 28" line never matches SECTION_RE
+        // anyway, but RULE_RE must not be shadowed by SUBSECTION-style
+        // parses, and a rules-of-court sub-rule "(2)" must attach to the
+        // enclosing Rule rather than a Section.
+        if ((m = ORDER_RE.exec(stripped))) {
+            flush(chunks, path, heading, buf);
+            path = [`ORDER ${m[1]}`];
+            heading = (m[2] || `Order ${m[1]}`).trim();
+            buf = [`ORDER ${m[1]} — ${heading}`];
+            continue;
+        }
+        if ((m = RULE_RE.exec(stripped)) && path.length >= 1 && /^ORDER /i.test(path[0])) {
+            flush(chunks, path, heading, buf);
+            path = [...path.slice(0, 1), `Rule ${m[1]}`];
+            heading = (m[2] || `Rule ${m[1]}`).trim();
+            buf = [`Rule ${m[1]} — ${heading}`];
+            continue;
+        }
+        if ((m = SUBRULE_RE.exec(stripped)) && path.length >= 2 && /^Rule /i.test(path[1] || "")) {
+            flush(chunks, path, heading, buf);
+            path = [...path.slice(0, 2), `(${m[1]})`];
+            heading = `${path[1]} (${m[1]})`;
+            buf = [stripped];
+            continue;
+        }
         if ((m = SECTION_RE.exec(stripped))) {
             flush(chunks, path, heading, buf);
             path = [...path.slice(0, 1), `Section ${m[1]}`];
@@ -150,7 +191,7 @@ export function chunkInstrument(text: string): Chunk[] {
         if ((m = SUBSECTION_RE.exec(stripped)) && path.length >= 2) {
             flush(chunks, path, heading, buf);
             path = [...path.slice(0, 2), `(${m[1]})`];
-            heading = path.length > 1 ? `Section ${path[1]} (${m[1]})` : `(${m[1]})`;
+            heading = path.length > 1 ? `${path[1]} (${m[1]})` : `(${m[1]})`;
             buf = [stripped];
             continue;
         }

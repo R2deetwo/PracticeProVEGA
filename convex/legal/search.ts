@@ -228,6 +228,10 @@ export const hybridSearch = action({
           text: chunk.text,
           citations: chunk.citations,
           warnings: chunk.warnings,
+          // Workstream B (2026-11-24): the chunk-level currency badge the
+          // consumer surfaces (defaults to unverified_archive when absent —
+          // legacy rows until the backfill runs).
+          currencyStatus: chunk.currencyStatus ?? "unverified_archive",
           sourceUrl: chunk.sourceUrl,
           sha256: chunk.rawDocumentHash,
           lastVerifiedAt: chunk.lastVerifiedAt,
@@ -456,6 +460,7 @@ export const searchAsOperator = query({
       heading: r.heading,
       snippet: r.text.slice(0, 240),
       warnings: r.warnings,
+      currencyStatus: r.currencyStatus ?? "unverified_archive",
       sourceUrl: r.sourceUrl,
     }));
   },

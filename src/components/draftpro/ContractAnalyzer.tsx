@@ -9,6 +9,7 @@ import {
 } from '../../utils/statuteLibrary';
 import type { RiskFlag, RiskLevel, ContractClause } from '../../utils/contractAnalysis';
 import type { StatuteViolation } from '../../utils/statuteLibrary';
+import { currencyStatusLabel, currencyStatusChipClass, currencyStatusCaveat } from '../../legal/currencyStatus';
 import { ScalesIcon, LockClosedIcon, DocumentIcon } from '../../constants';
 import RegulatoryGateModal from './RegulatoryGateModal';
 
@@ -536,6 +537,20 @@ const RegulatoryTab: React.FC<{
                                     <div key={v.id} className="p-5">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Badge tone={v.severity === 'Violation' ? 'danger' : 'warning'}>{v.severity}</Badge>
+                                            {/* Workstream B (2026-11-24): the currency badge — the
+                                                exact cited provision's status, same four-value
+                                                vocabulary as every consumer. */}
+                                            <span
+                                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-3xs font-semibold ${currencyStatusChipClass(v.statute.currencyStatus ?? 'unverified_archive')}`}
+                                                title={currencyStatusCaveat(v.statute.currencyStatus ?? 'unverified_archive')}
+                                            >
+                                                {currencyStatusLabel(v.statute.currencyStatus ?? 'unverified_archive')}
+                                            </span>
+                                            {(v.statute.currencyStatus ?? 'unverified_archive') !== 'active_verified' && (
+                                                <span className="text-3xs text-slate-500 dark:text-zinc-400 leading-snug">
+                                                    {currencyStatusCaveat(v.statute.currencyStatus ?? 'unverified_archive')}
+                                                </span>
+                                            )}
                                             {v.clauseId && (
                                                 <Button variant="bare" className="text-xs font-mono text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 p-0" onClick={() => scrollToClause(v.clauseId!)}>
                                                     → {v.clauseId}
