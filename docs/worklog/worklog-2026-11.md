@@ -3582,3 +3582,27 @@ web-only deploys will not fix the bands on device.
   across batch boundaries, no "Transcription error"/false "No speech
   detected" toasts, and the auto-format firing on stop (Format button
   duplicates the same engine).
+
+### Owner decision 2026-11-25 — ALOA is the single user-facing AI assistant (ADR-0007)
+
+Recorded in docs/adr/ADR-0007-single-ai-assistant-surface.md. Owner
+direction: Aloa (ARIA on Atrium) is the ONLY user-facing assistant;
+Research, DraftPro, and Vox remain available as actions inside Aloa —
+one place to start, no capability lost. Repo survey grounding the ADR:
+DraftPro's canonical entry is already Aloa's start_drafting tool
+(openDraftProNewTab is the single source of truth); Vox's Header-mic /
+panel / dashboard entries all open the Aloa panel in capture mode —
+only the bottom-nav quickCapture tab stands alone (and carries the
+Free-tier Vox upsell); Research is reachable via Aloa's per-message
+"Send to Research Studio". The two real gaps for the phased plan: the
+AloaFAB self-hides in research/messaging (the one assistant door
+vanishes exactly where ResearchChat — a second, generically-branded
+assistant conversation — lives), and ResearchChat presents a second
+AI face. Phase 1: un-hide the FAB + converge ResearchChat onto the
+Aloa identity. Phase 2: visible Research/DraftPro/Vox action
+affordances inside Aloa. Phase 3 (owner calls required): the bottom-nav
+Vox tab fate — it is both the owner-directed explicit Vox entry
+(2026-11-18) and the Free-tier upsell surface, so re-routing it is a
+monetization decision. Docs-only change this commit; no behaviour
+touched. Implementation lands as its own gated task after the owner
+settles the Phase 3 calls.
