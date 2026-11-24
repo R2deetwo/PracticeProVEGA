@@ -3420,3 +3420,27 @@ approves); full-text corpus ingestion needs the engine to run (the founder
 toggle / worker) — the queue rows are in place at CURATED priority; the 16
 latent typing debts from the codegen lesson await their own pass; the
 law-reporting vendor and the two Sentry DSNs remain owner-only actions.
+
+### Task 89 — production verification addendum (2026-11-25)
+
+- PUSHED b4b24968 (Task 89). CI on b4b24968: Tests, E2E smoke, Deploy to
+  Staging, CodeQL, Build Android APK — ALL SUCCESS (the APK workflow
+  auto-committed the version churn: fcdc9c98 bump to 1.0.889 + 2cd78e8b
+  build-1300 release info).
+- Production promotes dispatched with the FULL 40-char SHA
+  (b4b24968d9675390f613e9747f4172852c00ee76): Convex production backend
+  SUCCESS (the seedCoreInstruments module is live server-side) · Vercel
+  production frontend SUCCESS.
+- LIVE SEED RUN (npx convex run
+  internal.legal.seedCoreInstruments.seedCoreInstruments --prod): ALL EIGHT
+  instruments inserted — constitution_1999 + evidence_act_2011
+  amended_partial, cama_2020 / land_use_act / fhc_civil_rules_2019 /
+  lagos_hc_civil_rules_2019 / rpc_2023 active_verified, rpc_2007
+  superseded_or_repealed — plus 8 CURATED-priority scrape-queue rows
+  enqueued (one per authoritative source). RE-RUN reports every outcome
+  "updated" and 0 new queue rows: the by_key upsert + urlHash dedup are
+  idempotent live, and the audit logs carry both passes. The legal KB
+  corpus is no longer empty — verified citation metadata now, real text
+  the moment the engine runs.
+- LIVE PROBE: https://practice-pro-vega.vercel.app → HTTP 200, the black
+  boot overlay intact (`background: #000000`).
