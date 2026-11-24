@@ -3301,3 +3301,19 @@ login/landing); the unauthenticated Stage-1 stand-in is the black boot
 overlay (the web root serves the marketing landing to anonymous visitors,
 so forcing the app splash there would cover the landing page); the e2e
 staging-auth smoke + APK pipeline run in CI as usual on push.
+
+### Task 88 — production verification addendum (2026-11-25)
+
+- PUSHED ff4523eb (rebased clean onto f20d42ca). CI on ff4523eb: Tests,
+  E2E smoke, Deploy to Staging, CodeQL, Build Android APK, Build Admin APK
+  — ALL SUCCESS.
+- Production promotes dispatched for ff4523ebb2b9ff76e951a389980631812820a18f
+  (full 40-char SHA — the first dispatch used the 8-char short form and the
+  checkout step could not resolve it; re-dispatched with the full SHA):
+  Convex production SUCCESS (the bank cap/purpose + firms.complianceTracking
+  Enabled schema changes are live server-side) · Vercel production SUCCESS.
+- LIVE PROBE: https://practice-pro-vega.vercel.app → HTTP 200, and the
+  deployed bundle carries the black boot overlay (`#pp-boot-overlay
+  background: #000000` — the green flash chain is gone from production).
+  The remaining #16A34A strings in the HTML are the favicon data-URI +
+  browser theme-color (brand identity in browser chrome — intentional).
