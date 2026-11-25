@@ -7,6 +7,34 @@ import { useProduct } from '../contexts/ProductContext';
 import { DismissIcon, ChevronRightIcon, ChevronLeftIcon } from '../constants';
 
 import { Z_CLASS } from '../overlays/constants';
+
+type SpotlightRect = Pick<DOMRect, 'top' | 'left' | 'right' | 'bottom'>;
+
+export function getTourBackdropSegments(
+    targetRect: SpotlightRect | null,
+    viewportWidth: number,
+    viewportHeight: number,
+    padding = 8,
+): React.CSSProperties[] {
+    if (!targetRect) {
+        return [{ top: 0, left: 0, width: viewportWidth, height: viewportHeight }];
+    }
+
+    const clamp = (value: number, max: number) => Math.max(0, Math.min(value, max));
+    const top = clamp(targetRect.top - padding, viewportHeight);
+    const bottom = clamp(targetRect.bottom + padding, viewportHeight);
+    const left = clamp(targetRect.left - padding, viewportWidth);
+    const right = clamp(targetRect.right + padding, viewportWidth);
+    const segments = [
+        { top: 0, left: 0, width: viewportWidth, height: top },
+        { top: bottom, left: 0, width: viewportWidth, height: viewportHeight - bottom },
+        { top, left: 0, width: left, height: bottom - top },
+        { top, left: right, width: viewportWidth - right, height: bottom - top },
+    ];
+
+    return segments.filter(segment => segment.width > 0 && segment.height > 0);
+}
+
 const OnboardingTour: React.FC = () => {
     const { isTourRunning, stepIndex, nextStep, backStep, stopTour } = useOnboarding();
     const { navigateTo, view } = useUI();
@@ -15,7 +43,6 @@ const OnboardingTour: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
     const [isMobile, setIsMobile] = useState(isMobileViewport());
     const tourRef = useRef<HTMLDivElement>(null);
-    const targetObserverRef = useRef<MutationObserver | null>(null);
 
     // Get the list of tour steps, filtered for the current viewport.
     // Steps marked `skipOnMobile` are removed on small screens so the tour
@@ -84,74 +111,91 @@ const OnboardingTour: React.FC = () => {
     useEffect(() => {
         if (!isTourRunning || !currentStep) {
             setIsVisible(false);
+            setTargetRect(null);
             return;
-        }
-
-        // Cleanup any previous observer
-        if (targetObserverRef.current) {
-            targetObserverRef.current.disconnect();
-            targetObserverRef.current = null;
         }
 
         // Delay to allow any navigation/rendering to complete. Mobile may need
         // slightly longer because the bottom nav re-mounts on view changes.
         const delay = isMobile ? 450 : 300;
+        let isActive = true;
+        let animationFrame: number | null = null;
+        let resizeObserver: ResizeObserver | null = null;
+        let layoutObserver: MutationObserver | null = null;
+        let hasScrolledTarget = false;
+        let observedTarget: Element | null = null;
+        const selector = resolveTargetSelector(currentStep);
+
+        const updatePosition = () => {
+            if (!isActive) return;
+            const target = selector === 'body' ? document.body : document.querySelector(selector);
+
+            if (!target) {
+                setTargetRect(null);
+                setIsVisible(false);
+                return;
+            }
+
+            if (resizeObserver && observedTarget !== target) {
+                observedTarget = target;
+                resizeObserver.observe(target);
+            }
+
+            const rect = target.getBoundingClientRect();
+            setTargetRect(previous => (
+                previous
+                && previous.top === rect.top
+                && previous.left === rect.left
+                && previous.width === rect.width
+                && previous.height === rect.height
+            ) ? previous : rect);
+            setIsVisible(true);
+
+            if (selector !== 'body' && !hasScrolledTarget) {
+                hasScrolledTarget = true;
+                scrollTargetIntoView(target, selector);
+            }
+        };
+
+        const schedulePositionUpdate = () => {
+            if (animationFrame !== null) return;
+            animationFrame = window.requestAnimationFrame(() => {
+                animationFrame = null;
+                updatePosition();
+            });
+        };
+
         const timer = setTimeout(() => {
             if (currentStep.navigateTo && currentStep.navigateTo !== view) {
                 navigateTo(currentStep.navigateTo);
             }
 
-            const selector = resolveTargetSelector(currentStep);
-
-            const updatePosition = () => {
-                let target: Element | null = null;
-                if (selector === 'body') {
-                    target = document.body;
-                } else {
-                    target = document.querySelector(selector);
-                }
-
-                if (target) {
-                    const rect = (target as Element).getBoundingClientRect();
-                    setTargetRect(rect);
-                    setIsVisible(true);
-
-                    if (selector !== 'body') {
-                        scrollTargetIntoView(target, selector);
-                    }
-                } else {
-                    // Target not found yet — watch for it appearing in the DOM
-                    // (useful when the bottom nav re-renders after navigation)
-                    if (!targetObserverRef.current) {
-                        const observer = new MutationObserver(() => {
-                            const retry = document.querySelector(selector);
-                            if (retry) {
-                                const rect = retry.getBoundingClientRect();
-                                setTargetRect(rect);
-                                setIsVisible(true);
-                                scrollTargetIntoView(retry, selector);
-                                observer.disconnect();
-                                targetObserverRef.current = null;
-                            }
-                        });
-                        observer.observe(document.body, { childList: true, subtree: true });
-                        targetObserverRef.current = observer;
-                    }
-                    setIsVisible(false);
-                }
-            };
-
+            if (typeof ResizeObserver !== 'undefined') {
+                resizeObserver = new ResizeObserver(schedulePositionUpdate);
+                resizeObserver.observe(document.documentElement);
+            }
+            layoutObserver = new MutationObserver(schedulePositionUpdate);
+            layoutObserver.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['class', 'style', 'hidden', 'aria-expanded'],
+            });
+            window.addEventListener('resize', schedulePositionUpdate);
+            window.addEventListener('orientationchange', schedulePositionUpdate);
+            window.addEventListener('scroll', schedulePositionUpdate, true);
             updatePosition();
-            window.addEventListener('resize', updatePosition);
-            return () => window.removeEventListener('resize', updatePosition);
         }, delay);
 
         return () => {
+            isActive = false;
             clearTimeout(timer);
-            if (targetObserverRef.current) {
-                targetObserverRef.current.disconnect();
-                targetObserverRef.current = null;
-            }
+            if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+            window.removeEventListener('resize', schedulePositionUpdate);
+            window.removeEventListener('orientationchange', schedulePositionUpdate);
+            window.removeEventListener('scroll', schedulePositionUpdate, true);
+            resizeObserver?.disconnect();
+            layoutObserver?.disconnect();
         };
     }, [isTourRunning, stepIndex, currentStep, navigateTo, view, isMobile, resolveTargetSelector, scrollTargetIntoView]);
 
@@ -159,6 +203,11 @@ const OnboardingTour: React.FC = () => {
 
     const isFirstStep = stepIndex === 0;
     const isLastStep = stepIndex === tourSteps.length - 1;
+    const backdropSegments = getTourBackdropSegments(
+        currentStep.target === 'body' ? null : targetRect,
+        window.innerWidth,
+        window.innerHeight,
+    );
 
     // Determine placement: mobile steps default to 'top' when targeting the
     // bottom nav so the card sits above the bar.
@@ -181,15 +230,19 @@ const OnboardingTour: React.FC = () => {
         return (
             <div className={`fixed inset-0 ${Z_CLASS.systemAlert} pointer-events-none`}>
                 {/* Backdrop */}
-                <div
-                    className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
-                    onClick={() => stopTour(false)}
-                />
+                {backdropSegments.map((segment, index) => (
+                    <div
+                        key={index}
+                        className="absolute bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
+                        style={segment}
+                        onClick={() => stopTour(false)}
+                    />
+                ))}
 
                 {/* Spotlight on target (if any) */}
                 {targetRect && currentStep.target !== 'body' && (
                     <div
-                        className="absolute border-2 border-primary-500 bg-primary-500/10 rounded-lg transition-all duration-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.55)]"
+                        className="absolute border-2 border-primary-500 rounded-lg transition-all duration-300 pointer-events-none"
                         style={{
                             top: targetRect.top - 4,
                             left: targetRect.left - 4,
@@ -329,15 +382,19 @@ const OnboardingTour: React.FC = () => {
     return (
         <div className={`fixed inset-0 ${Z_CLASS.systemAlert} pointer-events-none`}>
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
-                onClick={() => stopTour(false)}
-            />
+            {backdropSegments.map((segment, index) => (
+                <div
+                    key={index}
+                    className="absolute bg-slate-900/40 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
+                    style={segment}
+                    onClick={() => stopTour(false)}
+                />
+            ))}
 
             {/* Spotlight */}
             {targetRect && currentStep.target !== 'body' && (
                 <div
-                    className="absolute border-2 border-primary-500 bg-primary-500/10 rounded-lg transition-all duration-300 shadow-[0_0_0_9999px_rgba(15,23,42,0.5)]"
+                    className="absolute border-2 border-primary-500 rounded-lg transition-all duration-300 pointer-events-none"
                     style={{
                         top: targetRect.top - 4,
                         left: targetRect.left - 4,

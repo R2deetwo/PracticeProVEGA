@@ -99,6 +99,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
     const [isExiting, setIsExiting] = useState(false);
     const hasStarted = useRef(false);
+    const hasDismissed = useRef(false);
     const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
     // ── OWNER BRIEF 2026-11-25 — the two-stage end-card ────────────────
@@ -119,7 +120,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     };
 
     useEffect(() => {
-        if (isVisible && !hasStarted.current) {
+        if (isVisible && !hasStarted.current && !hasDismissed.current) {
             hasStarted.current = true;
             setIsActuallyMounted(true);
             setIsExiting(false);
@@ -164,6 +165,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         } else if (!isVisible && isActuallyMounted && !isExiting) {
             // ── CINEMATIC EXIT ────────────────────────────────────────
             // Scale outward + cross-fade instead of a simple opacity fade.
+            // Dismissal is one-way: a later parent render must not revive the
+            // startup overlay over an already-mounted app shell.
+            hasDismissed.current = true;
+            clearAllTimers();
             setIsExiting(true);
             addTimer(() => {
                 setIsActuallyMounted(false);
