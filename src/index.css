@@ -3366,14 +3366,36 @@ nav,
    1. `:focus-visible` ensures keyboard users get a clear, high-contrast
       outline (Tailwind's default reset strips it) without affecting
       mouse users (who only get the focus ring on keyboard navigation).
-      The green matches primary-600 so the focus indicator is on-brand.
+      Task 97 (2026-11-25, owner: "there's a green square that goes
+      around the dialogue box… why do we need to have that box in the
+      first place?") — TWO fixes, same rule:
+      (a) TEXT-ENTRY elements (textarea/input/select/contenteditable)
+      are now EXCLUDED: browsers match :focus-visible on text inputs
+      for ANY focus — including the programmatic autofocus every chat
+      composer runs on open — so the old rule painted a hard green
+      square around the ALOA/ARIA composer on the landing pages and the
+      in-app chat inputs. Text entries already carry their own
+      focus-within/border treatment (composers, form inputs), so the
+      global outline was pure noise there.
+      (b) The border-radius override is likewise text-entry-scoped
+      away — the old rule also squared chat composers to 4px corners
+      on focus, killing their rounded-2xl shaping mid-interaction.
+      Non-text controls (buttons, links, cards) keep the outline AND
+      the legacy 4px corner smoothing for the outline shape.
+      The color is now PRODUCT-SCOPED via the primary CSS variable
+      (green on unscoped corporate surfaces, Vega blue inside
+      .app-skin-vega, jade inside .app-skin-atrium) instead of the
+      hardcoded favicon green — so a keyboard user in Vega sees a blue
+      indicator, matching the surface they are on.
    2. `prefers-reduced-motion` honors the OS-level accessibility setting:
       animations and transitions collapse to ~0ms so users with vestibular
       disorders don't get motion-triggered nausea. scroll-behavior: auto
       disables smooth-scroll jank. */
-:focus-visible {
-  outline: 2px solid rgb(22 163 74);
+:focus-visible:where(:not(textarea, input, select, [contenteditable], [contenteditable="true"], .focus-ring-clean)) {
+  outline: 2px solid rgb(var(--color-primary-600, 21 128 61));
   outline-offset: 2px;
+}
+:focus-visible:where(:not(textarea, input, select, [contenteditable], [contenteditable="true"], .focus-ring-clean)):where(a, button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [role="link"], summary, [tabindex]:where(:not([tabindex="-1"]))) {
   border-radius: 4px;
 }
 @media (prefers-reduced-motion: reduce) {

@@ -53,16 +53,16 @@ export const VegaHero: React.FC<{
         {/* ── The copy — riding ON the band at EVERY width (R70: the
             restore — "it is supposed to be on the landingpage
             background; put it back there"). The wrapper is sized to
-            AT LEAST the band's box (6rem = the band's top-24 offset,
-            56.25vw = the 16:9 band height at any width) so whatever
-            follows the hero always starts past the band foot; min-h,
-            not h (R68 had 2xl:h), because at narrow widths the copy
-            is TALLER than the band — it runs on past the foot onto
-            the section's white (R67's mobile behaviour, held). The
-            copy is top-anchored into the band at 11.5vw — R69's
-            measured seat (the headline keeps its exact y=317 at
-            1920). ── */}
-        <div className="relative z-10 px-4 sm:px-6 pt-[calc(6rem+11.5vw)] min-h-[calc(6rem+56.25vw)]">
+            AT LEAST the band's box (4rem + safe-area = the band's
+            flush-under-header offset, Task 97; 56.25vw = the 16:9 band
+            height at any width) so whatever follows the hero always
+            starts past the band foot; min-h, not h (R68 had 2xl:h),
+            because at narrow widths the copy is TALLER than the band —
+            it runs on past the foot onto the section's white (R67's
+            mobile behaviour, held). The copy is top-anchored into the
+            band at 11.5vw — R69's measured seat, shifted up with the
+            band (the headline sits 11.5vw into the clip, unchanged). ── */}
+        <div className="relative z-10 px-4 sm:px-6 pt-[calc(4rem+env(safe-area-inset-top,0px)+11.5vw)] min-h-[calc(4rem+env(safe-area-inset-top,0px)+56.25vw)]">
             <div className="max-w-7xl mx-auto">
                 <div className="max-w-3xl mx-auto text-center">
                     {/* Headline — crisp, deep slate, tight tracking. */}

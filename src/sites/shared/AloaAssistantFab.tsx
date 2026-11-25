@@ -127,19 +127,39 @@ const NUDGE_RETRACT_MS = 210;
 const NUDGE_DWELL_MS = 15000;
 const NUDGE_SCROLL_PX = 220;
 
-/** Per-surface brand tokens for the FAB / pill / panel accents. */
-const BRAND: Record<LandingProduct, { fab: string; pill: string; chipAccent: string; avatar: string }> = {
+/** Per-surface brand tokens for the FAB / pill / panel accents.
+ *  Task 97 (product parity): the widget's ACTION accents — the send
+ *  button, the visitor's chat bubble, the numbered-step avatar, the
+ *  trial CTA and the header wash — are product tokens now. They had
+ *  leaked the UNSCOPED primary ramp (corporate green) onto /vega's
+ *  widget while the FAB/avatar/chips were already Vega blue — a green
+ *  send button and green user bubbles inside a blue-branded panel.
+ *  Vega wears the vega-gilt register; Atrium keeps its emerald. */
+const BRAND: Record<LandingProduct, {
+    fab: string; pill: string; chipAccent: string; avatar: string;
+    wash: string; bubble: string; step: string; send: string; cta: string;
+}> = {
     vega: {
         fab: 'bg-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-[rgb(30_58_138/0.35)]',
         pill: 'text-[#1E3A8A]',
         chipAccent: 'text-[#1E3A8A] border-slate-300 hover:border-[#1E3A8A] hover:bg-blue-50',
         avatar: 'bg-[#1E3A8A]',
+        wash: 'from-[#EFF6FF] to-white',
+        bubble: 'bg-[#1E3A8A]',
+        step: 'bg-[#1E3A8A]',
+        send: 'bg-[#1E3A8A] hover:bg-[#1E40AF]',
+        cta: 'bg-[#1E3A8A] hover:bg-[#1E40AF]',
     },
     atrium: {
         fab: 'bg-atrium-emerald hover:brightness-110',
         pill: 'text-emerald-700',
         chipAccent: 'text-emerald-700 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50',
         avatar: 'bg-atrium-emerald',
+        wash: 'from-emerald-50 to-white',
+        bubble: 'bg-atrium-emerald',
+        step: 'bg-atrium-emerald',
+        send: 'bg-atrium-emerald hover:brightness-110',
+        cta: 'bg-atrium-emerald hover:brightness-110',
     },
 };
 
@@ -491,7 +511,10 @@ const AloaAssistantFab: React.FC<{
     const [usedTopics, setUsedTopics] = useState<Set<string>>(new Set());
     // Owner review: once the visitor picks a topic or asks a question, the
     // chip cloud collapses to a toggle so the ANSWER gets the space.
-    const [topicsOpen, setTopicsOpen] = useState(true);
+    // Task 97 (owner: "I don't want the common questions drawer to be
+    // opened up by default"): the drawer starts COLLAPSED — the visitor
+    // opens the chip cloud themselves via the toggle.
+    const [topicsOpen, setTopicsOpen] = useState(false);
     // ── Audience toggle (2026-11-22 owner spec, VEGA ONLY): "I am a
     //    Lawyer" (default — full practitioner experience) vs "I am not
     //    a Lawyer" (reveals the product-only notice + the NBA directory
@@ -1107,7 +1130,7 @@ const AloaAssistantFab: React.FC<{
                             className={`fixed ${Z_CLASS.alaoPanel} inset-x-0 bottom-0 md:inset-x-auto md:right-6 md:bottom-24 md:w-[400px] md:max-w-[calc(100vw-3rem)] flex flex-col bg-white md:rounded-2xl rounded-t-2xl border border-slate-200 shadow-2xl shadow-slate-900/20 max-h-[85dvh] md:max-h-[min(80vh,720px)] animate-slide-up overflow-hidden`}
                         >
                             {/* Header */}
-                            <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-gradient-to-r ${isProperty ? 'from-emerald-50 to-white' : 'from-primary-50 to-white'}`}>
+                            <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-gradient-to-r ${brand.wash}`}>
                                 <div className={`relative w-10 h-10 rounded-lg ${brand.avatar} text-white flex items-center justify-center shadow-md shrink-0`}>
                                     <AloaIcon className="w-6 h-6" />
                                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" aria-hidden="true" />
@@ -1208,7 +1231,7 @@ const AloaAssistantFab: React.FC<{
                                 {bubbles.map((b, i) =>
                                     b.role === 'you' ? (
                                         <div key={i} data-bubble={i} className="flex justify-end">
-                                            <div className={` rounded-lg rounded-tr-sm px-3.5 py-2.5 max-w-[85%] ${isProperty ? 'bg-emerald-600' : 'bg-primary-600'} text-white`}>
+                                            <div className={` rounded-lg rounded-tr-sm px-3.5 py-2.5 max-w-[85%] ${brand.bubble} text-white`}>
                                                 <p className="text-sm leading-relaxed">{b.text}</p>
                                             </div>
                                         </div>
@@ -1256,7 +1279,7 @@ const AloaAssistantFab: React.FC<{
                                                             <ol className="mt-2 space-y-1">
                                                                 {b.steps.map((s, si) => (
                                                                     <li key={si} className="flex gap-2 items-start">
-                                                                        <span className={`mt-px w-4 h-4 rounded-full text-2xs font-bold text-white flex items-center justify-center shrink-0 ${isProperty ? 'bg-atrium-emerald' : 'bg-primary-600'}`}>
+                                                                        <span className={`mt-px w-4 h-4 rounded-full text-2xs font-bold text-white flex items-center justify-center shrink-0 ${brand.step}`}>
                                                                             {si + 1}
                                                                         </span>
                                                                         <span className="text-xs text-slate-700 leading-relaxed">{s}</span>
@@ -1344,7 +1367,7 @@ const AloaAssistantFab: React.FC<{
                                                             <div className="flex flex-wrap items-center gap-2 mt-2.5">
                                                                 <button
                                                                     onClick={() => { setPanelOpen(false); onSignup(); }}
-                                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors ${brand.cta}`}
                                                                 >
                                                                     Start free trial
                                                                 </button>
@@ -1434,14 +1457,14 @@ const AloaAssistantFab: React.FC<{
                                         value={question}
                                         onChange={(e) => { setQuestion(e.target.value); if (questionError) setQuestionError(null); }}
                                         onKeyDown={onQuestionKeyDown}
-                                        placeholder={isProperty ? 'Type your property question…' : 'Ask about Vega — features, workflows, plans…'}
+                                        placeholder={isProperty ? 'Type your property question…' : 'Ask about Vega — features, plans…'}
                                         aria-label={`Your question for ${name}`}
                                         className="flex-1 resize-none bg-transparent px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 outline-none max-h-24 min-h-[2.5rem]"
                                     />
                                     <button
                                         onClick={submitQuestion}
                                         aria-label="Send question"
-                                        className={`m-1.5 w-9 h-9 rounded-lg text-white flex items-center justify-center shrink-0 transition-all active:scale-95 disabled:opacity-40 ${isProperty ? 'bg-atrium-emerald hover:brightness-110' : 'bg-primary-600 hover:bg-primary-700'}`}
+                                        className={`m-1.5 w-9 h-9 rounded-lg text-white flex items-center justify-center shrink-0 transition-all active:scale-95 disabled:opacity-40 ${brand.send}`}
                                         disabled={question.trim().length < 10 || isThinking}
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>

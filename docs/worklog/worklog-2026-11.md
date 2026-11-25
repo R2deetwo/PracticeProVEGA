@@ -4048,3 +4048,66 @@ E2E-verified against the preview build with the exact emailed URL.
   product-scoped login modal and strip the param. The known limitation
   above is retired: new welcome emails now deliver the unified CTA
   from the live Convex deployment.
+
+### Task 97 — landing polish: hero-band seat, chat-box focus square, drawer default, product parity (2026-11-25)
+
+Branch `fix/vega-get-started-and-signup-flow` (from main 2c3db3c2). Owner
+report (three screenshots, /vega + the ALOA panel): the video started a
+header-height gap below the navbar; a green square framed the chat
+dialogue box across ALOA/ARIA (landing AND in-app); the common-questions
+drawer opened by default; the update toast showed green on Vega.
+
+PART 1 — hero band flush under the header: the R68 "de-shove" (top-24 =
+96px below the section top) is retired — the band now sits at
+top-[calc(4rem+env(safe-area-inset-top,0px))] — exactly the fixed
+header's height (h-16 + safe-area), so the clip starts directly under
+the navbar. VegaHero's copy anchor and section min-h track the same 4rem
+offset (the 11.5vw seat INTO the band is unchanged, so the veil ladder
+needed no retune). Website-repositioning source pins updated.
+
+PART 2 — the green square was the GLOBAL :focus-visible rule
+(index.css, Phase 7 a11y pass): browsers match :focus-visible on text
+inputs for ANY focus — including the programmatic autofocus every chat
+composer runs on panel open — so the 2px green outline (+ its 4px
+border-radius override, which also squared the composer's rounded-2xl
+corners) wrapped every chat input on the landing widgets AND the in-app
+ALOA composer. Fix: text-entry elements (textarea/input/select/
+contenteditable) are excluded from BOTH the outline and the corner
+override; the outline color is now the product-scoped primary ramp
+(rgb(var(--color-primary-600))) instead of the hardcoded favicon green —
+keyboard users in Vega see blue, in Atrium jade. Non-text controls keep
+the indicator unchanged.
+
+PART 3 — the landing assistant (shared AloaAssistantFab, Vega ALOA +
+Atrium ARIA): the common-questions drawer starts COLLAPSED
+(topicsOpen useState(true)→false) per owner direction. Product parity —
+the widget's ACTION accents (send button, visitor bubble, numbered-step
+avatar, trial CTA, header wash) had leaked the UNSCOPED primary ramp
+(corporate green) onto /vega while the FAB/avatar/chips were already
+Vega blue: all five are BRAND tokens now (Vega #1E3A8A / Atrium
+emerald). The composer placeholder ("Ask about Vega — features,
+workflows, plans…") wrapped to two lines and raised a scrollbar at panel
+width — shortened to "Ask about Vega — features, plans…" (fits one line).
+
+PART 4 — the update toast (ToastRefreshNotification) renders on
+logged-out surfaces where no app skin applies, so the unscoped
+primary ramp showed the CORPORATE green "Update Available" toast to a
+Vega visitor. The accent now resolves from the URL (the same
+resolveRecoveryAccent as the error boundary): Vega blue #1E3A8A inside
+/vega & ?app=vega, Atrium emerald inside /atrium & ?app=atrium, the
+primary ramp elsewhere (in-app the skin already scopes it). The in-app
+DynamicChatForm input focus ring follows the primary ramp too (was
+hardcoded emerald).
+
+Verification: vitest 3825 | 1 skipped (new task97LandingFixes pins —
+10 tests: band seat, focus-rule exclusion + product-scoped color,
+drawer default, parity tokens, placeholder, toast accent, form ring) ·
+root tsc 0 · eslint 0 errors · ratchet 2205 (held) · vite build OK ·
+Playwright vs the local preview: NEW task97-landing-fixes.spec.ts 3/3
+(band top == header bottom ±2px; ALOA + ARIA panels: no visible
+textarea outline, drawer aria-expanded=false, send button exactly
+rgb(30,58,138) / atrium emerald, placeholder no vertical overflow) ·
+login-modal 4/4 + public-smoke 2/2 (no regression) · VLM + pixel scan
+of the captured panel: zero green pixels in the composer region (the
+border reads slate-400 focus-within, the intended subtle feedback);
+chips fit one-per-row with no clipping when the drawer is opened.

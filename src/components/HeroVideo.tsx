@@ -29,8 +29,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
  * clip to a framed card BELOW the copy for every width under 2xl (only
  * >=1536px kept the band); the owner rejected that on seeing it live.
  * The band is now the full-bleed background at EVERY width — ONE
- * presentation, no card variant: absolute inset-x-0 top-24 (the R68
- * de-shove held; never back to top-0), exact 16:9 (R67's zero-crop
+ * presentation, no card variant: absolute inset-x-0 flush under the
+ * fixed header (Task 97's top-[calc(4rem+safe)], formerly top-24),
+ * exact 16:9 (R67's zero-crop
  * contract: the whole scene, typing included, visible at any width),
  * the copy riding ON TOP (VegaHero anchors it into the band at every
  * width) under the per-clip veils — which now render at every width
@@ -235,16 +236,21 @@ export function HeroVideo({ className = '' }: { className?: string }) {
          landing-page background the owner ordered back ("put it back
          there"). R68's card variant is retired: under 2xl the clip had
          been demoted to a framed card BELOW the copy, which the owner
-         rejected on seeing it live. The band keeps R68's de-shove
-         (top-24, never back to top-0) and R67's exact-16:9 zero-crop
-         contract. z-0 is LOAD-BEARING (now at every width, not just
-         2xl): it makes the band a stacking context, so the layer
-         z-indexes below (10/20/30 + the z-40 foot fade) stay
+         rejected on seeing it live. Task 97 (2026-11-25, owner: "just
+         under the header is where the video should be… there's a bit
+         of a gap, almost the same size as the header"): the R68
+         de-shove (top-24) is retired — the band now sits FLUSH under
+         the fixed header (h-16 + safe-area inset, the same offset the
+         mobile nav sheet uses), so the clip starts directly under the
+         navbar instead of ~96px down; R67's exact-16:9 zero-crop
+         contract is unchanged. z-0 is LOAD-BEARING (now at every width,
+         not just 2xl): it makes the band a stacking context, so the
+         layer z-indexes below (10/20/30 + the z-40 foot fade) stay
          CONTAINED — without it they escape into the section's stacking
          context and paint the video OVER the copy wrapper's z-10 (the
          R68 acceptance VLM caught exactly that: the headline invisible
          under the clip). */
-      className={`absolute inset-x-0 top-24 z-0 aspect-video overflow-hidden ${className}`}
+      className={`absolute inset-x-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-0 aspect-video overflow-hidden ${className}`}
     >
       {still ? (
         <>

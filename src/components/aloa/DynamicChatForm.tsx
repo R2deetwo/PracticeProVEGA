@@ -154,7 +154,7 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
         const baseInput = `w-full px-3 py-2 rounded-lg text-sm border transition-all
             bg-white dark:bg-zinc-800 text-slate-900 dark:text-white
             border-slate-200 dark:border-zinc-700
-            focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500
+            focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500
             placeholder-slate-400 dark:placeholder-zinc-500`;
 
         switch (field.type) {

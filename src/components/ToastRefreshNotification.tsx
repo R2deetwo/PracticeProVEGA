@@ -25,6 +25,45 @@ import React, { useState, useEffect } from 'react';
 import { useVersionCheck } from '../hooks/useVersionCheck';
 
 import { Z_CLASS } from '../overlays/constants';
+import { resolveRecoveryAccent, type RecoveryAccent } from './ConvexErrorBoundary';
+
+/** Task 97 (owner: "when there's an update available and I'm in Vega,
+ *  the update available should show in Vega colors, which is blue, not
+ *  in green"): the toast renders on logged-out surfaces too, where no
+ *  app skin is applied — the unscoped primary ramp there is the
+ *  CORPORATE green, so a Vega visitor saw a green update toast on a
+ *  blue product. The accent now resolves from the URL exactly like
+ *  ConvexErrorBoundary: Vega blue (#1E3A8A) inside /vega & ?app=vega,
+ *  Atrium emerald inside /atrium & ?app=atrium, and the in-app
+ *  primary-* ramp everywhere else (inside the app the skin scopes
+ *  primary to the product's register already). */
+const ACCENT_CLASSES: Record<RecoveryAccent, {
+  border: string; icon: string; iconShadow: string; button: string; dot: string;
+}> = {
+  vega: {
+    border: 'border-[#1E3A8A]/50',
+    icon: 'bg-gradient-to-br from-[#1E3A8A] to-[#1E40AF]',
+    iconShadow: 'shadow-[#1E3A8A]/40',
+    button: 'bg-[#1E3A8A] hover:bg-[#1E40AF]',
+    dot: 'bg-[#1E3A8A]',
+  },
+  atrium: {
+    border: 'border-emerald-500/40',
+    icon: 'bg-gradient-to-br from-emerald-600 to-emerald-500',
+    iconShadow: 'shadow-emerald-500/40',
+    button: 'bg-emerald-600 hover:bg-emerald-500',
+    dot: 'bg-emerald-500',
+  },
+  hub: {
+    // The shipped register — the in-app primary ramp (skin-scoped per
+    // product) and the corporate green on the hub surface.
+    border: 'border-primary-500/30',
+    icon: 'bg-gradient-to-br from-primary-500 to-primary-600',
+    iconShadow: 'shadow-primary-500/30',
+    button: 'bg-primary-600 hover:bg-primary-500',
+    dot: 'bg-primary-500',
+  },
+};
 const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -35,6 +74,10 @@ const ToastRefreshNotification: React.FC = () => {
   const { updateAvailable, refresh, dismiss } = useVersionCheck();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // Product-scoped accent (Task 97) — resolved once per mount; the toast
+  // is a system-level surface, so the URL (not auth state) picks the
+  // register: /vega → Vega blue, /atrium → emerald, else the primary ramp.
+  const accent = ACCENT_CLASSES[resolveRecoveryAccent()];
   // Track if the user has explicitly dismissed this update session.
   // The toast won't reappear for the same update unless the user refreshes.
   const [dismissedForSession, setDismissedForSession] = useState(false);
@@ -83,16 +126,16 @@ const ToastRefreshNotification: React.FC = () => {
     >
       <div className="relative w-full max-w-sm pointer-events-auto">
         {/* Glassmorphic background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 dark:from-slate-900/98 dark:to-zinc-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-primary-500/30" />
+        <div className={`absolute inset-0 bg-gradient-to-br from-slate-900/95 to-slate-800/95 dark:from-slate-900/98 dark:to-zinc-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border ${accent.border}`} />
 
         {/* Content — NO top-right [X] close icon (per directive).
             The [Dismiss] button at the bottom handles cancellation.
-            The pulsing green indicator dot is retained on the outer edge. */}
+            The pulsing accent-colored indicator dot is retained on the outer edge. */}
         <div className="relative p-4">
           {/* Icon + Title */}
           <div className="flex items-start gap-3 mb-4">
             {/* Large rounded-square icon container — matches standard toast style */}
-            <div className="flex-shrink-0 w-10 h-10 rounded-md bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-lg shadow-primary-500/30">
+            <div className={`flex-shrink-0 w-10 h-10 rounded-md ${accent.icon} flex items-center justify-center shadow-lg ${accent.iconShadow}`}>
               <RefreshIcon className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
@@ -109,7 +152,7 @@ const ToastRefreshNotification: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              className="flex-1 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-bold text-xs rounded-lg transition-colors shadow-md flex items-center justify-center gap-1.5"
+              className={`flex-1 px-4 py-2 ${accent.button} text-white font-bold text-xs rounded-lg transition-colors shadow-md flex items-center justify-center gap-1.5`}
             >
               <RefreshIcon className="w-3.5 h-3.5" />
               Refresh Now
@@ -123,10 +166,11 @@ const ToastRefreshNotification: React.FC = () => {
           </div>
         </div>
 
-        {/* Pulsing brand-color indicator dot — retained for the "Update Available" variant.
-            Standard toasts do NOT have this dot. Uses primary-500 (brand green) not emerald/teal. */}
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary-500 rounded-full">
-          <div className="absolute inset-0 bg-primary-500 rounded-full animate-ping opacity-75" />
+        {/* Pulsing accent-colored indicator dot — retained for the "Update Available" variant.
+            Standard toasts do NOT have this dot. Task 97: the dot follows the
+            product-scoped accent (Vega blue / Atrium emerald / primary ramp). */}
+        <div className={`absolute -top-1 -right-1 w-3 h-3 ${accent.dot} rounded-full`}>
+          <div className={`absolute inset-0 ${accent.dot} rounded-full animate-ping opacity-75`} />
         </div>
       </div>
     </div>

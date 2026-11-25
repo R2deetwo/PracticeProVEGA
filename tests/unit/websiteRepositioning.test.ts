@@ -1021,10 +1021,11 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // Zero-crop contract (R67) survives: the exact-16:9 band.
     expect(heroVideo).toContain("aspect-video");
     // THE BACKGROUND AT EVERY WIDTH: one presentation, unprefixed — the
-    // band is the landing-page background at every viewport, lifted off
-    // the navbar (top-24, never back to top-0), and the R68 card
+    // band is the landing-page background at every viewport, sitting
+    // FLUSH under the fixed header (Task 97: top-[calc(4rem+safe-area)],
+    // replacing the retired R68 top-24 de-shove), and the R68 card
     // variant is retired entirely.
-    expect(heroVideo).toContain("absolute inset-x-0 top-24 z-0");
+    expect(heroVideo).toContain("absolute inset-x-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-0");
     expect(heroVideo).not.toContain("2xl:top-0");
     expect(heroVideo).not.toContain("rounded-3xl");
     expect(heroVideo).not.toContain("ring-1 ring-slate-900/10");
@@ -1043,17 +1044,18 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(heroVideo).toContain("lg:block xl:hidden absolute inset-0");
     expect(heroVideo).toContain("lg:hidden absolute inset-0");
     // THE COPY RIDES THE BAND: the copy wrapper precedes the HeroVideo
-    // in the section, is min-h'd to the band's box (6rem offset +
-    // 56.25vw band height — min-h, not h, because at narrow widths the
-    // copy is taller than the band and runs past the foot onto white)
-    // and anchors the copy at 11.5vw — R69's measured seat.
+    // in the section, is min-h'd to the band's box (4rem + safe-area
+    // offset + 56.25vw band height — min-h, not h, because at narrow
+    // widths the copy is taller than the band and runs past the foot
+    // onto white) and anchors the copy at 11.5vw — R69's measured seat
+    // (Task 97: the offset tracks the band's flush-under-header top).
     const heroOrder = vegaHero.indexOf('className="relative z-10');
     const clipOrder = vegaHero.indexOf("<HeroVideo />");
     expect(heroOrder).toBeGreaterThan(-1);
     expect(clipOrder).toBeGreaterThan(heroOrder);
-    expect(vegaHero).toContain("pt-[calc(6rem+11.5vw)]");
-    expect(vegaHero).toContain("min-h-[calc(6rem+56.25vw)]");
-    expect(vegaHero).not.toContain("2xl:h-[calc(6rem+56.25vw)]");
+    expect(vegaHero).toContain("pt-[calc(4rem+env(safe-area-inset-top,0px)+11.5vw)]");
+    expect(vegaHero).toContain("min-h-[calc(4rem+env(safe-area-inset-top,0px)+56.25vw)]");
+    expect(vegaHero).not.toContain("2xl:h-[calc(4rem+56.25vw)]");
     expect(vegaHero).not.toContain("56.25vw_-_39.875rem");
   });
 
