@@ -65,7 +65,7 @@ const RecentSessionsHeader: React.FC<{ onClick: () => void; count: number }> = (
     <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
       Recent sessions
     </span>
-    <span className="text-2xs text-slate-400">{count}</span>
+    <span className="text-2xs text-slate-400 dark:text-zinc-500">{count}</span>
   </Button>
 );
 
@@ -327,7 +327,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                     {recent.map((s) => (
                       <div
                         key={s.clientLocalId}
-                        className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 px-2 py-2"
+                        className="flex items-center gap-2 rounded-lg hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 px-2 py-2"
                       >
                         <Button
                           variant="bare"
@@ -339,7 +339,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                             <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200 truncate">
                               {s.title || s.sessionTypeLabel}
                             </span>
-                            <span className="text-2xs text-slate-400">
+                            <span className="text-2xs text-slate-400 dark:text-zinc-500">
                               {s.sessionTypeLabel} ·{" "}
                               {s.durationSeconds ? formatVoxTimestamp(s.durationSeconds * 1000) : "—"} ·{" "}
                               {s.status === "ready" ? "ready" : s.status}
@@ -372,7 +372,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                             iconOnly
                             icon={TrashIcon}
                             aria-label={`Delete session: ${s.title || s.sessionTypeLabel}`}
-                            className="!text-slate-400 hover:!text-rose-600 shrink-0"
+                            className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600 shrink-0"
                             onClick={() => setConfirmDelete(s.clientLocalId)}
                           />
                         )}
@@ -405,7 +405,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
               >
                 <MicrophoneIcon
                   className={`w-8 h-8 ${
-                    vox.phase === "recording" ? "text-rose-500 animate-pulse" : "text-slate-400"
+                    vox.phase === "recording" ? "text-rose-500 animate-pulse" : "text-slate-400 dark:text-zinc-500"
                   }`}
                   aria-hidden="true"
                 />
@@ -420,7 +420,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                 {vox.phase === "processing" && "Uploading + transcribing + preparing your file note…"}
                 {vox.phase === "queued" && "Offline — saved on this device. It will process when the signal returns."}
               </p>
-              <p className="text-2xs text-slate-400 mt-1">
+              <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                 {vox.context.title || VOX_SESSION_TYPE_OPTIONS.find((o) => o.value === vox.context.sessionType)?.label}
               </p>
               {vox.error ? <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">{vox.error}</p> : null}
@@ -436,7 +436,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                 </p>
               </details>
             ) : vox.segmentCount > 0 ? (
-              <p className="text-xs text-slate-400 text-center">
+              <p className="text-xs text-slate-400 dark:text-zinc-500 text-center">
                 {vox.segmentCount} audio segment{vox.segmentCount > 1 ? "s" : ""} saved — the
                 speaker-labelled transcript appears here as they upload.
               </p>
@@ -555,7 +555,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
                 iconOnly
                 icon={TrashIcon}
                 aria-label="Delete session"
-                className="!text-slate-400 hover:!text-rose-600"
+                className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600"
                 onClick={() => setConfirmDelete(session.clientLocalId)}
               />
             )}
@@ -604,7 +604,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
             </div>
           </div>
         ) : session.hasAudio ? null : (
-          <p className="text-2xs text-slate-400 mt-2 flex items-center gap-1.5">
+          <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-2 flex items-center gap-1.5">
             <LockClosedIcon className="w-3.5 h-3.5" aria-hidden="true" />
             Audio not retained for this session — the transcript is the record.
           </p>

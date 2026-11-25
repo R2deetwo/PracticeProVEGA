@@ -1,6 +1,6 @@
 # ADR-0007: ALOA is the single user-facing AI assistant
 
-**Status:** Accepted (2026-11-25 — owner decision in product review). Phases 1–2 and the Phase 3 product calls implemented 2026-11-25 under the owner's delegation ("go ahead with what you think is best from a product point of view").
+**Status:** Accepted (2026-11-25 — owner decision in product review). Phases 1–2 and the Phase 3 product calls implemented 2026-11-25 under the owner's delegation ("go ahead with what you think is best from a product point of view"). Follow-up (same day, owner report): desktop lacked the APK's prominent recording place — the ALOA Vox pill returned to the Sidebar as its own control above the main menu (same entitlement ladder as the bottom-nav tab), and the capture family was dark-mode-uniformized; see Task 92 in the worklog.
 
 **Context:** The product currently presents several AI faces to a user in the same session:
 

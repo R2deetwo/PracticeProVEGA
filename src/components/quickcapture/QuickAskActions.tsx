@@ -71,13 +71,13 @@ export const QuickAskActions: React.FC<{
               {isEvent ? <CalendarIcon className="w-4 h-4" /> : <DocumentTextIcon className="w-4 h-4" />}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900 leading-tight">
+              <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100 leading-tight">
                 {isEvent ? "Added to Diary" : "Saved Case Note"}
                 {action.matterTitle ? (
-                  <span className="font-normal text-slate-600"> — {action.matterTitle}</span>
+                  <span className="font-normal text-slate-600 dark:text-zinc-400"> — {action.matterTitle}</span>
                 ) : null}
               </p>
-              <p className="text-xs text-slate-600 leading-snug mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-snug mt-0.5">
                 {action.title}
                 {isEvent && action.dateISO ? (
                   <> · {action.dateISO}{action.time ? ` at ${action.time}` : ""}</>

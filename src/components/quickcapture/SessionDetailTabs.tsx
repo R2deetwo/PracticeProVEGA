@@ -80,7 +80,7 @@ const RoleChip: React.FC<{
 }> = ({ label, count, onEdit }) => (
   <Button variant="outline" size="sm" onClick={onEdit} className="!rounded-full">
     {label}
-    <span className="ml-1.5 text-2xs text-slate-400">{count} turns</span>
+    <span className="ml-1.5 text-2xs text-slate-400 dark:text-zinc-500">{count} turns</span>
   </Button>
 );
 
@@ -501,7 +501,7 @@ const ActionsTab: React.FC<{
               <div className="shrink-0">
                 {pendingTask === i.id ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-2xs text-slate-500">Create task?</span>
+                    <span className="text-2xs text-slate-500 dark:text-zinc-400">Create task?</span>
                     <Button
                       variant="primary"
                       size="sm"

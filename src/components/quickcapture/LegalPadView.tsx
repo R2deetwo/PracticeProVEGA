@@ -58,8 +58,8 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           <MicrophoneIcon className="w-9 h-9 text-primary-600" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Hybrid Legal Pad</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Hybrid Legal Pad</h3>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
             Type shorthand while the consultation records in the background. When you end the
             session you get a merged summary, the verbatim transcript, and the original
             timestamped audio.
@@ -100,8 +100,8 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
               <CheckIcon className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-bold text-slate-900 text-base leading-tight">Session saved</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-tight">Session saved</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
                 {Math.round((c.durationMs || 0) / 1000)}s of audio · {c.segmentCount} segments ·
                 original audio archived
               </p>
@@ -128,7 +128,7 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
           ))}
         </div>
 
-        <div className="rounded-2xl bg-white border border-slate-200 p-4 text-base leading-relaxed text-slate-800 whitespace-pre-wrap max-h-[55vh] overflow-y-auto">
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-4 text-base leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-wrap max-h-[55vh] overflow-y-auto">
           {activeTab === "summary" && (summaryText || "The merged summary is still processing — check back in a moment.")}
           {activeTab === "verbatim" && (c.verbatimText || "")}
           {activeTab === "shorthand" && (c.shorthandText || pad.shorthand || "")}
@@ -163,18 +163,18 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Recorder status bar */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-white sticky top-0 z-10">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10">
         <div className="flex items-center gap-2 min-w-0">
           <span
             className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${
-              livePhase === "recording" ? "bg-rose-500 animate-pulse" : livePhase === "paused" ? "bg-amber-500" : "bg-slate-300"
+              livePhase === "recording" ? "bg-rose-500 animate-pulse" : livePhase === "paused" ? "bg-amber-500" : "bg-slate-300 dark:bg-zinc-700"
             }`}
             aria-hidden
           />
-          <span className="text-sm font-semibold text-slate-900 tabular-nums">
+          <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100 tabular-nums">
             {formatMs(pad.elapsedMs)}
           </span>
-          <span className="text-xs text-slate-500 truncate">
+          <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">
             {livePhase === "recording" && "Recording — audio saves continuously"}
             {livePhase === "paused" && "Paused"}
             {livePhase === "processing" && "Uploading + transcribing…"}
@@ -211,16 +211,16 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
             className="text-base leading-relaxed"
           />
           {pad.verbatimSoFar ? (
-            <details className="rounded-lg bg-slate-50 border border-slate-200 p-3">
-              <summary className="text-xs font-semibold text-slate-500 cursor-pointer">
+            <details className="rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3">
+              <summary className="text-xs font-semibold text-slate-500 dark:text-zinc-400 cursor-pointer">
                 Live transcript so far ({pad.segmentCount} segments uploaded)
               </summary>
-              <p className="text-xs text-slate-500 mt-2 whitespace-pre-wrap leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 whitespace-pre-wrap leading-relaxed">
                 {pad.verbatimSoFar.slice(-1200)}
               </p>
             </details>
           ) : (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-zinc-500">
               {pad.segmentCount > 0
                 ? `${pad.segmentCount} audio segment${pad.segmentCount > 1 ? "s" : ""} saved on device — the verbatim transcript appears here as segments upload.`
                 : "Audio saves to this device every minute — a weak signal will not lose the recording."}
@@ -231,7 +231,7 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
       </div>
 
       {/* Footer actions */}
-      <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+      <div className="px-4 py-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <Button
           variant="ghost"
           size="sm"

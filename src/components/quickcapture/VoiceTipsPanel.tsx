@@ -207,23 +207,23 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
     <div className="flex flex-col gap-5">
       {/* 1. What you can capture */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-2">
           What you can capture
         </h3>
-        <p className="text-xs text-slate-500 mb-3">
+        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
           One note can be several things at once — capture first, organize in one tap.
         </p>
         <div className="flex flex-col gap-2">
           {EXAMPLES.map((ex) => (
             <div
               key={ex.label}
-              className="rounded-lg border border-slate-200 bg-white p-3"
+              className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3"
             >
               <span className="text-2xs font-bold uppercase tracking-wide text-emerald-700">
                 {ex.label}
               </span>
-              <p className="text-xs text-slate-800 mt-1 leading-relaxed">{ex.say}</p>
-              <p className="text-2xs text-slate-500 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-800 dark:text-zinc-200 mt-1 leading-relaxed">{ex.say}</p>
+              <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
                 <CheckIcon className="w-3 h-3 inline-block mr-1 -mt-0.5 text-emerald-600" />
                 {ex.does}
               </p>
@@ -234,12 +234,12 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
 
       {/* 2. Smart voice tricks */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-2">Smart voice tricks</h3>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-2">Smart voice tricks</h3>
         <div className="flex flex-col gap-2">
           {TRICKS.map((t) => (
-            <div key={t.title} className="rounded-lg border border-slate-200 bg-white p-3">
-              <span className="text-xs font-semibold text-slate-800">{t.title}</span>
-              <p className="text-2xs text-slate-500 mt-1 leading-relaxed">{t.body}</p>
+            <div key={t.title} className="rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3">
+              <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">{t.title}</span>
+              <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">{t.body}</p>
             </div>
           ))}
         </div>
@@ -247,8 +247,8 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
 
       {/* 3. Spoken snippets manager */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-1">Spoken snippets</h3>
-        <p className="text-xs text-slate-500 mb-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">Spoken snippets</h3>
+        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-2">
           Say a trigger phrase mid-dictation and its full text expands into the
           formatted note — e.g. <em>“…and insert chambers signature.”</em>
         </p>
@@ -256,13 +256,13 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
           {snippets.map((s) => (
             <div
               key={s.id}
-              className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2"
+              className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2"
             >
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-800 truncate">
+                <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">
                   “{s.trigger}”{s.isDefault ? " · default" : ""}
                 </p>
-                <p className="text-2xs text-slate-500 line-clamp-2 whitespace-pre-wrap">
+                <p className="text-2xs text-slate-500 dark:text-zinc-400 line-clamp-2 whitespace-pre-wrap">
                   {s.content}
                 </p>
               </div>
@@ -273,14 +273,14 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
                   iconOnly
                   icon={TrashIcon}
                   aria-label={`Delete snippet ${s.trigger}`}
-                  className="!text-slate-400 hover:!text-rose-600 shrink-0"
+                  className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600 shrink-0"
                   onClick={() => void removeSnippet(s.id)}
                 />
               ) : null}
             </div>
           ))}
           {snippets.length === 0 ? (
-            <p className="text-2xs text-slate-400">Loading snippets…</p>
+            <p className="text-2xs text-slate-400 dark:text-zinc-500">Loading snippets…</p>
           ) : null}
         </div>
         <div className="flex flex-col gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 p-3">
@@ -318,10 +318,10 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
 
       {/* 4. Personal dictionary */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-1">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">
           Personal Dictionary — it learns your names
         </h3>
-        <p className="text-xs text-slate-500 mb-2">
+        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-2">
           Whenever you correct a word in the draft box before saving
           (“Chinedoo” → “Chinedu”), the correction is captured automatically and
           used as a spelling hint in every future dictation. Legal Latin
@@ -332,7 +332,7 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
           {dictionary.map((d) => (
             <span
               key={d.id}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700"
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300"
             >
               {d.term}
               <Button
@@ -341,13 +341,13 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
                 iconOnly
                 icon={XMarkIcon}
                 aria-label={`Remove ${d.term}`}
-                className="!text-slate-400 hover:!text-rose-600"
+                className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600"
                 onClick={() => void removeTerm(d.id)}
               />
             </span>
           ))}
           {dictionary.length === 0 ? (
-            <p className="text-2xs text-slate-400">
+            <p className="text-2xs text-slate-400 dark:text-zinc-500">
               Nothing learned yet — corrections you make in the draft box appear here.
             </p>
           ) : null}
@@ -382,8 +382,8 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
 
       {/* 5. Startup preference */}
       <section>
-        <h3 className="text-sm font-bold text-slate-900 mb-1">Startup preference</h3>
-        <p className="text-xs text-slate-500 leading-relaxed">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 mb-1">Startup preference</h3>
+        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
           By default the app opens the Full Office dashboard. On your phone you
           can flip <strong>“Start in ALOA Vox on mobile”</strong> (in ALOA
           Vox's ⚙ menu) so launch lands straight on the mic — it is OFF by
@@ -396,17 +396,17 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
   if (bare) return body;
 
   return (
-    <div className="border-b border-slate-200 bg-slate-50/60 px-4 py-4">
+    <div className="border-b border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 px-4 py-4">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700 shrink-0">
             <SparklesIcon className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h2 className="font-bold text-slate-900 text-sm leading-tight">
+            <h2 className="font-bold text-slate-900 dark:text-zinc-100 text-sm leading-tight">
               Voice Tips — ALOA Vox Guide
             </h2>
-            <p className="text-2xs text-slate-500">
+            <p className="text-2xs text-slate-500 dark:text-zinc-400">
               Tricks, snippets and your Voice Dictionary
             </p>
           </div>

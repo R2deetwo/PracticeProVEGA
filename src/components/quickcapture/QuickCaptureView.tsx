@@ -776,7 +776,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
        overflow-hidden here + on the App-shell wrapper (no
        overflow-y-auto) so the global mobile "bottom nav spacing" CSS
        rule can never lift this shell off the viewport bottom again. */
-    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-slate-50">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-900">
       {/* Top bar — THREE CLEAN SLOTS (owner directive 2026-11-19): back on
           the left, ONE compact title in the centre, Full Office + ⚙ on the
           right. The old header stacked a mic badge, a two-line "ALOA ·
@@ -794,7 +794,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           shell inset + calc(0.75rem + env(...)) + inner pt-3 — the giant
           white gap under the status bar. Inner row padding is the compact
           py-2.5. */}
-      <header className="bg-white border-b border-slate-200 pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]">
+      <header className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]">
         <div className="relative flex items-center justify-between gap-2 px-4 py-2.5">
           {/* LEFT SLOT — the single back affordance: `< ALOA`. Embedded
               panes return to the chat; standalone phones open ALOA over the
@@ -813,11 +813,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             <div className="min-w-0">
               {/* ALOA Vox naming (owner task 2026-11-22): the wide header
                   carries the full feature name with the stylized Vox mark. */}
-              <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap flex items-baseline gap-1.5">
+              <h1 className="font-bold text-slate-900 dark:text-zinc-100 leading-tight text-base whitespace-nowrap flex items-baseline gap-1.5">
                 <span className="text-xs font-semibold tracking-wide uppercase text-slate-400 dark:text-zinc-500">ALOA</span>
                 <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent font-black">Vox</span>
               </h1>
-              <p className="text-2xs text-slate-500 leading-tight truncate">
+              <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-tight truncate">
                 {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
               </p>
             </div>
@@ -977,7 +977,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 variant="ghost"
                 size="sm"
                 minTouchTarget
-                className="whitespace-nowrap font-semibold text-slate-600"
+                className="whitespace-nowrap font-semibold text-slate-600 dark:text-zinc-400"
                 onClick={() => {
                   light();
                   exitToView("dashboard");
@@ -1006,16 +1006,16 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   <div
                     role="menu"
                     aria-label="ALOA Vox settings"
-                    className={`absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg p-2 ${Z_CLASS.panelMenu}`}
+                    className={`absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-2 ${Z_CLASS.panelMenu}`}
                   >
                     {/* Quiet Mode — quiet-speech capture profile. */}
-                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50">
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800">
                       <label
                         htmlFor="qc-quiet-mode-toggle"
-                        className="text-sm font-semibold text-slate-800 leading-tight"
+                        className="text-sm font-semibold text-slate-800 dark:text-zinc-200 leading-tight"
                       >
                         Quiet Mode
-                        <span className="block text-2xs font-normal text-slate-400 mt-0.5">
+                        <span className="block text-2xs font-normal text-slate-400 dark:text-zinc-500 mt-0.5">
                           Court galleries & quiet rooms — faint speech captured cleanly
                         </span>
                       </label>
@@ -1041,13 +1041,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           }
                         }}
                         className={`
-                          ${whisperMode ? "bg-primary-600" : "bg-slate-300"}
+                          ${whisperMode ? "bg-primary-600" : "bg-slate-300 dark:bg-zinc-700"}
                         } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                       >
                         <span
                           className={`${
                             whisperMode ? "translate-x-6" : "translate-x-1"
-                          } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                          } inline-block w-4 h-4 transform bg-white dark:bg-zinc-900 rounded-full transition-transform`}
                         />
                       </div>
                     </div>
@@ -1056,13 +1056,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                         screen stays distraction-free. Phone-like devices
                         only — the preference governs mobile boots. */}
                     {isPhoneLike ? (
-                      <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50">
+                      <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:bg-zinc-900 dark:hover:bg-zinc-800">
                         <label
                           htmlFor="qc-startup-toggle"
-                          className="text-sm font-semibold text-slate-800 leading-tight"
+                          className="text-sm font-semibold text-slate-800 dark:text-zinc-200 leading-tight"
                         >
                           Start in ALOA Vox on mobile
-                          <span className="block text-2xs font-normal text-slate-400 mt-0.5">
+                          <span className="block text-2xs font-normal text-slate-400 dark:text-zinc-500 mt-0.5">
                             Launch straight here instead of the dashboard
                           </span>
                         </label>
@@ -1084,18 +1084,18 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                             }
                           }}
                           className={`
-                            ${startInQuickCapture ? "bg-primary-600" : "bg-slate-300"}
+                            ${startInQuickCapture ? "bg-primary-600" : "bg-slate-300 dark:bg-zinc-700"}
                           } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                         >
                           <span
                             className={`${
                               startInQuickCapture ? "translate-x-6" : "translate-x-1"
-                            } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                            } inline-block w-4 h-4 transform bg-white dark:bg-zinc-900 rounded-full transition-transform`}
                           />
                         </div>
                       </div>
                     ) : null}
-                    <div className="my-1 border-t border-slate-100" role="separator" />
+                    <div className="my-1 border-t border-slate-100 dark:border-zinc-800" role="separator" />
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1185,7 +1185,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="!text-xs !text-slate-400 mt-1"
+              className="!text-xs !text-slate-400 dark:text-zinc-500 mt-1"
               onClick={() => setMobileSearchOpen(true)}
             >
               or search everything in the office
@@ -1194,13 +1194,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
 
           {/* Quick Ask answer */}
           {asking ? (
-            <div className="mx-4 mt-3 rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-2 text-sm text-slate-500">
-              <span className="inline-block w-4 h-4 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
+            <div className="mx-4 mt-3 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 flex items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
+              <span className="inline-block w-4 h-4 rounded-full border-2 border-slate-300 dark:border-zinc-700 border-t-slate-600 animate-spin" />
               Searching your matters, notes and schedule…
             </div>
           ) : askResult ? (
             <div className="mx-4 mt-3 rounded-lg border border-primary-200 bg-primary-50 p-4">
-              <p className="text-base leading-relaxed text-slate-800 whitespace-pre-wrap">{askResult.answer}</p>
+              <p className="text-base leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">{askResult.answer}</p>
               {/* Read-only hint (owner bug report 2026-11-19): pure lookup
                   questions never create entries — say so explicitly so the
                   lawyer knows the diary is untouched. */}
@@ -1222,17 +1222,17 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               ) : null}
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {askResult.sources.matters.slice(0, 3).map((s) => (
-                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-600 truncate max-w-[180px]">
+                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[180px]">
                     Matter: {s.title}
                   </span>
                 ))}
                 {askResult.sources.notes.slice(0, 2).map((s) => (
-                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-600 truncate max-w-[180px]">
+                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[180px]">
                     Note: {s.title}
                   </span>
                 ))}
                 {askResult.sources.events.slice(0, 3).map((s) => (
-                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-600 truncate max-w-[180px]">
+                  <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[180px]">
                     Schedule: {s.title}
                   </span>
                 ))}
@@ -1253,7 +1253,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 the ui/Button primitive (ADR-0004 — no raw form elements). */}
             {qc.phase === "idle" || qc.phase === "error" ? (
               <div
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white p-0.5 shadow-sm"
+                className="inline-flex items-center rounded-full border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-0.5 shadow-sm"
                 role="group"
                 aria-label="Recording mode"
               >
@@ -1264,7 +1264,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   className={`!rounded-full !px-3 !py-1.5 text-xs font-bold transition-colors ${
                     !conversationMode
                       ? "bg-primary-600 text-white hover:bg-primary-700"
-                      : "text-slate-500 hover:text-slate-800"
+                      : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 dark:text-zinc-200"
                   }`}
                   onClick={() => { if (conversationMode) toggleConversationMode(); }}
                 >
@@ -1277,7 +1277,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   className={`!rounded-full !px-3 !py-1.5 text-xs font-bold transition-colors ${
                     conversationMode
                       ? "bg-primary-600 text-white hover:bg-primary-700"
-                      : "text-slate-500 hover:text-slate-800"
+                      : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 dark:text-zinc-200"
                   }`}
                   onClick={() => { if (!conversationMode) toggleConversationMode(); }}
                 >
@@ -1327,10 +1327,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     <StopIcon className="w-9 h-9" />
                   </span>
                 </div>
-                <p className="text-2xl font-bold text-slate-900 tabular-nums" aria-live="polite">
+                <p className="text-2xl font-bold text-slate-900 dark:text-zinc-100 tabular-nums" aria-live="polite">
                   {formatMs(qc.elapsedMs)}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
                   {qc.appending
                     ? `Adding to your note (${clipCount} clip${clipCount > 1 ? "s" : ""} so far) — speak, then tap Stop`
                     : qc.segmentCount > 0
@@ -1358,11 +1358,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               </>
             ) : qc.phase === "processing" ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <span className="inline-block w-8 h-8 rounded-full border-[3px] border-slate-200 border-t-primary-600 animate-spin" />
-                <p className="font-semibold text-slate-900">
+                <span className="inline-block w-8 h-8 rounded-full border-[3px] border-slate-200 dark:border-zinc-800 border-t-primary-600 animate-spin" />
+                <p className="font-semibold text-slate-900 dark:text-zinc-100">
                   {qc.appending ? "Transcribing your addition…" : "Transcribing…"}
                 </p>
-                <p className="text-xs text-slate-500 max-w-xs">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-xs">
                   {qc.appending
                     ? "We're turning the new clip into text and re-checking dates, matters and the best next step across the whole note."
                     : "We're turning your recording into text, polishing it and picking the best next step. This usually takes a few seconds."}
@@ -1411,7 +1411,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                       upgrade card instead of failing. */}
                   {!canUseVox && (
                     <span
-                      className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 shadow-sm px-2 py-0.5"
+                      className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm px-2 py-0.5"
                       aria-hidden
                     >
                       <LockClosedIcon className="w-3 h-3 text-primary-600" />
@@ -1419,10 +1419,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
                   {conversationMode ? "Tap to record the conversation" : "Tap to speak"}
                 </p>
-                <p className="text-xs text-slate-500 text-center max-w-xs">
+                <p className="text-xs text-slate-500 dark:text-zinc-400 text-center max-w-xs">
                   {!canUseVox
                     ? "ALOA Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Pro and above."
                     : conversationMode
@@ -1443,7 +1443,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
 
           {/* Pending queue strip */}
           {pendingSegments > 0 && qc.phase !== "recording" ? (
-            <div className="mx-4 mb-2 rounded-lg border border-slate-200 bg-white px-4 py-3 flex items-center gap-2 text-sm text-slate-600">
+            <div className="mx-4 mb-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-3 flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400">
               <span className="inline-block w-2 h-2 rounded-full bg-amber-500" aria-hidden />
               {pendingSegments} audio segment{pendingSegments > 1 ? "s" : ""} waiting to upload —
               they'll go out automatically when the signal returns.
@@ -1453,7 +1453,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           {/* Recent captures */}
           {recent.length > 0 ? (
             <section className="px-4 pb-8" aria-label="Recent voice notes">
-              <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Recent voice notes</h2>
+              <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-zinc-500 mb-2">Recent voice notes</h2>
               <div className="flex flex-col gap-2">
                 {recent.map((r) => {
                   const Icon = INTENT_ICON[r.triageIntent || "share"] || ClipboardIcon;
@@ -1462,29 +1462,29 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   return (
                     <div
                       key={r.captureId}
-                      className="flex items-stretch gap-1 rounded-lg border border-slate-200 bg-white overflow-hidden"
+                      className="flex items-stretch gap-1 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden"
                     >
                       <Button
                         variant="bare"
-                        className="flex items-center gap-3 flex-1 min-w-0 text-left px-3 py-2.5 active:bg-slate-50"
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left px-3 py-2.5 active:bg-slate-50 dark:bg-zinc-900 dark:active:bg-zinc-800"
                         onClick={() => void qc.openCapture(r.clientLocalId)}
                         aria-label={`Open voice note: ${r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}`}
                       >
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 shrink-0">
-                          <Icon className="w-4 h-4 text-slate-500" />
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-800 shrink-0">
+                          <Icon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-slate-900 truncate">
+                          <span className="block text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">
                             {r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}
                           </span>
-                          <span className="block text-xs text-slate-400 truncate">
+                          <span className="block text-xs text-slate-400 dark:text-zinc-500 truncate">
                             {r.kind === "legalpad" ? "Legal Pad" : "Quick note"}
                             {r.status === "ready" ? "" : ` · ${r.status}`}
                             {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString()}` : ""}
                           </span>
                         </span>
                         {!confirming ? (
-                          <ChevronRightIcon className="w-4 h-4 text-slate-300 shrink-0" />
+                          <ChevronRightIcon className="w-4 h-4 text-slate-300 dark:text-zinc-600 shrink-0" />
                         ) : null}
                       </Button>
                       {/* Delete — a first-class, obvious action (owner report:
@@ -1518,7 +1518,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           iconOnly
                           icon={TrashIcon}
                           aria-label={`Delete voice note: ${r.triageMeta?.summary || "Voice note"}`}
-                          className="!text-slate-400 hover:!text-rose-600 shrink-0"
+                          className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600 shrink-0"
                           onClick={() => {
                             light();
                             setConfirmDeleteId(r.clientLocalId);
@@ -1557,7 +1557,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           used to break onto two lines on narrow phones. */}
       {mode === "speak" ? (
         <nav
-          className="border-t border-slate-200 bg-white px-4 py-2.5 flex gap-2 pb-[max(calc(0.5rem+env(safe-area-inset-bottom,0px)),var(--native-safe-bottom,0px))]"
+          className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5 flex gap-2 pb-[max(calc(0.5rem+env(safe-area-inset-bottom,0px)),var(--native-safe-bottom,0px))]"
           aria-label="Capture mode"
         >
           <Button

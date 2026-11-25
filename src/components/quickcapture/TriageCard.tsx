@@ -950,18 +950,18 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+    <div className="flex flex-col gap-4 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700">
               <CheckIcon className="w-4 h-4" />
             </span>
-            <h3 className="font-bold text-slate-900 text-base leading-tight">
+            <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-base leading-tight">
               {triage.summary || "Voice note ready"}
             </h3>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
             Transcribed{" · "}
             {Math.round((capture.durationMs || 0) / 1000)}s
             {clipCount > 1 ? ` · ${clipCount} clips` : ""}
@@ -997,7 +997,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                 icon={TrashIcon}
                 aria-label="Discard and delete this voice note"
                 title="Discard this voice note (saved case notes are kept)"
-                className="!text-slate-400 hover:!text-rose-600"
+                className="!text-slate-400 dark:text-zinc-500 hover:!text-rose-600"
                 onClick={() => setConfirmDiscard(true)}
               />
             )
@@ -1019,11 +1019,11 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       {diarized && speakerSet ? (
         <div className="flex flex-col gap-2 rounded-2xl border border-primary-200 bg-primary-50/40 p-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-slate-700">
+            <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">
               Conversation — {new Set(speakerSet.turns.map((t) => t.speakerId)).size} speakers ·{" "}
               {speakerSet.turns.length} turns
             </span>
-            <span className="text-2xs text-slate-500">
+            <span className="text-2xs text-slate-500 dark:text-zinc-400">
               Tap a name to relabel or merge — the draft updates everywhere.
             </span>
           </div>
@@ -1057,7 +1057,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     >
                       {label}
                     </Button>
-                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3 min-w-0">
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed line-clamp-3 min-w-0">
                       {t.text}
                     </p>
                   </div>
@@ -1067,7 +1067,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     <div
                       role="menu"
                       aria-label={`Label ${label}`}
-                      className="mt-1.5 rounded-lg border border-slate-200 bg-white shadow-lg p-2.5 space-y-2 z-10"
+                      className="mt-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg p-2.5 space-y-2 z-10"
                     >
                       <div className="flex flex-wrap gap-1.5">
                         <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Me (Counsel)")}>
@@ -1098,7 +1098,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                           value={customSpeakerName}
                           onChange={(e) => setCustomSpeakerName((e.target as HTMLInputElement).value)}
                           styleVariant="bare"
-                          inputClassName="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                          inputClassName="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-xs"
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && customSpeakerName.trim()) {
                               e.preventDefault();
@@ -1118,7 +1118,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                       {/* Update all turns for this speaker — default ON so a
                           rename sweeps the entire note in one tap. */}
                       <div className="flex items-center justify-between gap-3 px-0.5">
-                        <span className="text-2xs text-slate-600 font-semibold">
+                        <span className="text-2xs text-slate-600 dark:text-zinc-400 font-semibold">
                           Update all turns for this speaker
                         </span>
                         <div
@@ -1135,13 +1135,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                             }
                           }}
                           className={`${
-                            updateAllTurns ? "bg-primary-600" : "bg-slate-300"
+                            updateAllTurns ? "bg-primary-600" : "bg-slate-300 dark:bg-zinc-700"
                           } relative inline-flex items-center h-5 rounded-full w-9 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500`}
                         >
                           <span
                             className={`${
                               updateAllTurns ? "translate-x-5" : "translate-x-1"
-                            } inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform`}
+                            } inline-block w-3.5 h-3.5 transform bg-white dark:bg-zinc-900 rounded-full transition-transform`}
                           />
                         </div>
                       </div>
@@ -1149,7 +1149,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                           voice into two labels; fold this speaker into
                           another without losing any turn. */}
                       {new Set(speakerSet.turns.map((x) => x.speakerId)).size > 2 ? (
-                        <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-zinc-800">
                           <Select
                             aria-label="Merge this speaker into"
                             value={mergeTargetId}
@@ -1178,7 +1178,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                           </Button>
                         </div>
                       ) : (
-                        <p className="text-2xs text-slate-400 px-0.5">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 px-0.5">
                           Two speakers detected — relabelling is enough; merge appears when a third voice is split.
                         </p>
                       )}
@@ -1199,7 +1199,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           the text — so the first line of the transcript can never be covered. */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-slate-500">
+          <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
             Transcript — editable draft{clipCount > 1 ? ` (${clipCount} clips)` : ""}
           </span>
           <div className="flex items-center gap-1.5">
@@ -1281,10 +1281,10 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wide text-violet-700">
                     New instruction — create matter
                   </span>
-                  <p className="font-semibold text-sm text-slate-900 mt-0.5 break-words">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 mt-0.5 break-words">
                     {proposals.newMatter.title}
                   </p>
-                  <p className="text-2xs text-slate-500 mt-0.5">
+                  <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                     {[
                       proposals.newMatter.practiceArea,
                       proposals.newMatter.clientName,
@@ -1305,13 +1305,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss new matter proposal"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "newMatter"])}
                   />
                 )}
               </div>
               {proposals.newMatter.summaryNote ? (
-                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
+                <p className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed line-clamp-6">
                   {proposals.newMatter.summaryNote}
                 </p>
               ) : null}
@@ -1346,10 +1346,10 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wide text-sky-700">
                     {proposals.contactUpsert.contactId ? "Update contact" : "New contact"}
                   </span>
-                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 mt-0.5">
                     {proposals.contactUpsert.name}
                   </p>
-                  <p className="text-2xs text-slate-500 mt-0.5">
+                  <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                     {[
                       proposals.contactUpsert.phone,
                       proposals.contactUpsert.email,
@@ -1371,13 +1371,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss contact proposal"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "contact"])}
                   />
                 )}
               </div>
               {proposals.contactUpsert.notes ? (
-                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-4">
+                <p className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed line-clamp-4">
                   {proposals.contactUpsert.notes}
                 </p>
               ) : null}
@@ -1407,7 +1407,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wide text-teal-700">
                     Property / unit note
                   </span>
-                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 mt-0.5">
                     {(firmProperties.find((x: any) => x.id === proposals.propertyNote!.propertyId) as any)?.address ||
                       "Property on record"}
                     {proposals.propertyNote.unitId
@@ -1430,12 +1430,12 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss property note proposal"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "propertyNote"])}
                   />
                 )}
               </div>
-              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
+              <p className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed line-clamp-6">
                 {proposals.propertyNote.note}
               </p>
               <Button
@@ -1460,14 +1460,14 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wide text-indigo-700">
                     Drafting Blueprint
                   </span>
-                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 mt-0.5">
                     {activeBlueprint.documents.length > 0
                       ? activeBlueprint.documents
                           .map((d) => DOCUMENT_TYPE_LABELS[d.documentType])
                           .join(" → ")
                       : "Document type needed"}
                   </p>
-                  <p className="text-2xs text-slate-500 mt-0.5">
+                  <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                     {matters.find((m) => m.id === selectedMatterId)?.title ? (
                       <>Linked: {matters.find((m) => m.id === selectedMatterId)!.title}</>
                     ) : activeBlueprint.matchConfidence > 0 ? (
@@ -1488,7 +1488,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss drafting blueprint"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "draft"])}
                   />
                 )}
@@ -1520,7 +1520,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     ? activeBlueprint.dictated.reliefs
                     : activeBlueprint.dictated.reliefs.slice(0, 3)
                   ).map((r, i) => (
-                    <p key={i} className="text-xs text-slate-700 leading-relaxed">
+                    <p key={i} className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">
                       • {r}
                     </p>
                   ))}
@@ -1542,7 +1542,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               ) : null}
 
               {/* Missing fields count (computed in code — AC2.5). */}
-              <p className="text-2xs text-slate-500">
+              <p className="text-2xs text-slate-500 dark:text-zinc-400">
                 {blueprintMissingCount > 0
                   ? `${blueprintMissingCount} field${blueprintMissingCount === 1 ? "" : "s"} to fill — placeholders stay clickable in DraftPro.`
                   : "All critical fields sourced from the file record."}
@@ -1550,7 +1550,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
 
               {/* Edit blueprint mode (spec §4 secondary action). */}
               {blueprintEditing ? (
-                <div className="flex flex-col gap-2 rounded-lg bg-white border border-indigo-100 p-2.5">
+                <div className="flex flex-col gap-2 rounded-lg bg-white dark:bg-zinc-900 border border-indigo-100 p-2.5">
                   <div className="flex flex-wrap gap-1.5">
                     {activeBlueprint.documents.map((d, i) => (
                       <span
@@ -1669,7 +1669,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   </Button>
                 </div>
               ) : (
-                <p className="text-2xs text-slate-500">
+                <p className="text-2xs text-slate-500 dark:text-zinc-400">
                   Opened in DraftPro — fill the placeholder pills and export.
                 </p>
               )}
@@ -1683,13 +1683,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
                     {proposals.financialEntry.type === "fee" ? "Fee earned" : "Expense logged by voice"}
                   </span>
-                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 mt-0.5">
                     {proposals.financialEntry.currency === "NGN"
                       ? "₦"
                       : `${proposals.financialEntry.currency} `}
                     {proposals.financialEntry.amount.toLocaleString()}
                   </p>
-                  <p className="text-2xs text-slate-500 mt-0.5">
+                  <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                     {proposals.financialEntry.description}
                     {proposals.financialEntry.matterId
                       ? ` · ${
@@ -1709,7 +1709,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss financial entry proposal"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "financial"])}
                   />
                 )}
@@ -1736,7 +1736,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                 className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3"
               >
                 <CheckIcon className="w-4 h-4 text-emerald-600 shrink-0" />
-                <p className="text-xs text-slate-700">
+                <p className="text-xs text-slate-700 dark:text-zinc-300">
                   Marked {u.status === "Completed" ? "done" : u.status}
                   {u.note ? ` — ${u.note}` : ""}
                 </p>
@@ -1744,14 +1744,14 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             ) : (
               <div
                 key={`${u.itemId}-${i}`}
-                className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3"
+                className="flex flex-col gap-2 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-zinc-400">
                       {u.kind === "event" ? "Reminder reported done" : "Task reported done"}
                     </span>
-                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">
                       {u.note || "Mark this open item as done instead of creating a duplicate."}
                     </p>
                   </div>
@@ -1761,7 +1761,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     iconOnly
                     icon={XMarkIcon}
                     aria-label="Dismiss task update"
-                    className="!text-slate-400 shrink-0"
+                    className="!text-slate-400 dark:text-zinc-500 shrink-0"
                     onClick={() => setTaskUpdatesDone((prev) => [...prev, u.itemId])}
                   />
                 </div>
@@ -1787,7 +1787,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               <span className="text-xs font-bold uppercase tracking-wide text-rose-700">
                 Client update drafted
               </span>
-              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+              <p className="text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
                 {proposals.clientUpdateText || triage.clientUpdateText}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1824,7 +1824,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           names, plus the full dropdown for everything else. */}
       {matterOptions.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold text-slate-500">File under matter</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">File under matter</span>
           {matchPills.length > 1 ? (
             <div className="flex flex-wrap gap-1.5" aria-label="Suggested matters">
               {matchPills.map((match) => {
@@ -1852,7 +1852,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               })}
             </div>
           ) : matchPills.length === 1 ? (
-            <p className="text-2xs text-slate-400 leading-snug">
+            <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-snug">
               Matched “{matchPills[0].reason || "from your note"}” with{" "}
               {Math.round((matchPills[0].confidence || 0) * 100)}% confidence.
             </p>
@@ -1865,7 +1865,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           />
         </div>
       ) : (
-        <p className="text-sm text-slate-500">No matters yet — the note will be saved standalone.</p>
+        <p className="text-sm text-slate-500 dark:text-zinc-400">No matters yet — the note will be saved standalone.</p>
       )}
 
       {/* ── READ-ONLY QUESTION BANNER (owner bug report 2026-11-19): a
@@ -1878,8 +1878,8 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5"
         >
           <MagnifyingGlassIcon className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-700 leading-relaxed">
-            <strong className="font-semibold text-slate-900">
+          <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">
+            <strong className="font-semibold text-slate-900 dark:text-zinc-100">
               Read-only question — nothing was created or scheduled.
             </strong>{" "}
             Questions only look things up. Say “Remind me…”, “Schedule…” or
@@ -1933,8 +1933,8 @@ export const TriageCard: React.FC<TriageCardProps> = ({
 
       {/* ── DIARY (owner spec §3) — inline editable events, never a dead end. */}
       {addToDiary ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-          <span className="text-xs font-semibold text-slate-500">
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-900/60 p-3">
+          <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
             Add to Diary{eventDrafts.length > 0 ? ` — ${eventDrafts.length} item${eventDrafts.length > 1 ? "s" : ""} from your note` : ""}
           </span>
           {eventDrafts.map((ev, i) => {
@@ -1944,12 +1944,12 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             return (
               <div
                 key={`${ev.title}-${i}`}
-                className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                className="flex flex-col gap-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-sm text-slate-900 min-w-0">
+                  <p className="font-semibold text-sm text-slate-900 dark:text-zinc-100 min-w-0">
                     <span className="truncate block">{ev.title}</span>
-                    <span className="block text-2xs font-normal text-slate-400 truncate">
+                    <span className="block text-2xs font-normal text-slate-400 dark:text-zinc-500 truncate">
                       {coerceEventType(ev.type, eventTypeNames)}
                       {ev.location ? ` · ${ev.location}` : ""}
                       {ev.timeEstimated ? " · time estimated — tap to change" : ""}
@@ -2088,7 +2088,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
 
           {/* One-tap schedule for an undated extracted task. */}
           {eventDrafts.some((e) => !e.dateISO) ? (
-            <p className="text-2xs text-slate-400 leading-snug">
+            <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-snug">
               Undated tasks default to the date shown — change it inline before adding.
             </p>
           ) : null}
@@ -2107,19 +2107,19 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
             Courtroom endorsement detected
           </span>
-          <div className="text-sm text-slate-800 leading-relaxed">
+          <div className="text-sm text-slate-800 dark:text-zinc-200 leading-relaxed">
             {endorsement.court ? <p className="font-semibold">{endorsement.court}</p> : null}
             {endorsement.suitNumber ? (
-              <p className="text-xs text-slate-600">Suit No: {endorsement.suitNumber}</p>
+              <p className="text-xs text-slate-600 dark:text-zinc-400">Suit No: {endorsement.suitNumber}</p>
             ) : null}
             {endorsement.parties ? (
-              <p className="text-xs text-slate-600">Parties: {endorsement.parties}</p>
+              <p className="text-xs text-slate-600 dark:text-zinc-400">Parties: {endorsement.parties}</p>
             ) : null}
             {endorsement.judge ? (
-              <p className="text-xs text-slate-600">Judge: {endorsement.judge}</p>
+              <p className="text-xs text-slate-600 dark:text-zinc-400">Judge: {endorsement.judge}</p>
             ) : null}
             {endorsement.orders && endorsement.orders.length > 0 ? (
-              <ol className="list-decimal ml-4 mt-1 text-xs text-slate-700 space-y-0.5">
+              <ol className="list-decimal ml-4 mt-1 text-xs text-slate-700 dark:text-zinc-300 space-y-0.5">
                 {endorsement.orders.map((order, i) => (
                   <li key={i}>{order}</li>
                 ))}
@@ -2194,8 +2194,8 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       {/* ── QUICK ASK (owner spec §5) — now action-capable; confirmations
           render as cards with View / Undo. */}
       {askResult ? (
-        <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-          <div className="rounded-lg bg-primary-50 border border-primary-200 p-3 text-base leading-relaxed text-slate-800 whitespace-pre-wrap">
+        <div className="flex flex-col gap-2 border-t border-slate-100 dark:border-zinc-800 pt-3">
+          <div className="rounded-lg bg-primary-50 border border-primary-200 p-3 text-base leading-relaxed text-slate-800 dark:text-zinc-200 whitespace-pre-wrap">
             {askResult.answer}
           </div>
           {/* Read-only hint (owner bug report 2026-11-19): pure lookup
@@ -2216,7 +2216,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               {askResult.sources.matters.slice(0, 3).map((s) => (
                 <span
                   key={s.id}
-                  className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 truncate max-w-[200px]"
+                  className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[200px]"
                 >
                   Matter: {s.title}
                 </span>
@@ -2224,7 +2224,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               {askResult.sources.notes.slice(0, 2).map((s) => (
                 <span
                   key={s.id}
-                  className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 truncate max-w-[200px]"
+                  className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[200px]"
                 >
                   Note: {s.title}
                 </span>
@@ -2232,7 +2232,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               {askResult.sources.events.slice(0, 3).map((s) => (
                 <span
                   key={s.id}
-                  className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 truncate max-w-[200px]"
+                  className="text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 truncate max-w-[200px]"
                 >
                   Schedule: {s.title}
                 </span>

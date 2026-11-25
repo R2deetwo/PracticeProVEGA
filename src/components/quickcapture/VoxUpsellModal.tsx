@@ -96,7 +96,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+      <div className="w-full sm:max-w-md bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden">
         {/* Header — Vega Deep Blue on White, clean light-mode minimalism */}
         <div className="px-6 pt-6 pb-5 text-center bg-gradient-to-b from-primary-600 to-[#1E3A8A] text-white">
           <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center">
@@ -115,7 +115,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
               <span className="mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 border border-primary-100 shrink-0">
                 <Icon className="w-4 h-4 text-primary-600" />
               </span>
-              <p className="text-sm text-slate-700 leading-relaxed">{text}</p>
+              <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed">{text}</p>
             </div>
           ))}
         </div>
@@ -123,7 +123,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
         {/* Price hint + CTAs */}
         <div className="px-6 pb-6 pt-1">
           {proPrice ? (
-            <p className="text-center text-xs text-slate-400 mb-4">
+            <p className="text-center text-xs text-slate-400 dark:text-zinc-500 mb-4">
               Pro — {proPrice.monthly}/mo monthly or {proPrice.annual}/yr annual
             </p>
           ) : null}
@@ -141,7 +141,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
             variant="ghost"
             size="md"
             fullWidth
-            className="mt-2 text-slate-500"
+            className="mt-2 text-slate-500 dark:text-zinc-400"
             onClick={onClose}
           >
             Not now

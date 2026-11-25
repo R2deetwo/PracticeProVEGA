@@ -3672,3 +3672,51 @@ change.
 - APK: build-1305 (v1.0.894) built by CI with the change; the next
   owner device install picks it up (web-layer change — the web deploy
   already serves it to browser users).
+
+### Task 92 — ALOA Vox desktop entry + dark-mode uniformity (2026-11-25)
+
+Owner report while reviewing the ADR-0007 work: "on the APK we have a
+place for recording that uses voice to send a message through to Aloa,
+but we don't have that on the desktop" + the ALOA panel in dark mode
+mixed white and dark surfaces ("not uniform").
+
+AUDIT FIRST — is anything unpushed? NO: local main was a stale
+early-September sandbox snapshot (behind origin/main by 1251 commits,
+fully contained in it; the stale tree's uncommitted estate/atrium WIP was
+September-era and superseded by the 1251 remote commits). Re-based the
+checkout onto current origin/main; production was already serving
+Task 91 (dae43cb7, bundle markers re-verified live earlier in the day).
+The desktop gap is a DESIGN gap, not a missed push: the APK's prominent
+bottom-nav Vox tab has no desktop equivalent — the 2026-11-20 sidebar
+pill removal left only the small header mic + the in-panel chat mic
+(AloaPanel passes onOpenCapture → the chat-header mic that opens
+capture mode; that wiring existed already and stays).
+
+- DESKTOP RECORDING PLACE: the ALOA Vox pill returns to the Sidebar as
+  its own control ABOVE the main-menu list (honoring the 2026-11-20
+  note — not inside the menu section; owner's 2026-11-25 report
+  supersedes the removal for desktop discoverability). One tap →
+  openAloaPanel('capture') + stampVoxUsedAt + haptic. Entitlement
+  mirrors the bottom-nav tab exactly: Pro+ records; Free/Growth see the
+  lock dot and land on the dedicated VoxUpsellModal. Built on the
+  ui/Button primitive (variant bare — zero new raw elements; ratchet
+  2212 held).
+- DARK-MODE UNIFORMITY: the whole quickcapture family (QuickCaptureView,
+  LegalPadView, VoiceTipsPanel, TriageCard, SessionCaptureView,
+  SessionDetailTabs, VoxUpsellModal, QuickAskActions) was light-theme
+  only (0→zero dark: pairs in three of them; the capture root was plain
+  bg-slate-50 inside the dark panel shell). Paired every light utility
+  with the repo's dominant dark twins (bg-white→dark:bg-zinc-900,
+  bg-slate-50→dark:bg-zinc-900, border-slate-200→dark:border-zinc-800,
+  text-slate-*→dark:text-zinc-*, hover/active states likewise) via
+  scripts/dark_pair_capture.py rules applied per file and reviewed.
+  The ALOA panel in dark mode is now one uniform dark surface (shell
+  bg-white dark:bg-zinc-950 + capture content dark-aware).
+- tests: tests/unit/aloaVoxDesktopEntry.test.ts (13 contracts: pill
+  wiring/entitlement ladder, chat-mic wiring intact, per-file dark-pair
+  regression scan across the 8-family).
+
+Gates: vitest 3745 passed | 1 skipped · root tsc 0 · convex tsc 0 ·
+eslint 0 errors · ui-primitives ratchet 2212 held · vite build SUCCESS
+(new dark utilities verified emitted in the built CSS). No convex/
+changes — web-layer deploy only.
