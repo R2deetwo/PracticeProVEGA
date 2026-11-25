@@ -4023,3 +4023,28 @@ shells text-scanned (zero stray title text on /vega + /atrium).
 Known limitation: live Woosh-inbox email delivery needs this branch
 deployed (Convex function + Vercel); the deep-link CTA destination is
 E2E-verified against the preview build with the exact emailed URL.
+
+### Task 96 — production verification addendum (2026-11-25)
+
+- DEPLOYED per owner direction ("deploy it"): a4d94892 fast-forwarded
+  to main (8be1c131..a4d94892) and both targeted workflows dispatched
+  with the sha input pinned (immune to version-bump churn): Convex
+  production backend (run 45643034727) → SUCCESS; Vercel production
+  frontend (run 45643039072) → SUCCESS.
+- LIVE PROBE: practice-pro-vega.vercel.app/version.json → healthy @
+  a4d94892 (built 2026-11-25T15:18:11Z, apkVersion 1.0.900).
+- SHELL MARKERS LIVE: /vega and /atrium each carry exactly ONE <title>
+  (zero stray "PracticePro Systems —" text); Vega boot overlay painted
+  night blue #172554, Atrium emerald — product-scoped from first paint.
+- BUNDLE MARKERS LIVE: main-h60dFzRZ.js (entry) carries the AuthHeader
+  login/signup form code ("Log in to ${name}") and the ?login= handler
+  (Z.get("login") → product-scoped modal open + strip); the only
+  Login-*.js chunks still lazy are ClientPortalLogin/TenantPortalLogin
+  (separate portal screens, intentionally lazy).
+- E2E AGAINST PRODUCTION: login-modal.spec.ts 4/4 on the LIVE site —
+  /vega + /atrium instant-form gate ≤2s after the click (no fetch, no
+  skeleton), no duplicate microlabel, both welcome-email CTA deep links
+  (?app=vega&login=vega, ?app=atrium&login=atrium) auto-open the
+  product-scoped login modal and strip the param. The known limitation
+  above is retired: new welcome emails now deliver the unified CTA
+  from the live Convex deployment.
