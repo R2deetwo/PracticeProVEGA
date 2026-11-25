@@ -209,7 +209,9 @@ export const VegaNavBar: React.FC<{
                 </button>
             </nav>
 
-            {/* Right Actions — Log In / Start Free Trial on product pages. */}
+            {/* Right Actions — Log In / Get Started on product pages. One
+                honest primary CTA (2026-11-25): the same Vega-scoped signup the
+                hero opens — the competing trial-button label is retired. */}
             <div className="flex items-center gap-2">
                 <div className="hidden lg:block h-4 w-px mx-1 bg-slate-200" />
                 <button
@@ -226,7 +228,7 @@ export const VegaNavBar: React.FC<{
                     tone="vega"
                     className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-full !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5"
                 >
-                    Start Free Trial
+                    Get Started
                 </PrimaryButton>
 
                 {/* Mobile hamburger button — shown below lg (1024px). */}
@@ -267,7 +269,7 @@ export const VegaNavBar: React.FC<{
                     <div className="h-px my-3 bg-slate-200" />
                     <button onClick={() => handleNavClick(onLogin)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Log In</button>
                     <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-full !text-sm mt-2">
-                        Start Free Trial
+                        Get Started
                     </PrimaryButton>
                     <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
                 </nav>
@@ -357,12 +359,13 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
             Talk to Sales
         </button>
         {/* TASK 54: no-arg invocation — never leak the click event into the
-            product override. R56: Vega's primary is the navy pill. */}
+            product override. One honest primary CTA — the same Vega-scoped
+            signup the hero carries (2026-11-25). */}
         <button
             onClick={() => onSignup()}
             className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-all duration-150 active:scale-[0.98] bg-[#1E3A8A] text-white hover:bg-[#1E40AF]"
         >
-            Start Free Trial
+            Get Started
         </button>
     </div>
 );

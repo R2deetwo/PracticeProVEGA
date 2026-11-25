@@ -43,8 +43,6 @@ export interface AuthThemeDef {
     name: string;
     /** One-line product tagline under the name. */
     tagline: string;
-    /** Mono microlabel above the form (the product's own voice). */
-    microlabel: string;
     /** null = hub → Modal renders its default chrome, untouched. */
     chrome: AuthChrome | null;
     /** The product mark; hub has none (its chrome already ships). */
@@ -66,7 +64,6 @@ const HUB_THEME: AuthThemeDef = {
     id: 'hub',
     name: '',
     tagline: '',
-    microlabel: '',
     chrome: null,
     primaryBtn:
         'bg-primary-600 text-white hover:bg-primary-700 shadow-sm',
@@ -78,7 +75,6 @@ const VEGA_THEME: AuthThemeDef = {
     id: 'vega',
     name: 'Vega',
     tagline: 'Legal workflow automation for Nigerian law firms.',
-    microlabel: 'LEGAL WORKFLOW AUTOMATION',
     chrome: {
         overlayClass: 'bg-vega-night/70 sm:backdrop-blur-md',
         cardClass: 'bg-vega-parchment border-vega-gilt/30',
@@ -95,7 +91,6 @@ const ATRIUM_THEME: AuthThemeDef = {
     id: 'atrium',
     name: 'Atrium',
     tagline: 'The Well-Kept Estate — built by PracticePro.',
-    microlabel: 'THE WELL-KEPT ESTATE',
     chrome: {
         overlayClass: 'bg-zinc-900/70 sm:backdrop-blur-md',
         cardClass: 'bg-atrium-cream border-atrium-emerald/30',
@@ -137,6 +132,10 @@ export function resolveAuthThemeId(modalContext: any): AuthThemeId {
  * when a product theme is active (ModalManager hides the generic modal
  * header for these). Mark + name + tagline, and the mode line the
  * generic header used to carry ("Log in" / "Create your workspace").
+ *
+ * 2026-11-25: the mono microlabel ("LEGAL WORKFLOW AUTOMATION") is
+ * retired — it duplicated the tagline one line above it and cost the
+ * compact modal ~40px of vertical budget on 720p viewports.
  */
 export const AuthHeader: React.FC<{
     theme: AuthThemeDef;
@@ -145,15 +144,12 @@ export const AuthHeader: React.FC<{
     if (theme.id === 'hub' || !theme.Mark) return null;
     const ModeMark = theme.Mark;
     return (
-        <div className="flex flex-col items-center text-center -mt-1 mb-5">
-            <ModeMark className="h-12 w-12 mb-3" title={`${theme.name} — a PracticePro product`} />
+        <div className="flex flex-col items-center text-center -mt-1 mb-4">
+            <ModeMark className="h-11 w-11 mb-2.5" title={`${theme.name} — a PracticePro product`} />
             <h3 className="text-xl font-bold tracking-tight text-slate-900">
                 {mode === 'login' ? `Log in to ${theme.name}` : `Create your ${theme.name} workspace`}
             </h3>
             <p className="text-sm text-slate-500 mt-1.5 max-w-[38ch]">{theme.tagline}</p>
-            <p className="mt-3 font-mono text-2xs font-semibold uppercase tracking-[0.28em] text-slate-400">
-                {theme.microlabel}
-            </p>
         </div>
     );
 };

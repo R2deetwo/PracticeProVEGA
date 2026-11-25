@@ -3896,3 +3896,64 @@ production deploy.
   movement log" (both admin panels); the tenant-portal index chunk
   carries "Will be sent to" (live +234 phone hint) + "Not delivered"
   (delivery-status badge). /gatehouse?firmId=… serves HTTP 200.
+
+### Task 95 — product-scoped signup: false demo funnel retired + the post-OTP getFirmActivityFeed race killed (2026-11-25)
+
+Branch `fix/vega-get-started-and-signup-flow` (from main 8be1c131). NOT
+committed/pushed/deployed — owner direction ("Do not commit, deploy, or
+merge unless explicitly requested").
+
+PART 1 — the false demo funnel is gone: LeadCaptureModal.tsx DELETED
+("Access Interactive Demo" / "Pick a product, drop your work email…"
+/"Start Exploring Now" / the Vega|Atrium toggle / the bait-and-switch
+signup hand-off toast). Removed with it: the ModalType, modalRegistry
+entry, ModalLayer case, UIContext title. The Vega hero's "View Live Demo"
+secondary CTA retired; /vega now carries ONE primary CTA — "Get Started"
+(nav, hero, final CTA, mobile sticky; same on /atrium). ResourcesPage
+"Talk to Sales" no longer opens the demo modal — it routes to the
+product page (where the real ContactSalesDrawer lives).
+
+PART 2 — product-scoped signup: /vega Get Started → Signup opens with
+Vega — Legal OS pre-selected (straight to the form; themed AuthHeader
+"Create your Vega workspace" + tagline). Komplete no longer a choice in
+basic signup: chooser card removed (Vega + Atrium only), wizard fallback
+switcher Vega/Atrium only (Komplete remains the explicit "Explore
+Komplete" bundle cross-sell on /vega's final CTA). The "PracticePro Vega
+| LEGAL | Change" chip retired; the ← Back only renders for the chooser
+(hub) path — product-scoped entries have no cross-product control.
+useSignupOpener: modal THEME follows the EFFECTIVE product (Explore
+Komplete opens the neutral hub skin, not a Vega-titled modal).
+
+PART 3 — compact modal: the duplicate mono microlabel ("LEGAL WORKFLOW
+AUTOMATION") removed from AuthHeader + themes; spacing tightened.
+Verified live at 1280×720 / 1366×768 / 1440×900 / 375×667: modal card
+566px @720p, scroller needsScroll=false, both checkboxes + the full
+Create Account button 100% visible (btn bottom 587, 133px margin).
+
+PART 4 — the post-OTP race: DataProvider's getFirmActivityFeed now
+gated on `!!currentUser?.firmId` (+ demo/portal exclusions) — no
+firm-scoped query leaves the browser before the firm exists. Server:
+getFirmActivityFeed returns [] for a verified-but-firmless user (the
+OnboardingWizard hasn't created the workspace yet) while invalid tokens,
+portal roles and suspensions still throw; settleFirmUser throws
+ONBOARDING_REQUIRED-marked errors. errorRecovery: new 'onboarding'
+category (0 auto-retries — "Set up your workspace" + Continue Setup);
+the bare /\[convex/i transport-prefix pattern REMOVED from
+CONNECTION_PATTERNS (server errors now classify by content — the root
+of the false "Connection interrupted / Reconnecting… (Attempt 2/5)"
+loop). ConvexErrorBoundary: recovery accents resolve from the URL —
+Vega blue #1E3A8A inside /vega & ?app=vega, Atrium green #059669 for
+Atrium, shipped emerald elsewhere; onboarding category shows a
+recoverable Continue Setup (session preserved) instead of a retry loop.
+
+Gates: vitest 3795 passed | 1 skipped (new: vegaSignupFlow 25 — real
+getFirmActivityFeed handler fixtures + classifier + accent resolver +
+source pins; websiteRepositioning/roundV7/phaseRoundK pins updated to
+the honest funnel) · root tsc 0 · convex tsc 0 · eslint 0 errors ·
+ui-primitives ratchet 2212 → 2205 (baseline tightened — 7 raw elements
+retired with the modal) · vite build OK · Playwright public-smoke 2/2
+against the local preview build (staging specs auto-skip, no
+STAGING_URL). Live checks: /vega + /atrium + hub text-scanned (zero
+"View Live Demo" / "interactive demo" / "Start Free Trial" strings;
+Get Started ×3 on /vega; Explore Komplete cross-sell intact), modal
+snapshots clean, zero console errors.

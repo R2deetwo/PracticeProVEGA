@@ -369,7 +369,12 @@ describe('V7 §G — honest gating and demo-mode integrity', () => {
 
     it('demo sessions fire NO firm-scoped server queries (the activity-feed leak is fixed)', () => {
         const dp = read('src/contexts/DataProvider.tsx');
-        expect(dp).toContain("currentUser.email !== 'demo@practicepro.ng'");
+        // 2026-11-25 (product-scoped signup round): the gate now requires a
+        // FIRM to exist AND excludes the demo/portal users — the fresh-user
+        // race fix tightened the old email-only ternary, and the demo
+        // exclusion lives in isDemoForFeed.
+        expect(dp).toContain("currentUser?.email === 'demo@practicepro.ng'");
+        expect(dp).toContain('shouldLoadFirmActivityFeed = !!currentUser?.firmId');
     });
 
     it('modal layering: the Terms acceptance bar renders BELOW open modals (mobile modal controls stay reachable)', () => {

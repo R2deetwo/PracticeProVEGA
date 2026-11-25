@@ -20,12 +20,19 @@ export function useSignupOpener(product: 'vega' | 'atrium' | null) {
         const override = normalizeSignupProduct(productOverride);
         const chosen = product ? normalizeSignupProduct(product) : null;
         const selected = override || chosen;
+        // 2026-11-25: the modal's THEME follows the EFFECTIVE product — a
+        // page's "Explore Komplete" cross-sell (productOverride 'unified')
+        // must not open a signup titled "Create your Vega workspace". Vega →
+        // the Vega register, Atrium → Atrium, Komplete/none → the neutral
+        // hub modal (the chooser's honest home).
+        const productTheme: 'vega' | 'atrium' | 'hub' =
+            selected === 'legal' ? 'vega' :
+            selected === 'property' ? 'atrium' :
+            'hub';
         openModal('signup', null, {
             selectedProduct: selected,
             forceProductSelection: !selected,
-            // R27: the modal carries the opening page's identity — a signup
-            // started on /vega or /atrium renders in that product's register.
-            productTheme: product ?? 'hub',
+            productTheme,
         });
     };
 }

@@ -480,15 +480,19 @@ describe("W8 — structured fluidity: the lattice system", () => {
   it("auth lives with the products, not on the company page", () => {
     // The hub hero no longer offers a sign-in…
     expect(hub).not.toContain("Already have an account?");
-    // …the shell gates Log In / Start Free Trial to the product pages and
+    // …the shell gates Log In / Get Started to the product pages and
     // offers a quiet conversation on the company page instead. (P0: the
-    // ternary NavBar is gone — each shell states its own register.)
-    expect(productPages).toContain("Right Actions — Log In / Start Free Trial on product pages");
+    // ternary NavBar is gone — each shell states its own register.
+    // 2026-11-25: ONE honest primary CTA label per product page — the
+    // competing "Start Free Trial" label is retired with the false-demo
+    // removal round; the trial facts ride the microcopy pills instead.)
+    expect(productPages).toContain("Right Actions — Log In / Get Started on product pages");
     expect(hub).toContain("Talk to us");
     expect(hub).toContain("Talk to us about your system");
     // The product pages keep their conversion machinery.
-    expect(productPages).toContain("Start Free Trial");
+    expect(productPages).toContain("Get Started");
     expect(productPages).toContain("Log In");
+    expect(productPages).not.toContain("Start Free Trial");
   });
 });
 
@@ -976,13 +980,18 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaHero).toContain("Legal workflow automation");
     expect(vegaHero).toContain("Nigerian law firms");
     expect(vegaHero).toContain("NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED");
-    // The dual CTAs are wired by the site index: Get Started (signup) +
-    // View Live Demo (R64: opens the demo-access modal — the Vega | Atrium
-    // toggle — pre-toggled to Vega; the suite showcase keeps the captures
-    // and stays reachable from the nav's "The Suite", which holds the
-    // scrollTo('suite') wiring in VegaShell).
+    // 2026-11-25 (product-scoped signup round): ONE honest primary CTA —
+    // "Get Started" opens the Vega-scoped signup modal directly (Vega —
+    // Legal OS pre-selected). The "View Live Demo" secondary CTA is
+    // RETIRED with the false-demo removal: it opened the LeadCaptureModal
+    // ("Access Interactive Demo"), whose production behavior was a
+    // lead-capture hand-off to signup — a bait-and-switch. No demo option
+    // was added to compensate. The suite showcase keeps the captures and
+    // stays reachable from the nav's "The Suite" (scrollTo('suite') in
+    // VegaShell).
     expect(vegaSite).toContain("Get Started");
-    expect(vegaSite).toContain("View Live Demo");
+    expect(vegaSite).not.toContain("View Live Demo");
+    expect(productPages).not.toContain("View Live Demo");
     expect(vegaShell).toContain("scrollTo('suite')");
   });
 
@@ -1399,34 +1408,31 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(tour).toContain("badge?: string");
   });
 
-  it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {
-    // Owner direction (R64): "the vega/atrium toggle" belongs where the
-    // demo is chosen. The R61 header switcher stays retired (a real firm
-    // never sees one); the site's "View Live Demo" CTA opens the
-    // LeadCaptureModal — which carries the Vega | Atrium product toggle —
-    // pre-toggled to the page's product.
-    expect(vegaSite).toContain("openModal('leadCapture', null, { demoProduct: 'vega' })");
-    expect(vegaSite).not.toContain("scrollTo('suite')}\" tone=\"vega\" className=\"text-base px-8 py-4\">\n                            View Live Demo");
-    const modal = read("src", "components", "modals", "LeadCaptureModal.tsx");
-    // The toggle, in the family registers: Vega indigo, Atrium yellow,
-    // both marks at toggle scale.
-    expect(modal).toContain("VegaMark");
-    expect(modal).toContain("AtriumMark");
-    expect(modal).toContain("Vega — Legal OS");
-    expect(modal).toContain("Atrium — Property OS");
-    expect(modal).toContain("text-indigo-700");
-    expect(modal).toContain("text-yellow-700");
-    expect(modal).toContain("role=\"radiogroup\"");
-    // The retired pre-rebrand registers are gone: no green primary pills,
-    // no emerald Atrium, no green→emerald gradient CTA.
-    expect(modal).not.toContain("to-emerald-600");
-    expect(modal).not.toContain("from-primary-600 to-emerald-600");
-    expect(modal).not.toContain("text-emerald-600");
-    // The CTA is the executive navy.
-    expect(modal).toContain("bg-[#1E3A8A]");
-    // Honest in production: the demo is dev-gated, so the email capture
-    // hands off to signup with the CHOSEN product preselected.
-    expect(modal).toContain("openModal('signup', null, { selectedProduct })");
+  it("2026-11-25: the false demo funnel is retired — no demo-access modal, no lead-capture hand-off", () => {
+    // The LeadCaptureModal ("Access Interactive Demo", the Vega | Atrium
+    // toggle, "Start Exploring Now") is DELETED. Its production behavior
+    // was the bait-and-switch the owner killed: "Pick a product, drop your
+    // work email, and step inside the full suite" promised an interactive
+    // demo, then handed the visitor to the signup modal with a toast saying
+    // the demo "runs with our team". Get Started now opens the product-
+    // scoped signup directly.
+    let modalExists = true;
+    try { read("src", "components", "modals", "LeadCaptureModal.tsx"); } catch { modalExists = false; }
+    expect(modalExists).toBe(false);
+    expect(vegaSite).not.toContain("leadCapture");
+    expect(appIndex).not.toContain("openModal('leadCapture'");
+    // The modal type, registry entry and title mapping are gone too —
+    // nothing can open the retired surface.
+    const types = read("src", "types.ts");
+    expect(types).not.toContain("'leadCapture'");
+    const registry = read("src", "overlays", "registry", "modalRegistry.tsx");
+    expect(registry).not.toContain("LeadCaptureModal");
+    const uiContext = read("src", "contexts", "UIContext.tsx");
+    expect(uiContext).not.toContain("Demo Access");
+    // The signup funnel itself carries no demo promises.
+    const signup = read("src", "components", "auth", "Signup.tsx");
+    expect(signup).not.toContain("interactive demo");
+    expect(signup).not.toContain("Start Exploring");
   });
 
   it("R64: the portal logins follow the rebrand — Vega indigo, Atrium yellow", () => {

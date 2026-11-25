@@ -756,13 +756,14 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             } catch { /* storage unavailable — bearer stays in memory only */ }
 
             // ─── Clear demo product flag on real login ──────────────────
-            // The demo flag ('practicepro_demo_product') is set by the
-            // LeadCaptureModal when a user clicks "Try Demo". If demo login
-            // fails (which it always does in production), the flag is left
-            // behind in sessionStorage and ProductContext reads it as the
-            // product — bypassing the safety net that should force Komplete
-            // firms to 'unified'. Clearing it here ensures real users get
-            // their actual product from firmDetails, not a stale demo flag.
+            // The demo flag ('practicepro_demo_product') was written by the
+            // retired LeadCaptureModal (deleted 2026-11-25 with the false
+            // demo funnel); nothing writes it any more, but a stale value
+            // from an old tab could still linger in sessionStorage and
+            // ProductContext would read it as the product — bypassing the
+            // safety net that forces Komplete firms to 'unified'. Clearing
+            // it here ensures real users get their actual product from
+            // firmDetails, not a stale demo flag.
             sessionStorage.removeItem('practicepro_demo_product');
             
             const sessionData = JSON.stringify({ token });

@@ -21,6 +21,7 @@
 
 export type ErrorCategory =
   | 'auth'
+  | 'onboarding'
   | 'permission'
   | 'connection'
   | 'data'
@@ -48,6 +49,14 @@ const AUTH_PATTERNS: RegExp[] = [
   /session has expired/i,
 ];
 
+// PART 4 (2026-11-25, the fresh-user race): a verified-but-firmless user
+// is mid-onboarding — the workspace is created by the OnboardingWizard
+// AFTER OTP verification. Convex authHelpers throws this marker for that
+// state so the boundary can route to workspace setup instead of retrying.
+const ONBOARDING_PATTERNS: RegExp[] = [
+  /onboarding_required/i,
+];
+
 const PERMISSION_PATTERNS: RegExp[] = [
   /^not authorized/i,
   /permission denied/i,
@@ -57,7 +66,13 @@ const PERMISSION_PATTERNS: RegExp[] = [
 ];
 
 const CONNECTION_PATTERNS: RegExp[] = [
-  /\[convex/i, // the transport-level error prefix
+  // 2026-11-25: the bare /\[convex/i prefix pattern is REMOVED. Every
+  // server-thrown function error arrives wrapped in that prefix, so the
+  // pattern classified ANY handler error ("User account not found…") as a
+  // transport failure and drove the false "Connection interrupted /
+  // Reconnecting… (Attempt 2/5)" loop. Only messages that actually look
+  // like transport failures classify as connection now; server errors
+  // classify by their CONTENT (auth / onboarding / permission / data).
   /websocket/i,
   /convex\.cloud/i,
   /connection (lost|interrupted|closed)/i,
@@ -96,6 +111,19 @@ export function classifyConvexError(rawMessage: unknown): ErrorTranslation {
       title: 'Your session has ended',
       subtitle:
         'You were signed out — your session expired or was signed in on another device. Your data is safe. Please sign in again to continue.',
+    };
+  }
+
+  // 1b. ONBOARDING — the account exists and is verified but has no
+  //      workspace yet. Retrying cannot create a firm; the recoverable
+  //      action is to CONTINUE SETUP (the app routes firmless users to
+  //      the OnboardingWizard on boot).
+  if (matches(msg, ONBOARDING_PATTERNS)) {
+    return {
+      category: 'onboarding',
+      title: 'Set up your workspace',
+      subtitle:
+        'Your account is verified — your workspace hasn’t been created yet. Continue setup and you’ll be right back.',
     };
   }
 
@@ -167,6 +195,9 @@ export const RETRY_POLICIES: Record<ErrorCategory, RetryPolicy> = {
   // Two short, flat retries — only to survive a storage/hydration race
   // where a freshly-issued bearer lands ~1s after the first rejection.
   auth: { maxAutoRetries: 2, baseDelayMs: 1500, backoffFactor: 1, maxDelayMs: 1500 },
+  // NEVER auto-retry: retrying cannot create a workspace. The only sane
+  // resolution is routing the user back into setup.
+  onboarding: { maxAutoRetries: 0, baseDelayMs: 0, backoffFactor: 1, maxDelayMs: 0 },
   // The only unbounded-in-spirit category — but still CAPPED, with proper
   // exponential backoff: 3s, 6s, 12s, 24s, 48s, then stop and show buttons.
   connection: { maxAutoRetries: 5, baseDelayMs: 3000, backoffFactor: 2, maxDelayMs: 48000 },

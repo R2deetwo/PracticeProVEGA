@@ -43,14 +43,24 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // session's optimistic entries. The new session-gated feed fills the
     // gap. Local optimistic rows (client uuids) are kept until the feed
     // carries the same event (matched on action+targetId+timestamp).
+    //
+    // PART 4 (2026-11-25, the fresh-user race): the query used to fire on
+    // `currentUser?.email` ALONE — a just-verified user has an email but
+    // NO firm yet (the workspace is created in the OnboardingWizard), so
+    // matterLifecycle:getFirmActivityFeed → requireFirmUser → settleFirmUser
+    // threw "User account not found or not associated with an active firm.",
+    // the [CONVEX Q(...)] transport prefix got it misclassified as a
+    // connection error, and the app showed "Connection interrupted /
+    // Reconnecting... (Attempt 2/5)" right after OTP verification. The
+    // gate now mirrors shouldLoadFirmData: a firm must EXIST and the user
+    // must be a non-portal firm-side user before ANY firm-scoped query
+    // leaves the client. Unsettled accounts route to onboarding instead.
+    const isDemoForFeed = currentUser?.email === 'demo@practicepro.ng';
+    const isPortalUserForFeed = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+    const shouldLoadFirmActivityFeed = !!currentUser?.firmId && !isDemoForFeed && !isPortalUserForFeed;
     const firmActivityFeed = useQuery(
         (api as any).matterLifecycle.getFirmActivityFeed,
-        // V7 (demo-mode leak): the demo user is a client-side fixture — it
-        // has no server session, so this firm-scoped query could only ever
-        // come back "Unauthenticated", crash through ConvexErrorBoundary
-        // and retire the whole demo session. Skipped for demo like every
-        // other firm-scoped query below (shouldLoadFirmData / isDemo).
-        currentUser?.email && currentUser.email !== 'demo@practicepro.ng'
+        shouldLoadFirmActivityFeed && currentUser?.email
             ? { userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined), limit: 100 }
             : 'skip'
     );

@@ -102,7 +102,8 @@ const PaymentGatewayModal = lazyWithReload(() => import('../../components/modals
 const UpgradeModal = lazyWithReload(() => import('../../components/modals/UpgradeModal'));
 const TaskDetailModal = lazyWithReload(() => import('../../components/modals/TaskDetailModal').then(m => ({ default: m.default })));
 const EventDetailModal = lazyWithReload(() => import('../../components/details/EventDetailModal').then(m => ({ default: m.EventDetailModal })));
-const LeadCaptureModal = lazyWithReload(() => import('../../components/modals/LeadCaptureModal'));
+// 2026-11-25: LeadCaptureModal (the false "interactive demo" entry) is retired —
+// landing CTAs go straight to the product-scoped signup modal.
 const WorkspaceSetupModal = lazyWithReload(() => import('../../components/modals/WorkspaceSetupModal'));
 const SendPostActivationEmailModal = lazyWithReload(() => import('../../components/modals/SendPostActivationEmailModal'));
 const JoinFirmModal = lazyWithReload(() => import('../../components/modals/JoinFirmModal'));
@@ -943,8 +944,6 @@ export const ModalLayer: React.FC = () => {
         return <DemoUpsellModal context={modalContext?.context} onSignup={() => openModal('signup')} onClose={closeModal} />;
       case 'aiConsent':
         return <AIConsentModalWrapper modalContext={modalContext} closeModal={closeModal} />;
-      case 'leadCapture':
-        return <LeadCaptureModal />;
       case 'login':
         return <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup', null, authSwitchContext()), 10); }} forClient={modalContext?.forClient} />;
       case 'signup':

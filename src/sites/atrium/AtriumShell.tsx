@@ -180,7 +180,9 @@ export const AtriumNavBar: React.FC<{
                 </button>
             </nav>
 
-            {/* Right Actions — Log In / Start Free Trial on product pages. */}
+            {/* Right Actions — Log In / Get Started on product pages. One
+                honest primary CTA (2026-11-25): the same Atrium-scoped signup
+                the hero opens — the competing trial-button label is retired. */}
             <div className="flex items-center gap-2">
                 <div className="hidden lg:block h-4 w-px mx-1 bg-slate-200" />
                 <button
@@ -195,7 +197,7 @@ export const AtriumNavBar: React.FC<{
                     tone="atrium"
                     className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-sm !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-sm"
                 >
-                    Start Free Trial
+                    Get Started
                 </PrimaryButton>
 
                 {/* Mobile hamburger button — shown below lg (1024px). */}
@@ -241,7 +243,7 @@ export const AtriumNavBar: React.FC<{
                     <div className="h-px my-3 bg-slate-200" />
                     <button onClick={() => handleNavClick(onLogin)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Log In</button>
                     <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-sm !text-sm mt-2">
-                        Start Free Trial
+                        Get Started
                     </PrimaryButton>
                     <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
                 </nav>
@@ -334,7 +336,7 @@ export const AtriumMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSa
             onClick={() => onSignup()}
             className="flex-[1.5] py-3 rounded-lg text-sm font-semibold transition-colors bg-atrium-emerald hover:bg-emerald-700 active:bg-emerald-800 text-white"
         >
-            Start Free Trial
+            Get Started
         </button>
     </div>
 );

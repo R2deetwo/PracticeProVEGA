@@ -809,11 +809,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
               </p>
             </div>
 
-            {/* Product switcher — only if no product was pre-selected from signup */}
+            {/* Product switcher — only if no product was pre-selected from
+                signup (a legacy/no-product account). 2026-11-25: Vega and
+                Atrium only — Komplete is never a choice during initial
+                signup/onboarding; it is reached later (the Vega page's
+                "Explore Komplete" bundle cross-sell or an in-app upgrade). */}
             {!userProduct && (
               <div className="flex justify-center gap-3">
-                {(['legal', 'property', 'unified'] as ProductMode[]).map(p => {
-                  const name = p === 'legal' ? 'Vega' : p === 'property' ? 'Atrium' : 'Komplete';
+                {(['legal', 'property'] as ProductMode[]).map(p => {
+                  const name = p === 'legal' ? 'Vega' : 'Atrium';
                   const active = product === p;
                   return (
                     <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-2xs font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 ' : 'border-slate-200  text-slate-400 hover:border-slate-300'}`}>

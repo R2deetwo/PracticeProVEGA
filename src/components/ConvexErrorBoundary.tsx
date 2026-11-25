@@ -38,6 +38,36 @@ import {
 import { clearAllAuthStorage, authSignInUrl } from '../utils/sessionInvalidation';
 
 import { Z_CLASS } from '../overlays/constants';
+
+// ─── Product-scoped recovery accents (PART 4, 2026-11-25) ──────────────────
+// The recovery/fallback surface must wear the active product's accent:
+// Vega blue (#1E3A8A / #1E40AF) inside /vega and ?app=vega, Atrium green
+// (#059669) inside /atrium and ?app=atrium, and the shipped emerald
+// everywhere else (hub, native, portals). Resolved from the URL ONLY —
+// the boundary renders before any React context is guaranteed.
+export type RecoveryAccent = 'vega' | 'atrium' | 'hub';
+
+export function resolveRecoveryAccent(): RecoveryAccent {
+  try {
+    const loc = window.location;
+    if (loc.pathname.startsWith('/vega')) return 'vega';
+    if (loc.pathname.startsWith('/atrium')) return 'atrium';
+    const app = new URLSearchParams(loc.search).get('app');
+    if (app === 'vega') return 'vega';
+    if (app === 'atrium' || app === 'komplete') return 'atrium';
+  } catch { /* no DOM (tests) — hub */ }
+  return 'hub';
+}
+
+const ACCENT_BUTTON_CLASSES: Record<RecoveryAccent, string> = {
+  // Vega blue — the executive navy register (vega-gilt / vega-gilt-bright).
+  vega: 'bg-[#1E3A8A] hover:bg-[#1E40AF]',
+  // Atrium green — the Well-Kept Estate emerald (#059669).
+  atrium: 'bg-emerald-600 hover:bg-emerald-500',
+  // The shipped emerald register for everything else.
+  hub: 'bg-emerald-600 hover:bg-emerald-500',
+};
+
 // ─── Flashlight Background Component ─────────────────────────────────────────
 
 const FlashlightBackground: React.FC = () => {
@@ -127,6 +157,14 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
     window.location.reload();
   };
 
+  // Onboarding recovery (PART 4): the session is VALID — only the workspace
+  // is missing. The recoverable action is to continue setup; the app boot
+  // routes a firmless user straight into the OnboardingWizard. The session
+  // is deliberately PRESERVED (unlike the auth path's full wipe).
+  const handleContinueSetup = () => {
+    window.location.href = '/';
+  };
+
   // Clean sign-in: wipe ALL client auth state (email session, bearer,
   // offline cache, impersonation leftovers) and land on the correct login
   // surface. This is the ONLY sane resolution for an auth-category error —
@@ -144,6 +182,9 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
   };
 
   const isAuth = category === 'auth';
+  const isOnboarding = category === 'onboarding';
+  const accent = resolveRecoveryAccent();
+  const accentBtn = ACCENT_BUTTON_CLASSES[accent];
 
   return (
     <div
@@ -159,9 +200,11 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-emerald-500/10 blur-2xl rounded-full scale-150 animate-pulse" style={{ animationDuration: '3s' }} />
           <div className="relative w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-            <svg className={`w-7 h-7 ${isAuth ? 'text-sky-400' : 'text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className={`w-7 h-7 ${isAuth ? 'text-sky-400' : accent === 'vega' ? 'text-blue-400' : 'text-emerald-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               {isAuth ? (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              ) : isOnboarding ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25V7.5a2.652 2.652 0 00-.79-1.87L14.37.79A2.652 2.652 0 0012.5 0H3.75A2.652 2.652 0 001 2.75v14.5a2.652 2.652 0 002.75 2.75h5.5M4.5 5.25h7.5M4.5 9h7.5M4.5 12.75h4.5" />
               ) : (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               )}
@@ -196,11 +239,23 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
               </svg>
               Sign in again
             </button>
+          ) : isOnboarding ? (
+            /* Onboarding: the session is valid, the workspace isn't created
+               yet. ONE action — continue setup — no retry loop, no wipe. */
+            <button
+              onClick={handleContinueSetup}
+              className={`w-full py-3.5 ${accentBtn} text-white rounded-md text-sm font-bold transition-colors flex items-center justify-center gap-2`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h13.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              Continue Setup
+            </button>
           ) : (
             <button
               onClick={onRetry}
               disabled={isRetrying}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className={`w-full py-3.5 ${accentBtn} text-white rounded-md text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
             >
               {isRetrying ? (
                 <>

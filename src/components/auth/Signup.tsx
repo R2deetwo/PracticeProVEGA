@@ -20,7 +20,6 @@ import {
  normalizeSignupProduct,
  isInternalProduct,
  PRODUCT_DISPLAY_NAMES,
- PRODUCT_ACCENT_COLORS,
 } from '../../utils/signupProduct';
 import { AuthHeader, AUTH_THEMES, resolveAuthThemeId } from './authTheme';
 // 2026-11-24: colleague-invite links (/signup?invite=INV-1234) park the
@@ -43,6 +42,13 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const authTheme = AUTH_THEMES[authThemeId];
 
  const [step, setStep] = React.useState<'product_selection' | 'form' | 'verify' | 'restore'>('product_selection');
+ // 2026-11-25 (product-scoped signup round): a product-scoped entry
+ // (Get Started on /vega or /atrium) skips the chooser entirely — the
+ // form opens with the page's product pre-selected, and NO Back/product-
+ // switcher control renders (the modal's close button is the safe way back
+ // to the originating product page). Only a user who picked a product on
+ // THIS modal's chooser (the hub signup path) gets the conventional ← Back.
+ const [viaChooser, setViaChooser] = React.useState(false);
  // FIX: Default to null instead of 'legal' (Vega). This ensures the user MUST
  // select a product before proceeding — the verification email won't falsely
  // say "PracticePro Vega" if they didn't pick Vega.
@@ -192,9 +198,10 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    const productToSend = normalizeSignupProduct(productRef.current);
 
    // FIX: Guard against null/invalid product — don't let signup proceed
-   // without a KNOWN product.
+   // without a KNOWN product. (2026-11-25: the basic-signup chooser offers
+   // Vega and Atrium only; Komplete is a later upgrade/bundle path.)
    if (!productToSend || !isInternalProduct(productToSend)) {
-    addToast("Please select a product (Vega, Atrium, or Komplete) to continue.", { type: 'error' });
+    addToast("Please select a product (Vega or Atrium) to continue.", { type: 'error' });
     setStep('product_selection');
     setIsLoading(false);
     return;
@@ -464,7 +471,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
   );
  }
 
- // ─── STEP 0: PRODUCT SELECTION ───────────────────────────────────────────
+ // ─── STEP 0: PRODUCT SELECTION (the basic-signup chooser) ───────────────
+ // 2026-11-25 (product-scoped signup round): the chooser offers Vega and
+ // Atrium ONLY. Komplete must not appear as a choice during basic signup —
+ // it is reached later, as an upgrade or the explicit bundle cross-sell
+ // ("Explore Komplete" on /vega's final CTA). /vega and /atrium CTAs
+ // never show this step at all (their signup opens pre-selected).
  if (step === 'product_selection') {
   return (
    <div className="flex flex-col h-full animate-fade-in space-y-6">
@@ -476,7 +488,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     <div className="space-y-4">
      {/* Vega — Legal — navy glow (the light-enterprise register) */}
      <button
-      onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setStep('form'); }}
+      onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setViaChooser(true); setStep('form'); }}
       style={{ '--glow-color': 'rgba(30, 58, 138, 0.12)', '--glow-border': 'rgba(30, 58, 138, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-vega-gilt bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
@@ -491,7 +503,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
      {/* Atrium — Property — emerald glow (registered identity #059669; was mis-registered as blue) */}
      <button
-      onClick={() => { setSelectedProduct('property'); productRef.current = 'property'; setStep('form'); }}
+      onClick={() => { setSelectedProduct('property'); productRef.current = 'property'; setViaChooser(true); setStep('form'); }}
       style={{ '--glow-color': 'rgba(5, 150, 105, 0.12)', '--glow-border': 'rgba(5, 150, 105, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-emerald-600 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
@@ -501,22 +513,6 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       <div>
        <div className="font-black text-lg text-slate-900 ">Atrium <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Property</span></div>
        <div className="text-xs text-slate-500 mt-1">For property managers and portfolios.</div>
-      </div>
-     </button>
-
-     {/* Komplete — Unified — violet glow (registered identity #7C3AED; was mis-registered as indigo) */}
-     <button
-      onClick={() => { setSelectedProduct('unified'); productRef.current = 'unified'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(124, 58, 237, 0.12)', '--glow-border': 'rgba(124, 58, 237, 0.25)' } as React.CSSProperties}
-      className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-violet-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
-     >
-      <div className="p-2.5 rounded-md bg-violet-50 text-violet-600 group-hover:bg-violet-100 transition-colors relative">
-       <CheckCircleIcon className="w-6 h-6" />
-      </div>
-      <div className="w-full relative">
-       <div className="absolute top-0 right-0 bg-violet-100 text-violet-700 text-3xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Premium</div>
-       <div className="font-black text-lg text-slate-900 ">Komplet <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Unified</span></div>
-       <div className="text-xs text-slate-500 mt-1 pr-10">Unified workspace for both legal (Vega) and property (Atrium).</div>
       </div>
      </button>
     </div>
@@ -555,47 +551,47 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  }
 
  // ─── STEP 1: SIGNUP FORM ─────────────────────────────────────────────────
+ // 2026-11-25 (product-scoped signup round):
+ //  - Product-scoped entries (Get Started on /vega or /atrium) render the
+ //    themed AuthHeader — "Create your Vega workspace" + the product
+ //    tagline — with NO product chip, NO product switcher and NO ← Back
+ //    (the modal's own close button safely returns to the originating
+ //    product page).
+ //  - The TASK 54 "PracticePro Vega | LEGAL | Change" clarity chip is
+ //    retired: a user who clicked Get Started on a product page is already
+ //    looking at that product's signup; the chip invited mid-funnel
+ //    cross-product switching, which basic signup no longer offers.
+ //  - The hub path (chooser) keeps a conventional ← Back to the chooser.
+ //  - Migration users keep their dedicated copy and banner.
+ const HUB_PRODUCT_TAGLINES: Record<'legal' | 'property' | 'unified', string> = {
+  legal: 'Legal workflow automation for Nigerian law firms.',
+  property: 'The Well-Kept Estate — property and portfolio management, built by PracticePro.',
+  unified: 'Vega and Atrium in one unified workspace.',
+ };
  return (
   <div className="flex flex-col h-full animate-fade-in">
-   <div className="flex-grow space-y-5">
-    <div className="flex items-center gap-2 mb-2">
-     <button onClick={() => setStep('product_selection')} className="text-xs font-bold text-slate-400 hover:text-slate-600">← Back</button>
-    </div>
-    <div className="text-center mb-6">
-    {authThemeId !== 'hub' && <AuthHeader theme={authTheme} mode="signup" />}
-     {/* TASK 54 — product clarity chip: the user must SEE which product
-         workspace they are creating BEFORE they type anything. This is the
-         "where am I going?" answer — a user who intended Atrium but landed
-         here with Vega now has an explicit, colored confirmation in front
-         of them (plus a one-tap way back to the chooser). Migration users
-         skip the chip (their product is resolved after verification). */}
-     {selectedProduct && (
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 mb-3">
-       <span
-        className="w-2.5 h-2.5 rounded-full"
-        style={{ backgroundColor: PRODUCT_ACCENT_COLORS[selectedProduct] }}
-        aria-hidden="true"
-       />
-       <span className="text-xs font-bold text-slate-700">
-        PracticePro {PRODUCT_DISPLAY_NAMES[selectedProduct]}
-       </span>
-       <span className="text-3xs font-semibold uppercase tracking-wider text-slate-400">
-        {selectedProduct === 'legal' ? 'Legal' : selectedProduct === 'property' ? 'Property' : 'Legal + Property'}
-       </span>
-       <button
-        type="button"
-        onClick={() => setStep('product_selection')}
-        className={`text-2xs font-bold ${authTheme.linkBtn} hover:underline ml-1`}
-       >
-        Change
-       </button>
-      </div>
+   <div className="flex-grow space-y-4">
+    {viaChooser && !isMigrationUser && (
+     <div className="flex items-center gap-2 mb-1">
+      <button onClick={() => setStep('product_selection')} className="text-xs font-bold text-slate-400 hover:text-slate-600">← Back</button>
+     </div>
+    )}
+    <div className="text-center mb-4">
+    {authThemeId !== 'hub' ? <AuthHeader theme={authTheme} mode="signup" /> : selectedProduct && !isMigrationUser ? (
+     <div className="flex flex-col items-center">
+      <h3 className="text-xl font-bold tracking-tight text-slate-900">
+       Create your {PRODUCT_DISPLAY_NAMES[selectedProduct]} workspace
+      </h3>
+      <p className="text-sm text-slate-500 mt-1.5 max-w-[38ch]">
+       {selectedProduct ? HUB_PRODUCT_TAGLINES[selectedProduct] : ''}
+      </p>
+     </div>
+    ) : null}
+     {isMigrationUser && (
+      <p className="text-sm text-slate-500">
+       Create your new account and we'll restore your previous workspace.
+      </p>
      )}
-     <p className="text-sm text-slate-500">
-      {isMigrationUser
-       ? 'Create your new account and we\'ll restore your previous workspace.'
-       : 'Your workspace is waiting. Get started in under a minute.'}
-     </p>
     </div>
 
     {isMigrationUser && (
@@ -634,7 +630,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       {passwordError && <p className="text-2xs text-red-500 font-bold ml-1">{passwordError}</p>}
      </div>
 
-     <div className="flex flex-col gap-3 pt-2">
+     <div className="flex flex-col gap-2.5 pt-1">
       <div className="flex items-center gap-3">
        <input autoComplete="off" data-lpignore="true" 
         type="checkbox"
@@ -661,6 +657,13 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
      </div>
 
+     {/* The trust line — the same vocabulary every product page carries
+         (NDPA 2023-aligned safeguards), stated once, quietly, above the
+         primary action. */}
+     <p className="text-center text-2xs text-slate-500">
+      Your data is encrypted with NDPA 2023-aligned safeguards.
+     </p>
+
      <button
       type="submit"
       className={`w-full py-4 ${authTheme.primaryBtn} text-white rounded-sm font-bold text-lg transition-all shadow-md active:scale-[0.98] disabled:opacity-50`}
@@ -670,7 +673,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      </button>
     </form>
 
-    <p className="text-center text-sm text-slate-600 mt-4">
+    <p className="text-center text-sm text-slate-600 mt-3">
      Already have an account?{' '}
      <button onClick={onSwitchToLogin} className={`font-bold ${authTheme.linkBtn} hover:underline`}>
       Log in

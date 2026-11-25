@@ -1774,7 +1774,7 @@ export const App: React.FC = () => {
             // your 30-day free trial of PracticePro Atrium today"). The trial
             // CTA now carries that product into the signup modal so the copy
             // and the actual signup match.
-            if (view === 'resources') return <React.Suspense fallback={<GenericSkeleton />}><ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} onSwitchProduct={(p: 'vega' | 'atrium') => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')} applyDocumentIdentity /></React.Suspense>;
+            if (view === 'resources') return <React.Suspense fallback={<GenericSkeleton />}><ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => navigate(resourcesProduct === 'atrium' ? '/atrium' : '/vega')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} onSwitchProduct={(p: 'vega' | 'atrium') => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')} applyDocumentIdentity /></React.Suspense>;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
@@ -1991,7 +1991,7 @@ export const App: React.FC = () => {
                 onUsageClick={() => navigateTo('usagePolicy')}
                 onPortalTermsClick={() => navigateTo('portalTermsOfUse')}
                 onStartTrial={() => openModal('upgradePlan')}
-                onContactSales={() => openModal('leadCapture')}
+                onContactSales={() => navigate(resourcesProduct === 'atrium' ? '/atrium' : '/vega')}
                 activeProduct={resourcesProduct}
                 setActiveProduct={setResourcesProduct}
                 onSwitchProduct={(p: 'vega' | 'atrium') => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')}

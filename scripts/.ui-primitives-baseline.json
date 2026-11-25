@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-24T16:03:27.013Z",
+  "generatedAt": "2026-11-25T13:45:03.883Z",
   "totals": {
-    "button": 1611,
-    "input": 404,
+    "button": 1605,
+    "input": 403,
     "select": 139,
     "textarea": 58
   },
-  "total": 2212,
+  "total": 2205,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -60,7 +60,7 @@
       "button": 1
     },
     "src/components/ConvexErrorBoundary.tsx": {
-      "button": 6
+      "button": 7
     },
     "src/components/CookieConsent.tsx": {
       "button": 2
@@ -326,7 +326,7 @@
       "input": 2
     },
     "src/components/auth/Signup.tsx": {
-      "button": 18,
+      "button": 16,
       "input": 7,
       "textarea": 1
     },
@@ -722,10 +722,6 @@
     },
     "src/components/modals/KeyboardShortcutsModal.tsx": {
       "button": 1
-    },
-    "src/components/modals/LeadCaptureModal.tsx": {
-      "button": 5,
-      "input": 1
     },
     "src/components/modals/LinkContactModal.tsx": {
       "button": 2,

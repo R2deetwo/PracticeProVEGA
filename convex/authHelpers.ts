@@ -61,7 +61,16 @@ async function settleFirmUser(
         timestamp: Date.now(),
       });
     } catch {}
-    throw new Error("User account not found or not associated with an active firm.");
+    // PART 4 (2026-11-25): the message now carries the ONBOARDING_REQUIRED
+    // marker. A verified-but-firmless user is mid-onboarding (the workspace
+    // is created AFTER OTP verification by the OnboardingWizard) — the
+    // client's error classifier routes that state to workspace setup
+    // instead of misreading the [CONVEX Q(...)] transport prefix as a
+    // dead connection and entering a false retry loop. Auth rejections
+    // (no/invalid token) keep their own distinct message above.
+    throw new Error(
+      "ONBOARDING_REQUIRED: User account not found or not associated with an active firm."
+    );
   }
 
   // ── RLS: Block portal users from firm-level operations ────────────

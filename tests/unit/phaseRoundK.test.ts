@@ -19,9 +19,11 @@ const src = (p: string) => readFileSync(resolvePath(repoRoot, p), 'utf8');
 describe('UX-21 — secondary text passes AA on light', () => {
     it('no placeholder ships the 2.9:1 slate-400 any more', () => {
         const offenders: string[] = [];
+        // 2026-11-25: LeadCaptureModal is deleted (the false demo funnel is
+        // retired) — it no longer needs a placeholder audit.
         for (const f of ['src/components/auth/Signup.tsx', 'src/components/MessagesView.tsx',
             'src/components/LockScreen.tsx', 'src/components/client/ClientDashboard.tsx',
-            'src/components/atrium/ComposeModal.tsx', 'src/components/modals/LeadCaptureModal.tsx',
+            'src/components/atrium/ComposeModal.tsx',
             'src/sites/shared/ContactSalesDrawer.tsx', 'src/admin/views/SubscriptionRequestsCenter.tsx']) {
             if (src(f).includes('placeholder:text-slate-400')) offenders.push(f);
         }

@@ -44,7 +44,7 @@ export const VegaFinalCTA: React.FC<{
                             onClick={() => onSignup()}
                             className="rounded-full px-8 py-4 text-base font-bold bg-white text-[#1E3A8A] hover:bg-indigo-50 transition-all duration-150 active:scale-[0.98] focus-visible:ring-white"
                         >
-                            Start Free Trial
+                            Get Started
                         </Button>
                         <Button
                             variant="bare"

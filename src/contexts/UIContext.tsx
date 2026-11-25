@@ -196,7 +196,6 @@ const getModalTitle = (modalType: ModalType): string => {
 
         case 'saveToNote': return 'Save to Note';
         case 'matterIngestion': return 'Smart Matter Ingestion';
-        case 'leadCapture': return 'Demo Access';
         case 'collectRent': return 'Collect Rent';
         case 'bulkEditProperty': return 'Bulk Edit Properties';
         case 'editTask': return 'Edit Task';

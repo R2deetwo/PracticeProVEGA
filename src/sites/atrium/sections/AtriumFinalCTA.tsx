@@ -32,7 +32,7 @@ export const AtriumFinalCTA: React.FC<{ onSignup: () => void; onContactSales: ()
                         onClick={() => onSignup()}
                         className="px-8 py-4 rounded-sm font-semibold hover:scale-[1.02] transition-all shadow-lg bg-atrium-emerald text-white hover:bg-emerald-700"
                     >
-                        Start Free Trial
+                        Get Started
                     </button>
                     <button
                         onClick={onContactSales}

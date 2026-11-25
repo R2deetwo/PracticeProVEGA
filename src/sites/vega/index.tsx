@@ -4,7 +4,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useSiteChrome } from '../shared/useSiteChrome';
 import { useSiteScroll } from '../shared/useSiteScroll';
 import { useSignupOpener, useContactSales } from '../shared/useSignupOpener';
-import { PrimaryButton, GhostButton } from '../shared/ctas';
+import { PrimaryButton } from '../shared/ctas';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
 import LegalDirectoriesDrawer from '../shared/LegalDirectoriesDrawer';
 import AloaAssistantFab from '../shared/AloaAssistantFab';
@@ -50,11 +50,12 @@ export const VegaSite: React.FC = () => {
         ['home', 'suite', 'vox', 'practice-areas', 'pricing']
     );
     const openSignup = useSignupOpener('vega');
-    // R64 — the demo entry: "View Live Demo" opens the demo-access modal
-    // (the home of the Vega | Atrium toggle), pre-toggled to THIS page's
-    // product. In dev it launches the chosen demo; in production the email
-    // capture hands off to signup with the product preselected.
-    const openDemo = () => openModal('leadCapture', null, { demoProduct: 'vega' });
+    // 2026-11-25 — the false demo entry is retired: the hero's old outline
+    // CTA opened the LeadCaptureModal ("Access Interactive Demo"), whose
+    // production behavior was a bait-and-switch — the email capture handed
+    // the visitor to the signup modal. /vega now carries ONE honest primary
+    // CTA: "Get Started" opens the Vega-scoped signup modal directly
+    // (Vega — Legal OS pre-selected).
     const {
         isContactDrawerOpen,
         contactDrawerSource,
@@ -153,11 +154,6 @@ export const VegaSite: React.FC = () => {
                         <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
                             Get Started
                         </PrimaryButton>
-                    )}
-                    demoCta={(
-                        <GhostButton onClick={openDemo} tone="vega" className="text-base px-8 py-4">
-                            View Live Demo
-                        </GhostButton>
                     )}
                 />
                 {/* The six core bands (R56): the tabbed suite hub, the

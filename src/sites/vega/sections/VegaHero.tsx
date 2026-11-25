@@ -6,6 +6,13 @@ import { HeroVideo } from '../../../components/HeroVideo';
  * hero; R68: the de-shove; R69: the eyebrow pill retires; R70: the band is
  * the landing-page background at EVERY width again.
  *
+ * 2026-11-25 — the hero carries ONE honest primary CTA ("Get Started",
+ * passed via the cta prop). The secondary outline button that used to sit
+ * beside it is retired with the false-demo removal round: it opened the
+ * LeadCaptureModal ("Access Interactive Demo"), whose production behavior
+ * was a lead-capture hand-off to signup — a bait-and-switch that no longer
+ * has a place on the page.
+ *
  * Owner direction, R70 (verbatim shape): "it is supposed to be on the
  * landingpage background — put it back there." R68 had demoted the clip
  * to a framed card below the copy for every width under 2xl (only
@@ -39,12 +46,9 @@ import { HeroVideo } from '../../../components/HeroVideo';
  * props.
  */
 export const VegaHero: React.FC<{
-    /** The primary CTA node (Vega-styled buttons), passed in by the site index. */
+    /** The primary CTA node (Vega-styled button), passed in by the site index. */
     cta: React.ReactNode;
-    /** The secondary "View Live Demo" node — R64: opens the demo-access
-     *  modal (the Vega | Atrium toggle), pre-toggled to Vega. */
-    demoCta: React.ReactNode;
-}> = ({ cta, demoCta }) => (
+}> = ({ cta }) => (
     <section id="home" className="relative overflow-hidden bg-white">
         {/* ── The copy — riding ON the band at EVERY width (R70: the
             restore — "it is supposed to be on the landingpage
@@ -86,14 +90,13 @@ export const VegaHero: React.FC<{
                         from intake to judgment, with every hearing reminder fired on time.
                     </p>
 
-                    {/* Dual CTAs — Get Started (navy) + View Live Demo (outline). */}
+                    {/* The primary CTA — Get Started (Vega-scoped signup). */}
                     <div
                         className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-5"
                         data-vg-reveal
                         style={{ '--vg-d': '210ms' } as React.CSSProperties}
                     >
                         {cta}
-                        {demoCta}
                     </div>
 
                     {/* R67: the trial microcopy rides on an opaque white

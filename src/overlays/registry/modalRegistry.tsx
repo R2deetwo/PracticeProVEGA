@@ -94,7 +94,6 @@ const PaymentGatewayModal = lazy(() => import('../../components/modals/PaymentGa
 const UpgradeModal = lazy(() => import('../../components/modals/UpgradeModal').then(m => ({ default: m.default })));
 const TaskDetailModal = lazy(() => import('../../components/modals/TaskDetailModal').then(m => ({ default: m.default })));
 const EventDetailModal = lazy(() => import('../../components/details/EventDetailModal').then(m => ({ default: m.EventDetailModal })));
-const LeadCaptureModal = lazy(() => import('../../components/modals/LeadCaptureModal').then(m => ({ default: m.default })));
 const WorkspaceSetupModal = lazy(() => import('../../components/modals/WorkspaceSetupModal').then(m => ({ default: m.default })));
 const SendPostActivationEmailModal = lazy(() => import('../../components/modals/SendPostActivationEmailModal').then(m => ({ default: m.default })));
 const BatchUploadModal = lazy(() => import('../../components/modals/BatchUploadModal').then(m => ({ default: m.default })));
@@ -153,11 +152,6 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
   signup: {
     component: Signup as any,
     title: 'Create Account',
-    size: 'sm',
-  },
-  leadCapture: {
-    component: LeadCaptureModal as any,
-    title: 'Get Started',
     size: 'sm',
   },
 

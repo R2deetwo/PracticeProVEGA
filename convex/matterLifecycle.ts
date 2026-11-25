@@ -41,6 +41,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { resolveUserBySessionToken } from "./sessions";
 
 // ─── The state machine (V-MATTER-1) ──────────────────────────────────────────
 
@@ -752,6 +753,26 @@ export const getFirmActivityFeed = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // PART 4 (2026-11-25, the fresh-user race): a JUST-VERIFIED user has a
+    // valid session but no firm yet — the workspace is created by the
+    // OnboardingWizard AFTER OTP verification. This read-only dashboard
+    // query used to fall through requireFirmUser → settleFirmUser and
+    // throw "User account not found or not associated with an active
+    // firm." — the client wrapped it in the [CONVEX Q(...)] transport
+    // prefix, misclassified it as a connection failure, and rendered the
+    // "Connection interrupted / Reconnecting... (Attempt 2/5)" screen right
+    // after signup. An onboarding-incomplete account has no activity feed
+    // — that is a legitimate, EMPTY answer, not an error. Real failures
+    // still throw below: an invalid/expired/revoked token, a portal role
+    // touching firm-level reads, or a suspended account all pass through
+    // requireFirmUser untouched (nothing here swallows authorization,
+    // database, or provisioning failures).
+    if (args.sessionToken) {
+      const tokenUser = await resolveUserBySessionToken(ctx, args.sessionToken);
+      if (tokenUser && !tokenUser.firmId) {
+        return [];
+      }
+    }
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const rows = await ctx.db
       .query("firmActivity")
