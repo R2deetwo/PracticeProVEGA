@@ -3720,3 +3720,25 @@ Gates: vitest 3745 passed | 1 skipped · root tsc 0 · convex tsc 0 ·
 eslint 0 errors · ui-primitives ratchet 2212 held · vite build SUCCESS
 (new dark utilities verified emitted in the built CSS). No convex/
 changes — web-layer deploy only.
+
+### Task 92 — production verification addendum (2026-11-25)
+
+- PUSHED 1ccb7c5e (no rebase needed — remote main was exactly the
+  pre-task origin/main). CI on 1ccb7c5e: Tests, E2E smoke, Deploy to
+  Staging, Build Android APK (build-1307 / v1.0.896), CodeQL — ALL
+  SUCCESS.
+- Production deploy (vercel-production-deploy.yml, sha input pinned to
+  the full 1ccb7c5e…7abb52, ref=main): run 45564805539 SUCCESS.
+- LIVE PROBE: https://practice-pro-vega.vercel.app → version.json
+  healthy at sha 1ccb7c5e (builtAt 2026-11-25T07:03:52Z). BUNDLE
+  MARKERS VERIFIED in the deployed assets: the Sidebar pill's "Tap to
+  record — voice to Aloa" + "ALOA Vox — start recording" and the
+  dark-paired capture classes ("bg-slate-50 dark:bg-zinc-900") in the
+  main JS bundle; the dark utility RULES (dark:bg-zinc-900,
+  dark:border-zinc-800, dark:text-zinc-400, dark:hover:bg-zinc-800)
+  emitted in the deployed CSS (cache-busted main-BROFsw98-1ccb7c5e.css).
+- Convex production NOT re-deployed — zero convex/ changes in this
+  task; the Task 90 functions remain live.
+- Bundle note: BottomNav already statically imports VoxUpsellModal, so
+  the quickcapture family already rode the main chunk; Sidebar's
+  import adds no new bundle surface.
