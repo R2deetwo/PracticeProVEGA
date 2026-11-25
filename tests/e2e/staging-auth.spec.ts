@@ -54,7 +54,7 @@ test.describe('staging auth smoke', () => {
     });
     await page.goto('/vega');
     await page
-      .getByRole('button', { name: which === 'signup' ? 'Start Free Trial' : 'Log In' })
+      .getByRole('button', { name: which === 'signup' ? 'Get Started' : 'Log In' })
       .first()
       .click();
   }
