@@ -3957,3 +3957,69 @@ STAGING_URL). Live checks: /vega + /atrium + hub text-scanned (zero
 "View Live Demo" / "interactive demo" / "Start Free Trial" strings;
 Get Started ×3 on /vega; Explore Komplete cross-sell intact), modal
 snapshots clean, zero console errors.
+
+### Task 96 — login speed, initial-load flash, welcome-email deep links (2026-11-25)
+
+Branch `fix/vega-get-started-and-signup-flow` (continues from the Task 95
+commit 14e052d2, pushed per owner direction; CI "Tests" run on the
+pushed commit: success). Task 96's own changes are working-tree only —
+not committed/deployed (owner direction: "Do not commit, deploy, or
+merge unless explicitly requested").
+
+PART 1 — login opens INSTANTLY (image_80c57a/80c5da): the 5-10s
+three-bar skeleton stall was the lazyWithReload chunk FETCH for the
+auth modals on mobile networks. Login + Signup are now EAGERLY imported
+in ModalLayer (small dependency-light forms; everything they import is
+already in the entry graph) — the modal renders its full form in the
+frame it is triggered, zero network dependency; heavy modals stay lazy.
+The duplicate "LEGAL WORKFLOW AUTOMATION" microlabel under "Log in to
+Vega" was already retired with Task 95's AuthHeader (screenshots were
+production, which lacks that fix) — pinned now for login too: scoped
+E2E asserts the dialog carries the tagline exactly once.
+
+PART 2 — the /vega unstyled flash (image_805cf8) was a GENERATOR bug:
+generate-product-pages.cjs replaceTag swapped only the OPENING
+<title> tag, leaving the hub's title text + a bare </title> as stray
+<head> text — the parser kicks that into the body, so
+"PracticePro Systems — Build Systems That Help Scale Your Business"
+rendered raw above #root. replaceTag now consumes the WHOLE paired
+<title> element (void meta tags unchanged); vega.html + atrium.html
+regenerated (exactly one <title> each, zero stray text). Product
+pre-paint added per shell (head-only): html background = the product's
+paper (Vega #FFFFFF, Atrium cream #FAF7F2) and the session-boot
+overlay tinted per product (Vega night blue #172554, Atrium emerald
+#059669) — product-scoped from first paint, never the generic hub
+register. NOTE: index.html's 2026-11-25 owner brief made the HUB boot
+overlay black-first; the product-shell tints follow THIS task's explicit
+"Vega blue on /vega, Atrium green on /atrium" direction and override
+per route — flagged for owner confirmation.
+
+PART 3 — welcome email (image_8055b6): the "Get Started in 3 Steps"
+multi-button funnel is RETIRED (every step button deep-linked into the
+app; a fresh-device clicker bounced to the bare base site with no
+sign-in and the parked action never delivered). ONE unified CTA per
+product — "Sign In to Vega" → /?app=vega&login=vega (Vega blue
+#1E3A8A), "Sign In to Atrium" → /?app=atrium&login=atrium (emerald
+#059669), "Sign In to Komplete" (violet #7C3AED) — with an "After you
+sign in" honesty block, the Learning-Resources Help Center kept as the
+muted secondary ("opens once you are signed in"), and the NDPA
+2023-aligned-safeguards footer line. App side: the ?login= param
+auto-opens the PRODUCT-SCOPED login modal (App.tsx #3 effect, mirrors
+the recovery-link pattern; authenticated clickers skip the modal; the
+param is stripped after mount), and an unauthenticated deep-link
+clicker now gets the login modal OPENED on the parked redirect (the
+post-login effect then delivers them to the parked destination) — the
+handoff completes instead of stranding them on the marketing page.
+
+Verification: vitest 3815 | 1 skipped (new loginSpeedWelcomeEmail suite:
+17 source pins + 3 REAL-handler email fixtures — fetch mocked, the
+actual Brevo htmlContent asserted per product) · root tsc 0 · convex
+tsc 0 · eslint 0 · ratchet 2205 (held) · vite build OK (Login/Signup
+bundled into the entry chunk; no Login-*.js chunk) · Playwright 6/6
+against the local preview (new login-modal.spec.ts: /vega + /atrium
+instant-form gate ≤2s, no duplicate microlabel in the dialog, both
+?login= deep links auto-open + strip; public-smoke 2/2) · served
+shells text-scanned (zero stray title text on /vega + /atrium).
+Known limitation: live Woosh-inbox email delivery needs this branch
+deployed (Convex function + Vercel); the deep-link CTA destination is
+E2E-verified against the preview build with the exact emailed URL.

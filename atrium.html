@@ -40,7 +40,6 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Atrium — Property Management OS for Nigerian Portfolios | PracticePro</title>
-PracticePro Systems — Build Systems That Help Scale Your Business</title>
   <meta name="description" content="Rent and service-charge collection, residents' portal, maintenance workflows, Sentry Pass visitor management and revenue intelligence for Nigerian property portfolios — applying the tenancy law of all 36 states and the FCT. A PracticePro product." />
   <meta name="keywords" content="PracticePro Atrium, property management software Nigeria, rent collection Lagos, service charge management, estate management software, tenant portal Nigeria, property portfolio software, ARIA AI, Nigerian tenancy law" />
   <meta property="og:type" content="website" />
@@ -157,15 +156,17 @@ PracticePro Systems — Build Systems That Help Scale Your Business</title>
     }
 
     /* ─── PP boot overlay (index.html) ─────────────────────────────────
-       Brand green + white P + spinner, shown from first HTML paint until
-       React commits. Mirrors the native splash so the boot is ONE
-       continuous branded phase: green native splash → green HTML loader
-       → in-app cinematic. */
+       OWNER BRIEF 2026-11-25 (Splash Sequence): BLACK + white P +
+       spinner, shown from first HTML paint until React commits. The boot
+       chain is now black-first (black native splash → black plugin →
+       black HTML loader → the in-app cinematic's Black → Amber → Green)
+       so the standard launch has ZERO bright-green flash before the main
+       transition begins. */
     #pp-boot-overlay {
       position: fixed;
       inset: 0;
       z-index: 2147483647;
-      background: #16A34A;
+      background: #000000;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -266,6 +267,17 @@ PracticePro Systems — Build Systems That Help Scale Your Business</title>
       letter-spacing: 1px;
       font-weight: bold;
     }
+  </style>
+
+  <!-- PRODUCT PRE-PAINT (generated — see scripts/generate-product-pages.cjs):
+       this route paints its OWN product ground from the first HTML paint
+       until the app's styles take over (never a bare white/dark flash,
+       never the generic hub register). The boot overlay — shown only to
+       session-restoring visitors per the splash discipline — carries the
+       same product ground. -->
+  <style>
+    html { background: #FAF7F2; }
+    #pp-boot-overlay { background: #059669; }
   </style>
 
 

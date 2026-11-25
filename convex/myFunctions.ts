@@ -7072,17 +7072,29 @@ export const sendRecoveryEmail = internalAction({
  *
  * This is SEPARATE from the verification email:
  *   - Verification email: "Here's your code" — transactional, no product info
- *   - Welcome email: "Welcome to PracticePro [Product]" — onboarding, includes
- *     product info, tier, and learning material links
+ *   - Welcome email: "Welcome to PracticePro [Product]" — onboarding entry
  *
  * The welcome email is triggered from the `verifyCode` mutation (guarded
  * by `welcomeEmailSent` field on the user record) so it's sent exactly once.
  *
- * Content includes:
- *   - Personalized welcome with the product name (VEGA / ATRIUM / KOMPLETE)
- *   - Product tagline and what they can do
- *   - Getting started links (dashboard, ALOA, DraftPro, etc.)
- *   - Learning material / help center link
+ * 2026-11-25 (unified-CTA redesign): the multi-button "Get Started in 3
+ * Steps" block is RETIRED. Every step button ("Create your first Matter →",
+ * "Meet ALOA →", "Draft documents with DraftPro →") deep-linked into the
+ * app — but the email lands on a FRESH browser with no session, so the
+ * clicker was bounced to the base site with no sign-in prompt and the
+ * parked action never delivered. The email now carries ONE honest CTA:
+ * "Sign In to <Product>" → /?app=<product>&login=<product>. The `login`
+ * param auto-opens the product-scoped login modal on load (App.tsx #3
+ * effect — same pattern as the password-reset magic link), and after
+ * sign-in the app routes the user to ONBOARDING (workspace still needs
+ * setup) or their WORKSPACE (already ready). The Help Center survives
+ * as a muted secondary resource link — explicitly labeled as opening
+ * after sign-in — never as a competing primary action.
+ *
+ * Styling: the CTA carries the PRODUCT's accent (Vega blue #1E3A8A —
+ * matching the app's Vega auth/OTP emphasis, never Atrium green; Atrium
+ * emerald #059669; Komplete violet #7C3AED) on the product's light tint,
+ * and the closing reassurance is the NDPA 2023-aligned safeguard line.
  */
 export const sendWelcomeEmail = internalAction({
   args: {
@@ -7094,66 +7106,70 @@ export const sendWelcomeEmail = internalAction({
     const brand = getProductBranding(args.product);
     const userName = args.name || 'there';
 
-    // 2026-09-17 (dead-link fix): the getting-started links previously pointed
-    // at https://practicepro.ng/help/... — a domain that was never registered
-    // (NXDOMAIN), so every "Get Started" button in the welcome email was a
-    // dead link. They now point at the live web app (same origin as the
-    // password-reset emails' appDomain).
-    //
-    // 2026-09-17 (round 3 — action deep links): buttons that promise an
-    // ACTION now link straight into the app with that flow open:
-    //   /matters?action=new_matter       → Matters view + New Matter modal
-    //   /properties?action=new_property  → Properties view + New Property modal
-    // (see src/utils/emailActions.ts + the MainContent effect in App.tsx;
-    // unauthenticated clickers get the action parked and delivered after
-    // login). Conceptual steps ("Meet ALOA", "Draft with DraftPro",
-    // "Manage tenants & rent") still deep-link to the matching Help Center
-    // section (/help/<sectionId>), which the app router resolves to HelpView
-    // with that section pre-opened and scrolled into view.
     const appDomain = "https://practice-pro-vega.vercel.app";
 
-    // Product-specific getting started guides — help URLs map 1:1 to
-    // HelpView section IDs (see src/components/HelpView.tsx `sections`
-    // array); action URLs map via src/utils/emailActions.ts.
-    const gettingStartedLinks: Record<string, { label: string; url: string }[]> = {
-      legal: [
-        { label: 'Create your first Matter', url: `${appDomain}/matters?action=new_matter` },
-        { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
-        { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
-      ],
-      property: [
-        { label: 'Add your first Property', url: `${appDomain}/properties?action=new_property` },
-        { label: 'Meet ARIA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
-        { label: 'Manage tenants & rent', url: `${appDomain}/help/revenue-engine` },
-      ],
-      unified: [
-        { label: 'Create your first Matter', url: `${appDomain}/matters?action=new_matter` },
-        { label: 'Add your first Property', url: `${appDomain}/properties?action=new_property` },
-        { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
-        { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
-      ],
+    // ONE unified CTA per product — label, destination, accent color, light
+    // tint, and the one-line "what happens next" copy. The destination
+    // opens the product-scoped login modal (?login=) and rides the app's
+    // existing post-auth routing (onboarding if the workspace isn't set
+    // up yet, the workspace if it is).
+    const WELCOME_CTA: Record<string, {
+      label: string;
+      href: string;
+      color: string;
+      tint: string;
+      nextStep: string;
+    }> = {
+      legal: {
+        label: 'Sign In to Vega',
+        href: `${appDomain}/?app=vega&login=vega`,
+        color: '#1E3A8A', // Vega blue — the app's Vega auth emphasis color
+        tint: '#EFF6FF',
+        nextStep: 'If your workspace still needs setup, we walk you through it step by step; if it is ready, you land straight inside — your first Matter, court-rule deadlines and DraftPro drafting are waiting.',
+      },
+      property: {
+        label: 'Sign In to Atrium',
+        href: `${appDomain}/?app=atrium&login=atrium`,
+        color: '#059669', // Atrium emerald — the Well-Kept Estate accent
+        tint: '#ECFDF5',
+        nextStep: 'If your workspace still needs setup, we walk you through it step by step; if it is ready, you land straight inside — your first Property, rent and service-charge runs and residents’ requests are waiting.',
+      },
+      unified: {
+        label: 'Sign In to Komplete',
+        href: `${appDomain}/?app=komplete&login=komplete`,
+        color: '#7C3AED', // Komplete violet — the bundle's accent
+        tint: '#F5F3FF',
+        nextStep: 'If your workspace still needs setup, we walk you through it step by step; if it is ready, you land straight inside — matters, properties and both assistants (ALOA + ARIA) are waiting.',
+      },
     };
-
-    const links = gettingStartedLinks[args.product || 'legal'] || gettingStartedLinks.legal;
-    const linksHtml = links.map(l =>
-      `<a href="${l.url}" style="display:block;padding:12px 16px;margin-bottom:8px;background:${BRAND_GREEN_LIGHT};border-radius:8px;color:#2d3748;text-decoration:none;font-size:15px;font-weight:500;border-left:3px solid ${BRAND_GREEN};">${l.label} →</a>`
-    ).join('');
+    const cta = WELCOME_CTA[args.product || 'legal'] || WELCOME_CTA.legal;
 
     const bodyHtml = `
       <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Hi ${userName},</p>
       <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
-        Welcome to PracticePro${brand.name ? ' ' + brand.name : ''}! Your email has been verified and your account is ready. We're excited to have you on board.
+        Welcome to PracticePro${brand.name ? ' ' + brand.name : ''}! Your email is verified and your account is ready. The next step is signing in.
       </p>
-      <p style="color:#1a202c;font-size:16px;font-weight:600;margin:0 0 16px 0;">Get Started in 3 Steps:</p>
-      <div style="margin-bottom:32px;">${linksHtml}</div>
-      <div style="background:${BRAND_GREEN_LIGHT};border-radius:10px;padding:20px;margin-bottom:32px;">
-        <p style="color:${BRAND_GREEN_DARK};font-size:15px;font-weight:600;margin:0 0 8px 0;">Learning Resources</p>
-        <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
-          Visit our <a href="${appDomain}/help" style="color:${BRAND_GREEN};text-decoration:none;font-weight:600;">Help Center</a> for tutorials, video guides, and best practices. You can also access help anytime from within the app by clicking the "?" icon.
+      <div style="text-align:center;margin:0 0 12px 0;">
+        <a href="${cta.href}" style="display:inline-block;background-color:${cta.color};color:#ffffff;padding:16px 36px;font-size:16px;font-weight:700;text-decoration:none;border-radius:8px;">${cta.label} &rarr;</a>
+      </div>
+      <p style="color:#718096;font-size:13px;line-height:1.6;margin:0 0 28px 0;text-align:center;">
+        One button, one destination: sign in, and we take it from there.
+      </p>
+      <div style="background:${cta.tint};border-radius:10px;padding:16px 20px;margin:0 0 28px 0;">
+        <p style="color:#1a202c;font-size:14px;font-weight:600;margin:0 0 6px 0;">After you sign in</p>
+        <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">${cta.nextStep}</p>
+      </div>
+      <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0 0 28px 0;">
+        Questions once you are inside? ${args.product === 'property' ? 'ARIA' : 'ALOA'} — your built-in AI assistant — helps you navigate the app, draft documents and manage your practice.
+      </p>
+      <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin:0 0 28px 0;">
+        <p style="color:${cta.color};font-size:13px;font-weight:600;margin:0 0 6px 0;">Learning Resources</p>
+        <p style="color:#4a5568;font-size:13px;line-height:1.6;margin:0;">
+          Tutorials and guides live in the <a href="${appDomain}/help" style="color:${cta.color};text-decoration:none;font-weight:600;">Help Center</a> — it opens once you are signed in, and the same “?” icon reaches it anytime from inside the app.
         </p>
       </div>
-      <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
-        If you have any questions, just ask ALOA (or ARIA) — your built-in AI assistant can help you navigate the app, draft documents, and manage your practice.
+      <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0;">
+        Your data is encrypted with NDPA 2023-aligned safeguards.
       </p>`;
 
     const html = brandedEmailWrapper({
@@ -7165,7 +7181,7 @@ export const sendWelcomeEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: brand.name ? `Welcome to PracticePro ${brand.name}!` : `Welcome to PracticePro!`,
+      subject: brand.name ? `Welcome to PracticePro ${brand.name}!` : 'Welcome to PracticePro!',
       html,
       productName: brand.name,
     });

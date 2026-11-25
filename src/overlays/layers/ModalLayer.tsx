@@ -41,11 +41,20 @@ import { lazyWithReload } from '../../utils/lazyWithReload';
 import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
 import { dismissVirtualEvent } from '../../utils/virtualEventDismissals';
 import { Skeleton } from '../../components/ui/Skeleton';
-
-// ── Lazy-loaded modal components (kept lazy: the entry bundle never pays
-//    for forms the user hasn't opened — the V7 payload discipline) ─────────
-const Login = lazyWithReload(() => import('../../components/auth/Login'));
-const Signup = lazyWithReload(() => import('../../components/auth/Signup'));
+// AUTH MODALS ARE EAGER (2026-11-25 login-speed fix): Login and Signup are
+// the FIRST interaction on every public surface ("Log In" on /vega, "Get
+// Started" CTAs), so making them lazy meant every login click first had to
+// FETCH a chunk — on the mobile networks our Nigerian users are on, that
+// fetch showed the three-bar ModalSkeleton for a measured 5–10 seconds
+// before the form appeared. The two components are small, dependency-light
+// forms (everything they import — convex/react, icons, contexts — is
+// already in the entry graph), and the auth surfaces are ~100% likely to be
+// used, so eager-bundling them costs a few KB and removes the stall
+// entirely: the modal opens with the form in the same frame it is
+// triggered. Everything below stays lazy (heavy forms the user may never
+// open keep the entry bundle lean).
+import Login from '../../components/auth/Login';
+import Signup from '../../components/auth/Signup';
 
 // Forms
 const DocumentForm = lazyWithReload(() => import('../../components/forms/DocumentForm').then(m => ({ default: m.DocumentForm })));

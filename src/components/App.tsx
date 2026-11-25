@@ -1074,6 +1074,33 @@ export const App: React.FC = () => {
                 setTimeout(() => openModal('signup'), 300);
             }
         }
+        // 2026-11-25 — WELCOME-EMAIL CTA LINKS (/?app=vega&login=vega, and
+        // the Atrium/Komplete equivalents). The welcome email's unified CTA
+        // promises ONE thing: sign in to your product. The `login` param
+        // auto-opens the PRODUCT-SCOPED login modal here (Vega-blue theme
+        // on app=vega, Atrium-emerald on app=atrium — resolveAuthThemeId
+        // reads the productTheme context), so a fresh-device clicker lands
+        // on a sign-in surface instead of a bare marketing page. After
+        // sign-in the app routes itself: onboarding (workspace still needs
+        // setup) or the workspace. Authenticated clickers skip the modal —
+        // they are routed by the normal auth gates; the param is still
+        // stripped so it can't re-fire on refresh.
+        const loginProduct = params.get('login');
+        if (loginProduct) {
+            if (!isAuthenticated) {
+                const loginContext = loginProduct === 'vega'
+                    ? { productTheme: 'vega' }
+                    : loginProduct === 'atrium'
+                    ? { productTheme: 'atrium' }
+                    : null; // komplete / anything else → the hub register
+                setTimeout(() => openModal('login', null, loginContext), 300);
+            }
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('login');
+                window.history.replaceState({}, '', url.toString());
+            } catch { /* replaceState unavailable — the param just lingers, harmlessly */ }
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -1221,6 +1248,19 @@ export const App: React.FC = () => {
                 try {
                     sessionStorage.setItem('practicepro_pending_redirect', pendingPath);
                 } catch {}
+                // 2026-11-25 — COMPLETE THE HANDOFF: an emailed deep link
+                // (/help/<section> from the welcome email's Learning
+                // Resources, /matters?action=new_matter from an older
+                // email) parked the destination and bounced the visitor
+                // here — but without a sign-in prompt they landed on the
+                // bare marketing page and the parked intent died with the
+                // tab (the reported "clicks the button, defaults to the
+                // base site, nothing happens"). Open the login modal so
+                // they can sign in; the post-login redirect below then
+                // delivers them to the parked destination. Same 300ms
+                // pipeline-settle delay as the recovery/invite/login
+                // auto-open effects.
+                setTimeout(() => openModal('login'), 300);
             }
             navigate('/', { replace: true });
         }
