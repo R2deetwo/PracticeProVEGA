@@ -19,7 +19,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button, Input, Textarea } from '../ui';
-import { VisitorIcon, CheckIcon, ClockIcon, XCircleIcon, SendIcon, ShareIcon, MapPinIcon, BellIcon } from '../../constants';
+import { VisitorIcon, CheckIcon, ClockIcon, SendIcon, ShareIcon, MapPinIcon } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -28,6 +28,10 @@ import { useConfirm } from '../ui/ConfirmDialog';
 // the chat opens prefilled to the person the pass was made for, instead of
 // a text-only share the resident then has to aim.
 import { whatsappShareUrl } from '../../utils/whatsappShare';
+// TASK 94 (2026-11-25): canonical Nigerian phone normalisation — live hint
+// in this form + the WhatsApp delivery-status badge on every portal_api
+// code (failures are never silent any more).
+import { normaliseNgPhone, formatNgPhoneE164 } from '../../utils/ngPhone';
 
 interface VisitorPortalProps {
     firmId: string;
@@ -45,6 +49,27 @@ const EXPIRY_OPTIONS = [
     { value: 12, label: '12 Hours' },
     { value: 24, label: '24 Hours' },
 ];
+
+/**
+ * TASK 94 (2026-11-25): plain-language mapping of the WhatsApp delivery
+ * error classes persisted on each pass (whatsappErrorClass). The portal
+ * shows the badge on every portal_api code so failures are never silent —
+ * the raw server message rides the tooltip for the technical reader.
+ */
+function explainDeliveryError(errorClass?: string): string {
+    switch (errorClass) {
+        case 'invalid_phone': return 'invalid phone number';
+        case 'not_configured': return 'WhatsApp not configured on the server';
+        case 'quota_exceeded': return 'monthly WhatsApp quota reached';
+        case 'plan_upgrade_required':
+        case 'payment_issue': return 'WhatsApp plan/billing issue — contact your admin';
+        case 'service_unavailable': return 'WhatsApp gateway unreachable';
+        case 'window_error': return `outside WhatsApp's 24h window and no approved template yet`;
+        case 'template_error':
+        case 'template_rejected': return 'template rejected by WhatsApp';
+        default: return 'send failed';
+    }
+}
 
 export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     firmId,
@@ -75,16 +100,13 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const [expectedArrival, setExpectedArrival] = useState('');
     const [accessNote, setAccessNote] = useState('');
 
-    // ROUND SENTRY 2: arrival-request desk (gatehouse → resident → decision)
-    const [rejectOpenFor, setRejectOpenFor] = useState<string | null>(null);
-    const [rejectText, setRejectText] = useState('');
-    const [decidingId, setDecidingId] = useState<string | null>(null);
-    const [decisionError, setDecisionError] = useState<string | null>(null);
+    // TASK 94 (2026-11-25): live preview of the canonical number every
+    // pass/WhatsApp send will use — non-silent validation while typing.
+    const phonePreview = visitorPhone.trim() ? normaliseNgPhone(visitorPhone) : '';
 
     // ─── Mutations ──────────────────────────────────────────────────────
     const generateToken = useMutation(api.visitorManagement.generateVisitorToken);
     const revokeToken = useMutation(api.visitorManagement.revokeVisitorToken);
-    const decideRequest = useMutation(api.sentryRequests.decideArrivalRequest);
     // ─── Queries ────────────────────────────────────────────────────────
     const activeTokens = useQuery(
         api.visitorManagement.getResidentTokens,
@@ -93,10 +115,6 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const pastTokens = useQuery(
         api.visitorManagement.getResidentTokens,
         firmId && residentId ? { firmId, residentId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
-    );
-    const myRequests = useQuery(
-        api.sentryRequests.getSentryResidentRequests,
-        firmId && residentId ? { firmId, residentId, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     // ─── Handlers ───────────────────────────────────────────────────────
@@ -172,37 +190,9 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
         }
     };
 
-    // ── ROUND SENTRY 2: decide a gatehouse arrival request ────────────
-    const handleDecide = async (requestId: string, decision: 'approved' | 'rejected') => {
-        if (!residentId) return;
-        setDecidingId(requestId);
-        setDecisionError(null);
-        try {
-            const out: any = await decideRequest({
-                requestId: requestId as any,
-                decision,
-                rejectReason: decision === 'rejected' ? (rejectText.trim() || undefined) : undefined,
-                residentId,
-                sessionToken: (bearerToken ?? undefined),
-            });
-            if (decision === 'approved') {
-                addToast(
-                    out?.delivered === 'whatsapp'
-                        ? `Approved — pass ${out.tokenCode} WhatsApped to the visitor.`
-                        : `Approved — today's pass is ${out.tokenCode}.`,
-                    { type: 'success' },
-                );
-            } else {
-                addToast('Request rejected — the gatehouse has been told.', { type: 'success' });
-            }
-            setRejectOpenFor(null);
-            setRejectText('');
-        } catch (err: any) {
-            setDecisionError(err.message || 'Could not record the decision.');
-        } finally {
-            setDecidingId(null);
-        }
-    };
+    // TASK 94 (2026-11-25): the resident-approval arrival-request flow is
+    // retired — guests get their pass from the resident ahead of arrival.
+    // This portal is the dispatch surface; no request decisions live here.
 
     // ─── Render ─────────────────────────────────────────────────────────
     return (
@@ -298,17 +288,27 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         />
                     </div>
 
-                    {/* Visitor Phone */}
+                    {/* Visitor Phone — TASK 94: live canonical-number preview */}
                     <div>
                         <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visitor Phone Number</label>
                         <input
                             type="tel"
                             value={visitorPhone}
                             onChange={(e) => setVisitorPhone(e.target.value)}
-                            placeholder="+234 801 234 5678"
+                            placeholder="0801 234 5678 or +234 801 234 5678"
                             className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
-                        <p className="text-2xs text-slate-400 mt-1">Required for portal delivery. Include country code.</p>
+                        {visitorPhone.trim() && phonePreview ? (
+                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 mt-1 font-bold">
+                                ✓ Will be sent to {formatNgPhoneE164(phonePreview)}
+                            </p>
+                        ) : visitorPhone.trim() ? (
+                            <p className="text-2xs text-rose-500 mt-1 font-bold">
+                                Not a valid Nigerian number yet — local (0801…, 0701…, 0812…, 0901…, 0913…, 020…) or international (+234…).
+                            </p>
+                        ) : (
+                            <p className="text-2xs text-slate-400 mt-1">Nigerian formats all work — 0801… becomes +234 801 … automatically. No double +234 prefixing.</p>
+                        )}
                     </div>
 
                     {/* Visit Date + Expiry */}
@@ -429,94 +429,6 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                 </div>
             )}
 
-            {/* ROUND SENTRY 2: arrival requests from the gatehouse */}
-            {myRequests && myRequests.length > 0 && (
-                <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
-                            <BellIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <h3 className="font-bold text-slate-900 dark:text-white text-base">At the gate ({myRequests.filter((r: any) => r.status === 'pending').length} waiting)</h3>
-                    </div>
-                    <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-3">The gatehouse raised these visitors. Approving mints a pass for today (6h) and sends it to the visitor when a phone was left.</p>
-                    <div className="space-y-2.5">
-                        {myRequests.map((r: any) => (
-                            <div key={r.requestId} className={`p-3 rounded-lg border ${
-                                r.status === 'pending'
-                                    ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40'
-                                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700'
-                            }`}>
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-slate-900 dark:text-white text-sm">{r.visitorName}</span>
-                                            {r.unitName && <span className="text-2xs text-slate-500 dark:text-zinc-400">· {r.unitName}</span>}
-                                        </div>
-                                        <div className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                            Asked {new Date(r.requestedAt).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })} by {r.requestedBy}
-                                        </div>
-                                        {r.notes && <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 italic">“{r.notes}”</p>}
-                                        {r.status === 'rejected' && r.rejectReason && (
-                                            <p className="text-2xs text-rose-500 mt-1">Rejected: {r.rejectReason}</p>
-                                        )}
-                                        {r.status === 'approved' && (
-                                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 mt-1 font-bold">Approved — pass sent for today.</p>
-                                        )}
-                                        {r.status === 'expired' && (
-                                            <p className="text-2xs text-slate-400 mt-1">Unanswered for 12h — expired.</p>
-                                        )}
-                                    </div>
-                                    {r.status === 'pending' && (
-                                        <div className="flex flex-col gap-1.5 flex-shrink-0">
-                                            <Button
-                                                size="sm"
-                                                variant="primary"
-                                                disabled={decidingId === r.requestId}
-                                                onClick={() => handleDecide(r.requestId, 'approved')}
-                                            >
-                                                {decidingId === r.requestId ? '…' : 'Approve'}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="danger-soft"
-                                                disabled={decidingId === r.requestId}
-                                                onClick={() => setRejectOpenFor(rejectOpenFor === r.requestId ? null : r.requestId)}
-                                            >
-                                                Reject
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                {rejectOpenFor === r.requestId && (
-                                    <div className="mt-3 p-3 rounded-lg bg-white dark:bg-zinc-800 space-y-2">
-                                        <Textarea
-                                            value={rejectText}
-                                            onChange={(e: any) => setRejectText(e.target.value)}
-                                            placeholder="Reason (optional, kept on the record)"
-                                            rows={2}
-                                            maxLength={200}
-                                        />
-                                        <div className="flex gap-2">
-                                            <Button size="sm" variant="ghost" className="flex-1" onClick={() => setRejectOpenFor(null)}>Cancel</Button>
-                                            <Button
-                                                size="sm"
-                                                variant="danger"
-                                                className="flex-1"
-                                                disabled={decidingId === r.requestId}
-                                                onClick={() => handleDecide(r.requestId, 'rejected')}
-                                            >
-                                                Confirm rejection
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                    {decisionError && <p className="text-2xs text-rose-600 dark:text-rose-400 mt-2 font-bold">{decisionError}</p>}
-                </div>
-            )}
-
             {/* Active tokens */}
             {activeTokens && activeTokens.length > 0 && (
                 <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-5">
@@ -533,8 +445,16 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                         <ClockIcon className="w-3 h-3" />
                                         <span>Expires {new Date(token.expiresAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                                         {token.expectedArrival && <span>· ~{token.expectedArrival}</span>}
-                                        {token.deliveryMethod === 'portal_api' && (
-                                            <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold">Sent via WhatsApp</span>
+                                        {token.deliveryMethod === 'portal_api' && (token as any).whatsappSentAt && (
+                                            <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold">Delivered ✓</span>
+                                        )}
+                                        {token.deliveryMethod === 'portal_api' && !(token as any).whatsappSentAt && (token as any).whatsappErrorClass && (
+                                            <span className="px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 rounded-full font-bold" title={(token as any).whatsappError}>
+                                                Not delivered — {explainDeliveryError((token as any).whatsappErrorClass)}
+                                            </span>
+                                        )}
+                                        {token.deliveryMethod === 'portal_api' && !(token as any).whatsappSentAt && !(token as any).whatsappErrorClass && (
+                                            <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-bold">Sending…</span>
                                         )}
                                     </div>
                                     {token.accessNote && (

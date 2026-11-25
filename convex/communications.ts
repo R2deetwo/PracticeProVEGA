@@ -5,6 +5,7 @@ import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { resolveCaller, assertSameFirm } from "./callerAuth";
 import { buildAutomatedWhatsAppSuffix } from "./emailBranding";
+import { normaliseNgPhone } from "./ngPhone";
 
 // Chakra's WhatsApp plan-upgrade billing page — the action link surfaced in
 // admin UI whenever the gateway returns the 402 billing gate (Task 37 live
@@ -761,25 +762,17 @@ export function buildTemplateVarsForOrder(
 
 /**
  * Normalise a phone number to E.164 digits without "+" (Meta Cloud API form).
- * Nigeria-first: local numbers (leading 0, 10-11 digits) get the 234 country
- * code prefixed. Already-international numbers pass through unchanged.
+ * TASK 94 (2026-11-25): now delegates to the canonical Nigerian normaliser
+ * in ./ngPhone (one rule set for the whole Sentry Pass / WhatsApp chain).
+ * Handles every real-world shape: "+234801…", "234801…", "0801234…",
+ * "801234…" (local NG), "0201234…" (02x local), AND the double-prefix
+ * mistakes ("0234801…", "2340801…", "00234801…") which are repaired
+ * rather than re-prefixed — "234" is never appended twice.
  * Returns null when the input can't be a valid phone number.
  */
 export function normalisePhoneForMeta(raw: string): string | null {
-  if (!raw) return null;
-  let digits = String(raw).replace(/\D/g, "");
-  if (!digits) return null;
-  // Local Nigerian format: strip leading zeros ("08012345678" → "8012345678")
-  digits = digits.replace(/^0+/, "");
-  if (!digits) return null;
-  // Already carries a country code we recognise as plausible:
-  //   "2348012345678" (NG), or any 12+ digit international form (e.g. 44…, 1…)
-  if (digits.startsWith("234") && digits.length >= 12) return digits;
-  if (digits.length >= 12) return digits;
-  // Local NG number without country code ("8012345678") — 10 digits
-  if (digits.length >= 10 && digits.length <= 11) return `234${digits}`;
-  // Anything else is not a number Meta will accept
-  return null;
+  const e164 = normaliseNgPhone(raw);
+  return e164 || null;
 }
 
 /**

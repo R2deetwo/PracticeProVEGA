@@ -50,11 +50,15 @@ describe('VMS / Sentry Pass entitlement gate (source-scanned contract)', () => {
         expect(gate).not.toContain('isVmsIncludedInPlan');
         expect(gate).not.toContain("plan === 'Komplete' || plan === 'Enterprise'");
         // The add-on check runs unconditionally inside `if (firm)` —
-        // the owner rule comment marks the reversal.
-        expect(gate).toContain('ADD-ON GATE (owner rule, 2026-11-22)');
-        const ruleIdx = gate.indexOf('ADD-ON GATE (owner rule, 2026-11-22)');
-        const addonCheckIdx = gate.indexOf("const vmsAddon = (firm.subscriptionAddons as any)?.vms;");
-        const requiredIdx = gate.indexOf('VMS_ADDON_REQUIRED');
+        // the owner rule comment marks the reversal. Scoped to
+        // generateVisitorToken's own body: TASK 94 extracted a canonical
+        // assertVmsEntitlement (SAME rules, used by issueStaffPass) above it,
+        // so a whole-file index scan would hit the copy first.
+        const genBody = gate.slice(gate.indexOf('export const generateVisitorToken'), gate.indexOf('export const sendVisitorWhatsApp'));
+        expect(genBody).toContain('ADD-ON GATE (owner rule, 2026-11-22)');
+        const ruleIdx = genBody.indexOf('ADD-ON GATE (owner rule, 2026-11-22)');
+        const addonCheckIdx = genBody.indexOf("const vmsAddon = (firm.subscriptionAddons as any)?.vms;");
+        const requiredIdx = genBody.indexOf('VMS_ADDON_REQUIRED');
         expect(ruleIdx).toBeGreaterThan(-1);
         expect(addonCheckIdx).toBeGreaterThan(ruleIdx);
         expect(requiredIdx).toBeGreaterThan(addonCheckIdx);

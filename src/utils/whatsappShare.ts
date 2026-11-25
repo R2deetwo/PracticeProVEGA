@@ -13,6 +13,8 @@
  * These are pure URL builders — safe for tests, SSR, and webviews.
  */
 
+import { normaliseNgPhone } from './ngPhone';
+
 /** The platform's WhatsApp Business line (+234 816 312 2497) — the same
  * number the server-side automation sends from. Support chats and
  * "message us" handoffs deep-link here. */
@@ -20,22 +22,20 @@ export const PRACTICEPRO_SUPPORT_PHONE = '2348163122497';
 
 /**
  * Normalise a stored phone number to wa.me's expected E.164-ish digits.
- * Handles the shapes actually stored in the DB:
+ * TASK 94 (2026-11-25): delegates to the canonical Nigerian normaliser
+ * (src/utils/ngPhone — the client twin of convex/ngPhone). Handles every
+ * real-world shape:
  *   "+2348012345678" → "2348012345678"
  *   "2348012345678"  → "2348012345678"
- *   "08012345678"    → "2348012345678"   (Nigerian local format, leading 0)
- *   "8012345678"     → "2348012345678"   (Nigerian local without leading 0)
- * Non-NG locals keep their digits as-is (wa.me resolves them relative to
- * nothing — the user can fix the prefix in WhatsApp before sending).
+ *   "08012345678"    → "2348012345678"   (Nigerian local, leading 0)
+ *   "8012345678"     → "2348012345678"   (local without leading 0)
+ *   "02012345678"    → "2342012345678"   (02x local)
+ *   "0234801234567" / "2340801234567" → repaired to "2348012345678"
+ *   (the double-prefix mistakes — never prefixed twice)
+ * Non-NG internationals keep their digits as-is.
  */
 export function normalizePhoneForWa(rawPhone: string | null | undefined): string {
-  const digits = String(rawPhone || '').replace(/[^\d]/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('234')) return digits;
-  // Nigerian local formats: 080… (11 digits) or 80… (10 digits)
-  if (/^0\d{10}$/.test(digits)) return '234' + digits.slice(1);
-  if (/^[789]\d{9}$/.test(digits)) return '234' + digits;
-  return digits;
+  return normaliseNgPhone(rawPhone);
 }
 
 /**
@@ -85,3 +85,7 @@ export function whatsappSupportUrl(question?: string): string {
     : 'Hello PracticePro team — I have a question about my account.';
   return `https://wa.me/${PRACTICEPRO_SUPPORT_PHONE}?text=${encodeURIComponent(text)}`;
 }
+
+// Re-export the canonical normaliser for callers that already import from
+// this module — one rule set, two import paths, zero drift.
+export { normaliseNgPhone, isValidNgPhone, formatNgPhoneE164 } from './ngPhone';

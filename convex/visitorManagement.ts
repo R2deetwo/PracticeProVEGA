@@ -33,6 +33,12 @@ import { api, internal } from "./_generated/api";
 import { paddedDigitCode, codeFromCharset } from "./secureRandom";
 import { checkRateLimit } from "./securityHelpers";
 import { requireFirmUser } from "./authHelpers";
+import { normaliseNgPhone } from "./ngPhone";
+import {
+  propertyHasActiveStations,
+  resolveStationSession,
+  touchStationSession,
+} from "./gatehouseAccounts";
 
 // ─── ROUND SENTRY 4: passRef (non-guessable pass identifier) ──────────────
 // 12 chars from an ambiguity-free 31-symbol alphabet (no I/L/O/0/1) drawn
@@ -44,6 +50,72 @@ const PASSREF_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 23 letters + 8 dig
 const PASSREF_LENGTH = 12;
 function generatePassRef(): string {
   return codeFromCharset(PASSREF_CHARSET, PASSREF_LENGTH);
+}
+
+// ─── TASK 94 (2026-11-25): GATEHOUSE STATION ACCESS GUARD ────────────────
+// Once a property has ≥1 ACTIVE gatehouse station (provisioned by the
+// estate admin), every gate endpoint below requires a valid station
+// session token. Before any station exists, the endpoint keeps the legacy
+// anonymous behaviour (firms that never provisioned see no change).
+// A station session can ONLY reach this verification surface — the token
+// is accepted nowhere else in the platform.
+const GATEHOUSE_LOCKED_ERROR =
+  "GATEHOUSE_SESSION_REQUIRED: This estate's gate terminal is locked. Log in with your station PIN (your estate admin has it).";
+
+/** Query-safe check (no write): 'legacy' | 'station'. Throws the lock
+ *  error when the property is station-locked and the presented session
+ *  is missing/expired/revoked/cross-property — queries signal denial by
+ *  throwing; the terminal renders the message. */
+async function gatehouseAccessState(
+  ctx: any,
+  propertyId: string,
+  stationToken?: string,
+): Promise<"legacy" | "station"> {
+  if (!(await propertyHasActiveStations(ctx, propertyId))) return "legacy";
+  const station = await resolveStationSession(ctx, propertyId, stationToken);
+  if (!station) throw new Error(GATEHOUSE_LOCKED_ERROR);
+  return "station"; // no writes here — queries cannot patch lastSeenAt
+}
+
+/** Mutation guard — throws when the property is station-locked and the
+ *  presented station session is missing/expired/revoked/cross-property. */
+async function requireGatehouseAccess(
+  ctx: any,
+  propertyId: string,
+  stationToken?: string,
+): Promise<void> {
+  if (!(await propertyHasActiveStations(ctx, propertyId))) return;
+  const station = await resolveStationSession(ctx, propertyId, stationToken);
+  if (!station) throw new Error(GATEHOUSE_LOCKED_ERROR);
+  await touchStationSession(ctx, stationToken);
+}
+
+// ─── TASK 94: the canonical VMS add-on billing gate ──────────────────────
+// (Same rules as generateVisitorToken's inline gate — every firm, including
+// Komplete/Enterprise, must hold the VMS add-on or be the founder firm.
+// Extracted so issueStaffPass goes through the identical check.)
+export async function assertVmsEntitlement(ctx: any, firmId: string): Promise<void> {
+  let firm: any = await ctx.db
+    .query("firms")
+    .filter((q: any) => q.eq(q.field("id"), firmId))
+    .first();
+  if (!firm) {
+    try { firm = await ctx.db.get(firmId as any); } catch { /* not a valid Convex id */ }
+  }
+  if (!firm) return;
+  const vmsAddon = (firm.subscriptionAddons as any)?.vms;
+  if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
+    const founderEmail = (firm.email || '').toLowerCase();
+    const isFounderFirm = founderEmail.endsWith('@practicepro.ng')
+      || founderEmail === 'practiceprosystems@gmail.com'
+      || firm.id === 'practicepro'
+      || (firm.name || '').toLowerCase().includes('practicepro');
+    if (!isFounderFirm) {
+      throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
+    }
+  } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
+    throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
+  }
 }
 
 // ─── Token Code Generation ───────────────────────────────────────────────
@@ -199,6 +271,18 @@ export const generateVisitorToken = mutation({
       }
     }
 
+    // ─── TASK 94: canonical Nigerian phone normalisation at INSERT time ─
+    // "0801…", "+234801…", "234801…", the double-prefix shapes — all land
+    // in the row (and every WhatsApp send) as clean E.164 digits. An
+    // unrecognisable number is rejected UP FRONT with a clear message
+    // instead of failing silently at dispatch time.
+    const visitorPhoneE164 = normaliseNgPhone(args.visitorPhone);
+    if (!visitorPhoneE164) {
+      throw new Error(
+        `VISITOR_PHONE_INVALID: "${args.visitorPhone}" is not a valid Nigerian phone number. Use a local format (0801…, 0701…, 0812…, 0901…, 0913…, 020…) or international (+234… / 234…).`
+      );
+    }
+
     // Fetch property details (for denormalized gate display)
     const property: any = await ctx.db.get(args.propertyId as any);
     if (!property) throw new Error("Property not found");
@@ -262,7 +346,7 @@ export const generateVisitorToken = mutation({
       residentName,
       residentPhone,
       visitorName: args.visitorName,
-      visitorPhone: args.visitorPhone,
+      visitorPhone: visitorPhoneE164,
       expectedArrival,
       accessNote,
       tokenCode,
@@ -286,7 +370,7 @@ export const generateVisitorToken = mutation({
       await ctx.scheduler.runAfter(0, internal.visitorManagement.sendVisitorWhatsApp, {
         tokenId,
         visitorName: args.visitorName,
-        visitorPhone: args.visitorPhone,
+        visitorPhone: visitorPhoneE164,
         estateName: property.name || "the estate",
         tokenCode,
         visitDate: args.visitDate,
@@ -301,6 +385,7 @@ export const generateVisitorToken = mutation({
       tokenCode,
       passRef,
       expiresAt,
+      visitorPhone: visitorPhoneE164,
       message: args.deliveryMethod === "client_share"
         ? buildVisitorMessage(
             args.visitorName,
@@ -375,11 +460,15 @@ export const sendVisitorWhatsApp = internalAction({
         },
       });
 
-      // Update token with send result
+      // Update token with send result — including the failure class +
+      // message so the resident portal can show Delivered / Failed (reason)
+      // instead of a silent console.error (TASK 94 diagnostics).
       await ctx.runMutation(internal.visitorManagement.markWhatsAppSent, {
         tokenId: args.tokenId,
         success: result.success,
         sentAt: result.success ? Date.now() : undefined,
+        errorClass: result.success ? undefined : (result as any).errorClass,
+        error: result.success ? undefined : (result as any).error,
       });
 
       if (!result.success) {
@@ -390,6 +479,8 @@ export const sendVisitorWhatsApp = internalAction({
       await ctx.runMutation(internal.visitorManagement.markWhatsAppSent, {
         tokenId: args.tokenId,
         success: false,
+        errorClass: "service_unavailable",
+        error: err?.message || "WhatsApp dispatch crashed before sending.",
       });
     }
   },
@@ -400,10 +491,14 @@ export const markWhatsAppSent = internalMutation({
     tokenId: v.id("visitor_tokens"),
     success: v.boolean(),
     sentAt: v.optional(v.number()),
+    errorClass: v.optional(v.string()),   // TASK 94: persisted diagnostics —
+    error: v.optional(v.string()),        // the portal renders Failed (reason) per code
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.tokenId, {
       whatsappSentAt: args.success ? args.sentAt : undefined,
+      whatsappErrorClass: args.success ? undefined : (args.errorClass || "unknown"),
+      whatsappError: args.success ? undefined : (args.error || "Send failed"),
       updatedAt: Date.now(),
     });
   },
@@ -416,9 +511,15 @@ export const verifyToken = query({
     tokenCode: v.optional(v.string()),   // ROUND SENTRY: either identifier works
     passRef: v.optional(v.string()),     // alone — code OR passRef (not both needed)
     propertyId: v.string(),
+    stationToken: v.optional(v.string()), // TASK 94: required once the property has an active gatehouse station
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+
+    // ── TASK 94: gatehouse station lock. Thrown inside a query surfaces as
+    //    the terminal's error banner; the terminal UI in station mode
+    //    always carries the token so legitimate guards never see this.
+    await gatehouseAccessState(ctx, args.propertyId, args.stationToken);
 
     // ROUND SENTRY 4: exactly one identifier must be presented, upper-cased
     // for passRef (case-insensitive typing at the gate).
@@ -531,12 +632,17 @@ export const verifyToken = query({
     // deliberately absent (ROUND A C8). ROUND SENTRY 1 adds the display-only
     // expectedArrival + accessNote (the gate instructions the Sentry brief §3
     // asks the gatehouse to see) — still nothing the visitor wasn't told.
+    // TASK 94 adds passCategory/staffRole so the gate shows a STAFF badge
+    // (worker movement, not a guest visit) on admin-issued passes.
     return {
       valid: true,
       visitorName: token.visitorName,
       estateName: token.propertyName,
       unitName: token.unitName,
       residentName: token.residentName,
+      passCategory: token.passCategory ?? "visitor",
+      staffRole: token.staffRole,
+      issuedByName: token.issuedByName,
       expectedArrival: token.expectedArrival,
       accessNote: token.accessNote,
       expiresAt: token.expiresAt,
@@ -555,6 +661,7 @@ export const checkInVisitor = mutation({
     propertyId: v.string(),
     gatekeeperId: v.optional(v.string()),
     gatekeeperName: v.optional(v.string()),
+    stationToken: v.optional(v.string()), // TASK 94: station session when the property is locked
   },
   handler: async (ctx, args) => {
     // ── ROUND A (C8): check-in now requires POSSESSION OF THE 6-DIGIT
@@ -570,6 +677,8 @@ export const checkInVisitor = mutation({
     if (!allowed) {
       throw new Error("Too many check-in attempts. Please wait a moment and try again.");
     }
+    // ── TASK 94: gatehouse station lock (throws when locked + no session).
+    await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
     const ref = args.passRef?.trim().toUpperCase() || undefined;
     const code = args.tokenCode?.trim() || undefined;
     const failAudit = async (eventType: string, stage: string, extra?: Record<string, any>) => {
@@ -627,6 +736,7 @@ export const checkOutVisitor = mutation({
     tokenCode: v.optional(v.string()),
     passRef: v.optional(v.string()),
     propertyId: v.string(),
+    stationToken: v.optional(v.string()), // TASK 94: station session when the property is locked
   },
   handler: async (ctx, args) => {
     // ── ROUND A (C8): same code-possession requirement as checkInVisitor
@@ -636,6 +746,8 @@ export const checkOutVisitor = mutation({
     if (!allowed) {
       throw new Error("Too many check-out attempts. Please wait a moment and try again.");
     }
+    // ── TASK 94: gatehouse station lock.
+    await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
     const ref = args.passRef?.trim().toUpperCase() || undefined;
     const code = args.tokenCode?.trim() || undefined;
     let token: any = null;
@@ -772,6 +884,7 @@ export const getGatehouseLogs = query({
   args: {
     propertyId: v.string(),
     date: v.optional(v.string()), // YYYY-MM-DD, defaults to today
+    stationToken: v.optional(v.string()), // TASK 94: station session when the property is locked
   },
   handler: async (ctx, args) => {
     // ── ROUND A (C8): same minimal projection as before (this board is
@@ -780,6 +893,8 @@ export const getGatehouseLogs = query({
     if (!allowed) {
       throw new Error("Too many requests. Please wait a moment and try again.");
     }
+    // ── TASK 94: gatehouse station lock.
+    await gatehouseAccessState(ctx, args.propertyId, args.stationToken);
     const targetDate = args.date || new Date().toISOString().split("T")[0];
     const dayStart = new Date(targetDate + "T00:00:00").getTime();
     const dayEnd = dayStart + 24 * 60 * 60 * 1000;
@@ -798,6 +913,8 @@ export const getGatehouseLogs = query({
       _id: t._id,
       visitorName: t.visitorName,
       tokenCode: t.tokenCode,
+      passCategory: t.passCategory ?? "visitor",   // TASK 94: STAFF badge at the gate
+      staffRole: t.staffRole,
       checkedInAt: t.checkedInAt,
       checkedOutAt: t.checkedOutAt,
       status: t.status,
@@ -892,12 +1009,15 @@ export const recordDeniedEntry = mutation({
     visitorName: v.optional(v.string()),   // as announced at the gate
     reason: v.string(),                    // free text, ≤200 chars
     gatekeeperName: v.optional(v.string()),
+    stationToken: v.optional(v.string()), // TASK 94: station session when the property is locked
   },
   handler: async (ctx, args) => {
     const allowed = await checkRateLimit(ctx, `vms-denied:${args.propertyId}`, 30, 60_000);
     if (!allowed) {
       throw new Error("Too many requests. Please wait a moment and try again.");
     }
+    // ── TASK 94: gatehouse station lock.
+    await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
 
     const code = args.tokenCode?.trim() || undefined;
     const ref = args.passRef?.trim().toUpperCase() || undefined;
@@ -949,12 +1069,15 @@ export const searchExpectedVisitors = query({
     propertyId: v.string(),
     date: v.optional(v.string()),      // YYYY-MM-DD; defaults to today
     term: v.string(),                 // name / code / passRef (≥2 chars)
+    stationToken: v.optional(v.string()), // TASK 94: station session when the property is locked
   },
   handler: async (ctx, args) => {
     const allowed = await checkRateLimit(ctx, `vms-search:${args.propertyId}`, 30, 60_000);
     if (!allowed) {
       throw new Error("Too many searches. Please wait a moment and try again.");
     }
+    // ── TASK 94: gatehouse station lock.
+    await gatehouseAccessState(ctx, args.propertyId, args.stationToken);
     const term = args.term.trim();
     if (term.length < 2) return [];
 
@@ -980,6 +1103,8 @@ export const searchExpectedVisitors = query({
         passRef: t.passRef,
         unitName: t.unitName,
         residentName: t.residentName,
+        passCategory: t.passCategory ?? "visitor",   // TASK 94: STAFF badge at the gate
+        staffRole: t.staffRole,
         status: t.status,
         expectedArrival: t.expectedArrival,
         accessNote: t.accessNote,
@@ -1010,7 +1135,7 @@ async function reportAudit(
     await ctx.db.insert("audit_logs", {
       firmId: user.firmId,
       actorId: user._id,
-      actorName: user.name || user.email,
+      actorName: user.name || user.email || "",
       actorRole: user.role || "firm_user",
       action: "read",
       resource: "sentry_report",
@@ -1208,5 +1333,226 @@ export const getSentrySecurityReport = mutation({
       throttled: parsed.filter((p: any) => p.eventType === "rate_limit_exceeded").length,
     };
     return { counts, events: parsed.slice(0, 300) };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 94 (2026-11-25) — QUIET IN-HOUSE STAFF TIME-TRACKING (Sentry Pass §2
+// repurposed per the owner's direction). Pass-request capability is NOT a
+// visitor-facing gate workflow any more: residents' guests get their pass
+// from the resident (the primary dispatch flow above), and code issuance
+// for workers/service staff lives HERE — quiet, estate-admin-scoped, no
+// WhatsApp, arrival + departure stamped by the SAME gate check-in /
+// check-out the visitor passes already use.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── Mutation: issueStaffPass (estate admin, requireFirmUser) ────────────
+// Issues a worker's pass: a visitor_tokens row with passCategory 'staff',
+// minted through the IDENTICAL billing gate + unique-code + passRef rules
+// as the resident flow. The worker presents the 6-digit code (or passRef)
+// at the gate; check-in/check-out logs arrival/departure; the admin sees
+// the movement log via getStaffAttendance. residentId is bound to the
+// ISSUING ADMIN so they can revoke their own staff passes through the
+// existing revokeVisitorToken possession check.
+export const issueStaffPass = mutation({
+  args: {
+    firmId: v.string(),
+    propertyId: v.string(),
+    staffName: v.string(),
+    staffRole: v.optional(v.string()),       // 'Cleaner', 'Security', 'Technician'…
+    visitDate: v.string(),                   // YYYY-MM-DD
+    expiryWindowHours: v.number(),           // 1–24
+    accessNote: v.optional(v.string()),     // ≤120 chars, gate instructions
+    userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (user.firmId && user.firmId !== args.firmId) {
+      throw new Error("Not authorized: firm mismatch.");
+    }
+
+    // Same VMS add-on billing gate as every other pass issuance.
+    await assertVmsEntitlement(ctx, args.firmId);
+
+    const property: any = await ctx.db.get(args.propertyId as any);
+    if (!property || property.firmId !== args.firmId) {
+      throw new Error("Property not found in this firm — pick one of your estates.");
+    }
+
+    const staffName = args.staffName?.trim().slice(0, 80);
+    if (!staffName) throw new Error("Worker name is required.");
+    const staffRole = args.staffRole?.trim().slice(0, 40) || undefined;
+    const accessNote = args.accessNote?.trim().slice(0, 120) || undefined;
+
+    const window = Math.min(Math.max(args.expiryWindowHours, 1), 24);
+    const tokenCode = await generateUniqueCode(ctx, args.propertyId);
+    let passRef = generatePassRef();
+    for (let i = 0; i < 3; i++) {
+      const clash = await ctx.db
+        .query("visitor_tokens")
+        .withIndex("by_property_passref", (q: any) => q.eq("propertyId", args.propertyId).eq("passRef", passRef))
+        .first();
+      if (!clash) break;
+      passRef = generatePassRef();
+    }
+
+    const visitStart = new Date(args.visitDate + "T00:00:00");
+    if (isNaN(visitStart.getTime())) throw new Error("Invalid visit date — use YYYY-MM-DD.");
+    const expiresAt = visitStart.getTime() + window * 60 * 60 * 1000;
+
+    const portalSettings = await ctx.db
+      .query("portal_settings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+    const gracePeriodMinutes = portalSettings?.vmsGracePeriodMinutes ?? 30;
+
+    const now = Date.now();
+    const tokenId = await ctx.db.insert("visitor_tokens", {
+      firmId: args.firmId,
+      propertyId: args.propertyId,
+      propertyName: property.name,
+      propertyAddress: property.address,
+      residentId: String(user._id),          // issuing admin (revocation possession)
+      residentName: `${user.name || user.email || ""} (estate admin)`,
+      residentPhone: undefined,
+      visitorName: staffName,                // the WORKER's name — shown at the gate
+      visitorPhone: "",                     // quiet: no WhatsApp dispatch, ever
+      passCategory: "staff",
+      issuedBy: String(user._id),
+      issuedByName: user.name || user.email || "",
+      staffRole,
+      expectedArrival: undefined,
+      accessNote,
+      tokenCode,
+      passRef,
+      deliveryMethod: "none",
+      status: "active",
+      visitDate: args.visitDate,
+      expiresAt,
+      expiryWindowHours: window,
+      gracePeriodMinutes,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    try {
+      await ctx.db.insert("audit_logs", {
+        firmId: args.firmId,
+        actorId: user._id,
+        actorName: user.name || user.email || "",
+        actorRole: user.role || "firm_user",
+        action: "create",
+        resource: "sentry_staff_pass",
+        resourceId: String(tokenId),
+        metadata: { staffName, staffRole: staffRole ?? null, propertyId: args.propertyId, visitDate: args.visitDate },
+        timestamp: now,
+      });
+    } catch { /* best-effort audit */ }
+
+    return {
+      tokenId: String(tokenId),
+      tokenCode,
+      passRef,
+      staffName,
+      staffRole,
+      visitDate: args.visitDate,
+      expiresAt,
+    };
+  },
+});
+
+// ─── Mutation: getStaffAttendance (estate admin, requireFirmUser) ────────
+// The quiet movement/attendance log: every staff pass in a date range with
+// arrival (checkedInAt) / departure (checkedOutAt) + duration, plus a
+// per-worker-per-day rollup. Audit-logged like the §5 reports.
+export const getStaffAttendance = mutation({
+  args: {
+    firmId: v.string(),
+    from: v.string(),                        // YYYY-MM-DD inclusive
+    to: v.string(),                          // YYYY-MM-DD inclusive
+    propertyId: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (user.firmId && user.firmId !== args.firmId) {
+      throw new Error("Not authorized: firm mismatch.");
+    }
+    try {
+      await ctx.db.insert("audit_logs", {
+        firmId: args.firmId,
+        actorId: user._id,
+        actorName: user.name || user.email || "",
+        actorRole: user.role || "firm_user",
+        action: "read",
+        resource: "sentry_report",
+        resourceId: "staff_attendance",
+        metadata: { from: args.from, to: args.to, propertyId: args.propertyId ?? "all" },
+        timestamp: Date.now(),
+      });
+    } catch { /* best-effort audit */ }
+
+    const rows: any[] = await ctx.db
+      .query("visitor_tokens")
+      .withIndex("by_firm_category", (q: any) => q.eq("firmId", args.firmId).eq("passCategory", "staff"))
+      .collect();
+
+    const scoped = rows.filter(
+      (t: any) =>
+        t.visitDate >= args.from &&
+        t.visitDate <= args.to &&
+        (!args.propertyId || t.propertyId === args.propertyId),
+    );
+
+    const records = scoped
+      .sort((a: any, b: any) => (a.visitDate || "").localeCompare(b.visitDate || "") || (a.createdAt || 0) - (b.createdAt || 0))
+      .map((t: any) => ({
+        staffName: t.visitorName,
+        staffRole: t.staffRole,
+        propertyName: t.propertyName,
+        propertyId: t.propertyId,
+        tokenCode: t.tokenCode,
+        passRef: t.passRef,
+        visitDate: t.visitDate,
+        issuedByName: t.issuedByName,
+        status: t.status,
+        arrivedAt: t.checkedInAt ?? null,
+        departedAt: t.checkedOutAt ?? null,
+        durationMinutes:
+          t.checkedInAt && t.checkedOutAt
+            ? Math.round((t.checkedOutAt - t.checkedInAt) / 60000)
+            : null,
+        expiredAt: t.expiresAt,
+        revoked: t.status === "revoked",
+      }));
+
+    // Per worker per day rollup: first arrival, last departure, entries.
+    const rollup = new Map<string, {
+      staffName: string; visitDate: string; firstArrivedAt: number | null;
+      lastDepartedAt: number | null; entries: number;
+    }>();
+    for (const r of records) {
+      const key = `${r.staffName}|${r.visitDate}`;
+      const cur = rollup.get(key) ?? {
+        staffName: r.staffName, visitDate: r.visitDate,
+        firstArrivedAt: r.arrivedAt, lastDepartedAt: r.departedAt, entries: 0,
+      };
+      cur.entries += 1;
+      if (r.arrivedAt != null && (cur.firstArrivedAt == null || r.arrivedAt < cur.firstArrivedAt)) cur.firstArrivedAt = r.arrivedAt;
+      if (r.departedAt != null && (cur.lastDepartedAt == null || r.departedAt > cur.lastDepartedAt)) cur.lastDepartedAt = r.departedAt;
+      rollup.set(key, cur);
+    }
+
+    return {
+      from: args.from,
+      to: args.to,
+      total: records.length,
+      records,
+      rollup: [...rollup.values()].sort(
+        (a, b) => (a.visitDate || "").localeCompare(b.visitDate || "") || a.staffName.localeCompare(b.staffName),
+      ),
+    };
   },
 });

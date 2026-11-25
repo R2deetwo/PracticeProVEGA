@@ -3787,3 +3787,88 @@ nowhere in our docs:
 
 Gates: docs-only change — full vitest suite green (3745 passed |
 1 skipped), no code touched, no build needed.
+
+### Task 94 — Sentry Pass: gatehouse stations + resident-dispatch alignment + quiet staff time-tracking (2026-11-25)
+
+Owner brief (two TASK headers, one coherent build):
+1. PRIMARY FLOW = resident-dispatched visitor codes (resident generates +
+   dispatches ahead of arrival; gate verifies, grants/denies). NO
+   "request a pass" prompt for a resident's visitor at the gate.
+2. Pass-request capability becomes a QUIET, estate-admin-scoped staff
+   time-tracking feature (arrival/departure stamps, attendance log).
+3. Audit the gatehouse verification surface, then implement a simple,
+   secure gatehouse account/terminal flow: admin provisioning (station +
+   PIN), strict least privilege, easy documented test path.
+4. Canonical Nigerian phone normalisation (080/070/081/090/091/020 →
+   +234, no double-prefixing) + non-silent WhatsApp diagnostics.
+   Strictly scoped to Sentry Pass + WhatsApp — sentry.io untouched.
+
+AUDIT FIRST (reported before building):
+- Gatehouse screen EXISTS: /gatehouse?firmId=… renders
+  GatekeeperInterface (verify, check-in/out, denial recording, search,
+  today's board, offline cache) — but it was FULLY PUBLIC: no gatehouse
+  account, role, or auth of any kind existed anywhere.
+- Arrival-request flow existed (gate raises request → resident approves) —
+  exactly what the owner retired.
+- Phone normalisation was split (communications.normalisePhoneForMeta +
+  whatsappShare.normalizePhoneForWa) with gaps (double-prefix shapes
+  "2340…" passed through broken; 020-locals mishandled client-side).
+- WhatsApp dispatch failures were silent (console.error only; resident
+  toast said "sent" regardless).
+
+BUILT (modular, extensible for the owner's upcoming rules):
+- convex/gatehouseAccounts.ts — gatehouse_accounts (station per
+  property, sha256(salt:pin) PIN, revocable) + gatehouse_sessions
+  (256-bit token, sha256-stored, 30-day TTL). provisionGatehouseAccount /
+  listGatehouseAccounts / resetGatehousePin / revokeGatehouseAccount
+  (requireFirmUser) + public throttled getGatehouseStations +
+  gatehouseLogin (failed PINs → securityEvents, no PIN echo).
+- THE LOCK FLIP: verifyToken / checkInVisitor / checkOutVisitor /
+  searchExpectedVisitors / getGatehouseLogs / recordDeniedEntry all call
+  requireGatehouseAccess — zero active stations → legacy anonymous mode
+  (back-compat); ≥1 station → valid station session required
+  (GATEHOUSE_SESSION_REQUIRED). Revocation kills sessions instantly;
+  revoking the last station returns the property to open mode.
+- LEAST PRIVILEGE: the station token is accepted by the six gate
+  endpoints only — not a user session (cannot pull requireFirmUser
+  surfaces; pinned by test).
+- QUIET STAFF FLOW: visitor_tokens gains passCategory ('visitor'|'staff'),
+  issuedBy/Name, staffRole (+ whatsappErrorClass/whatsappError for
+  diagnostics; deliveryMethod 'none' for staff passes). issueStaffPass
+  (requireFirmUser, same VMS billing gate + unique-code + passRef rules)
+  + getStaffAttendance (movement log + per-worker-per-day rollup,
+  audit-logged). Gate shows a STAFF badge on staff passes; the same
+  check-in/out stamps arrival/departure.
+- RETIRED: the visitor-facing arrival-request surface — sentryRequests.ts
+  public functions removed (createArrivalRequest / decideArrivalRequest /
+  getSentryResidentRequests / getGatehouseRequests); table + 12h-expiry
+  cron kept for historical rows; gate request desk + resident decision UI
+  removed; the gate now tells a code-less guest to get their pass from
+  their resident.
+- TERMINAL: station login screen (station select + PIN) when the firm has
+  stations; session stored in localStorage; terminal scoped to the
+  station's estate; "Post: <station>" + Log out replaces the free-text
+  post name in station mode.
+- PHONE: convex/ngPhone.ts + src/utils/ngPhone.ts canonical twins —
+  080/070/081/090/091/020/801/+234/234 and the double-prefix repairs
+  ("2340801…" → "234801…", "0234801…" → "234801…", "00234801…" → …),
+  never prefixed twice; wired into communications (normalisePhoneForMeta
+  delegates), whatsappShare (wa.me links), generateVisitorToken (stores
+  E.164, rejects garbage up front with a clear message), and the resident
+  form (live "Will be sent to +234 801 234 5678" hint).
+- DIAGNOSTICS: sendVisitorWhatsApp persists errorClass + message onto the
+  token row; the portal renders Delivered ✓ / Sending… / Not delivered —
+  <plain-language reason> per code.
+- ADMIN SURFACES: SecurityAccessView mounts GatehouseAccountsPanel
+  (provision/reset/revoke + the copyable terminal URL — the owner's test
+  path) + StaffPassesPanel (issue staff pass + attendance pull); the
+  page's stale "Math.random" and "public unauthenticated terminal"
+  claims corrected.
+- docs/ops/SENTRY_PASS_TESTING.md — the 10-minute side-by-side test path.
+
+Gates: vitest 3770 passed | 1 skipped (new: ngPhone 8,
+gatehouseAccounts 15, staffPasses 10; roundSentry updated for the
+retirement) · root tsc 0 · convex tsc 0 · eslint 0 errors ·
+ui-primitives ratchet 2212 HELD (station login uses ui/ primitives).
+Convex schema changed → `npx convex deploy --prod` REQUIRED + Vercel
+production deploy.

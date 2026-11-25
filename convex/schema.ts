@@ -2605,7 +2605,7 @@ export default defineSchema({
     // pass for machine links/QR/audit without exposing the PIN. Both are
     // server-verified; possessing either proves the resident issued the pass.
     passRef: v.optional(v.string()),  // 12 chars, no I/L/O/0/1
-    deliveryMethod: v.union(v.literal("client_share"), v.literal("portal_api")),
+    deliveryMethod: v.union(v.literal("client_share"), v.literal("portal_api"), v.literal("none")), // 'none' = admin-issued staff pass (quiet — no WhatsApp dispatch)
     whatsappSentAt: v.optional(v.number()), // timestamp if portal_api delivery succeeded
     // Lifecycle
     status: v.union(
@@ -2622,6 +2622,24 @@ export default defineSchema({
     checkedInAt: v.optional(v.number()),
     checkedInBy: v.optional(v.string()),  // gatekeeper userId or name
     checkedOutAt: v.optional(v.number()),
+    // ── TASK 94 (2026-11-25): pass category + quiet staff time-tracking. ──
+    // 'visitor' (default when absent — every pre-Task-94 row) is a
+    // resident-dispatched guest pass. 'staff' is an ESTATE-ADMIN-ISSUED
+    // in-house worker/service pass (Sentry Pass §2-repurpose): no resident,
+    // no WhatsApp, and the gate badge reads STAFF so guards know it is a
+    // worker movement, not a guest visit. Arrival/departure ride the same
+    // checkedInAt/checkedOutAt the gate already stamps.
+    passCategory: v.optional(v.string()),   // 'visitor' | 'staff' (absent = visitor)
+    issuedBy: v.optional(v.string()),       // admin userId (staff passes)
+    issuedByName: v.optional(v.string()),   // admin display name
+    staffRole: v.optional(v.string()),       // e.g. 'Cleaner', 'Security', 'Technician'
+    // ── TASK 94: non-silent WhatsApp delivery diagnostics on the pass ──
+    // portal_api sends used to fail into a console.error only; the resident
+    // toast said "sent" regardless. markWhatsAppSent now persists the error
+    // class + message so the portal shows Delivered / Failed (reason) per
+    // code (invalid_phone, not_configured, window/template rejection…).
+    whatsappErrorClass: v.optional(v.string()),
+    whatsappError: v.optional(v.string()),
     // Revocation
     revokedAt: v.optional(v.number()),
     revokedReason: v.optional(v.string()),
@@ -2640,16 +2658,73 @@ export default defineSchema({
     // ROUND SENTRY 4: passRef lookups (QR / machine links / audit joins)
     .index("by_property_passref",    ["propertyId", "passRef"])
     .index("by_expires",             ["expiresAt"])
-    .index("by_firm_resident",       ["firmId", "residentId"]),
+    .index("by_firm_resident",       ["firmId", "residentId"])
+    .index("by_firm_category",      ["firmId", "passCategory"]),
 
-  // ─── SENTRY ARRIVAL REQUESTS (ROUND SENTRY 2) ──────────────────────────
-  // The resident authorisation workflow the Sentry brief §2 asks for:
-  // a visitor arrives WITHOUT a pass, the gatehouse raises a request, the
-  // resident is notified (app_notifications) and approves or rejects it.
-  // Approving mints a normal visitor_tokens row through the SAME billing
-  // gate + unique-code logic. The row IS the authorisation record —
-  // requestedBy/At, decidedBy/At, rejectReason, and the minted tokenId are
-  // all preserved on it.
+  // ─── GATEHOUSE ACCOUNTS (TASK 94, 2026-11-25) ──────────────────────────
+  // Sentry Pass gatehouse stations, provisioned by the estate admin
+  // (Atrium → Security & Access → Gatehouse). A station is one guard post
+  // at ONE property ("Main Gate", "Gate 1") with a 6-digit PIN. Until a
+  // property has at least one ACTIVE station, its /gatehouse terminal
+  // keeps working in the legacy anonymous mode (back-compat for firms
+  // that never provisioned); the moment a station exists, every gate
+  // endpoint (verify / check-in / check-out / search / logs / denial)
+  // requires a valid station session token. Least privilege by design:
+  // a station session can ONLY reach the Sentry Pass verification
+  // surface — no financials, leases, tenant directories or settings
+  // exist anywhere in the terminal or in the endpoints it can call.
+  gatehouse_accounts: defineTable({
+    firmId: v.string(),
+    propertyId: v.string(),          // the estate this station guards
+    propertyName: v.optional(v.string()),   // denormalized for the admin list
+    stationName: v.string(),         // 'Main Gate', 'Gate 1' — ≤60 chars
+    pinHash: v.string(),             // sha256(salt + pin) — the PIN is never stored
+    pinSalt: v.string(),             // 16-hex random salt
+    status: v.union(
+      v.literal("active"),
+      v.literal("revoked"),
+    ),
+    createdBy: v.optional(v.string()),        // admin userId
+    createdByName: v.optional(v.string()),    // admin display name
+    lastLoginAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    revokedReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm",              ["firmId"])
+    .index("by_property",          ["propertyId"])
+    .index("by_property_status",   ["propertyId", "status"])
+    .index("by_firm_status",       ["firmId", "status"]),
+
+  // ─── GATEHOUSE SESSIONS (TASK 94) ──────────────────────────────────────
+  // One row per station-tablet login. The terminal stores the raw token
+  // in localStorage and presents it on every gated Sentry Pass call; the
+  // server only ever sees its SHA-256 (same storage form as the user
+  // session bearer tokens in sessions.ts). 30-day TTL, sliding — the
+  // admin can kill every tablet instantly by revoking the station.
+  gatehouse_sessions: defineTable({
+    accountId: v.id("gatehouse_accounts"),
+    tokenHash: v.string(),           // sha256 hex of the raw station token
+    propertyId: v.string(),          // denormalized: the station's property
+    createdAt: v.number(),
+    lastSeenAt: v.number(),
+    expiresAt: v.number(),           // createdAt + 30 days
+  })
+    .index("by_token",        ["tokenHash"])
+    .index("by_account",      ["accountId"])  // for bulk invalidation on revoke
+    .index("by_property",     ["propertyId"]),
+
+  // ─── SENTRY ARRIVAL REQUESTS (ROUND SENTRY 2 — RETIRED TASK 94) ────────
+  // HISTORICAL: the visitor-facing request-a-pass workflow (gatehouse
+  // raises a request, resident approves) was retired 2026-11-25 per the
+  // owner's direction — resident's guests must get their pass from the
+  // RESIDENT ahead of arrival (the primary dispatch flow), and pass/code
+  // request capability now lives quietly with estate admin as STAFF
+  // passes (passCategory 'staff' on visitor_tokens). The table and its
+  // rows are preserved untouched: approved requests minted real visitor
+  // tokens (still valid records), and the expireStaleArrivalRequests
+  // cron keeps tidying any old pending rows. No surface writes new rows.
   sentry_arrival_requests: defineTable({
     firmId: v.string(),
     propertyId: v.string(),

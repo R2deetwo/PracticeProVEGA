@@ -17,6 +17,8 @@
 import React from 'react';
 import { Shield, KeyRound, Eye, FileCheck, Lock, Server, Smartphone, Wifi } from 'lucide-react';
 import { SentryReportsPanel } from './settings/SentryReportsPanel';
+import { GatehouseAccountsPanel } from './settings/GatehouseAccountsPanel';
+import { StaffPassesPanel } from './settings/StaffPassesPanel';
 
 interface SecurityAccessViewProps {
   onBack?: () => void;
@@ -28,11 +30,11 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
       icon: <KeyRound className="w-5 h-5" />,
       title: 'Code Generation',
       status: 'Production-Ready',
-      description: 'Access codes are 6-digit numeric tokens generated server-side using a combination of Math.random() entropy and Date.now() timestamp mixing. Before a code is committed, the system checks for collisions against all active tokens in the same property over a 24-hour window — retrying up to 10 times until a unique code is found. This guarantees no two visitors to the same property will ever have the same active code simultaneously.',
+      description: 'Access codes are 6-digit numeric tokens generated server-side using cryptographically secure randomness (crypto-secure rejection sampling — never Math.random). Before a code is committed, the system checks for collisions against all active tokens in the same property over a 24-hour window — retrying up to 10 times until a unique code is found. This guarantees no two visitors to the same property will ever have the same active code simultaneously.',
       technicalDetails: [
-        'Algorithm: Math.random() × 2 + Date.now() entropy, zero-padded to 6 digits',
+        'Algorithm: crypto-secure rejection sampling, zero-padded to 6 digits',
         'Collision check: by_property_code index, 24h window, max 10 retries',
-        'Storage: visitor_tokens table with 10 indexes for fast lookup',
+        'Storage: visitor_tokens table with 11 indexes for fast lookup',
         'Expiry: configurable (2/6/12/24 hours), default from portal_settings.vmsDefaultExpiryHours',
       ],
     },
@@ -40,9 +42,9 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
       icon: <Eye className="w-5 h-5" />,
       title: 'Code Verification',
       status: 'Production-Ready',
-      description: 'When a visitor arrives, the gatekeeper enters the 6-digit code at the gatehouse terminal (a public, unauthenticated web page at /gatehouse?firmId=xxx). The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and returns the visitor name, host name, and unit number. The gatekeeper then approves entry, which logs the check-in with a timestamp.',
+      description: 'When a visitor arrives, the gatekeeper enters the 6-digit code (or the 12-character Pass ID) at the gatehouse terminal (/gatehouse). The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and returns the visitor name, host name, and unit number. The gatekeeper then approves entry, which logs the check-in with a timestamp. TASK 94 (2026-11-25): the terminal can be LOCKED — once the estate admin provisions a Gatehouse Station (below), the terminal requires the station\u2019s PIN and every gate endpoint validates the station session.',
       technicalDetails: [
-        'Verification: verifyToken query (public, no auth required)',
+        'Verification: verifyToken query (public; station-gated when the estate has active stations)',
         'Grace period: configurable (default 30 min) to accommodate slight delays',
         'States checked: active, expired, revoked, used, already_inside, not_yet_valid',
         'Offline fallback: last 100 verified tokens cached in localStorage',
@@ -323,6 +325,15 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
               audit-logged before the data is returned. */}
           <div className="mt-8">
             <SentryReportsPanel />
+          </div>
+
+          {/* TASK 94 (2026-11-25): gatehouse station provisioning + the
+              quiet staff time-tracking surface. The station panel is the
+              owner's test path — provision “Main Gate”, copy the terminal
+              URL, walk to /gatehouse and log in with the PIN. */}
+          <div className="mt-8 space-y-8">
+            <GatehouseAccountsPanel />
+            <StaffPassesPanel />
           </div>
         </div>
       </div>

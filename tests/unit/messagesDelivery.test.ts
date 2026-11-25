@@ -36,13 +36,17 @@ describe('normalisePhoneForMeta (WhatsApp E.164 normalisation)', () => {
     expect(normalisePhoneForMeta('441234567890')).toBe('441234567890');
   });
 
-  it('treats 10-11 digit numbers as Nigerian local (Nigeria-first contract)', () => {
+  it('treats bare 10-digit numbers as Nigerian local; 11+ digit non-NG shapes pass as international (Nigeria-first contract, TASK 94)', () => {
     // Documented trade-off: this app serves Nigerian property managers and
     // the frontend already prefixes the 234 country code; the backend
-    // normaliser is a safety net for DB-stored local shapes. A 10-11 digit
+    // normaliser is a safety net for DB-stored local shapes. A bare 10-digit
     // number without a country-code prefix is assumed NG local.
     expect(normalisePhoneForMeta('4155551234')).toBe('2344155551234');
-    expect(normalisePhoneForMeta('14155551234')).toBe('23414155551234');
+    // TASK 94 (ngPhone cutover): an 11-digit number that carries no NG shape
+    // (no leading 0, no 234 prefix) now passes through as international —
+    // "14155551234" is +1 415 555 1234, and the OLD behaviour produced the
+    // garbage "23414155551234" that Meta rejected anyway.
+    expect(normalisePhoneForMeta('14155551234')).toBe('14155551234');
   });
 
   it('rejects inputs that cannot be valid phone numbers', () => {

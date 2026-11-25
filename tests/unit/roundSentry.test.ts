@@ -6,7 +6,13 @@
  * house pattern: fixture-backed ctx, `(fn as any)._handler(ctx, args)`,
  * zero reimplementation of the code under test):
  *
- *   1.  Visitor pre-authorisation        — the §2 arrival-request workflow
+ *   1.  Visitor pre-authorisation        — RETIRED (TASK 94, 2026-11-25): the
+ *       arrival-request workflow was retired by the owner's direction —
+ *       guests get their pass from the resident ahead of arrival. Pass-
+ *       request capability now lives with estate admin as quiet STAFF
+ *       time-tracking (issueStaffPass/getStaffAttendance, covered in
+ *       tests/unit/staffPasses.test.ts) and the gate terminal requires a
+ *       station PIN once provisioned (tests/unit/gatehouseAccounts.test.ts).
  *   2.  Pass generation                  — code + passRef + display-only extras
  *   3.  Valid pass verification          — minimal projection, instructions
  *   4.  Expired pass rejection           — reason 'expired'
@@ -25,8 +31,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve as resolvePath, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { generateVisitorToken, verifyToken, checkInVisitor, checkOutVisitor, recordDeniedEntry, getSentryDailyReport, getSentryOnSite, getSentryHistorical, getSentrySecurityReport, getResidentTokens } from '../../convex/visitorManagement';
-import { createArrivalRequest, decideArrivalRequest, getSentryResidentRequests, getGatehouseRequests } from '../../convex/sentryRequests';
+import { generateVisitorToken, verifyToken, checkInVisitor, checkOutVisitor, recordDeniedEntry, getGatehouseLogs, getSentryDailyReport, getSentryOnSite, getSentryHistorical, getSentrySecurityReport, getResidentTokens, issueStaffPass, getStaffAttendance } from '../../convex/visitorManagement';
 import { hashSessionToken } from '../../convex/sessions';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -242,7 +247,7 @@ describe('roundSentry §1 — registration & pass generation (acceptance 2)', ()
     const { ctx } = makeCtx(baseTables());
     await expect(h(generateVisitorToken)(ctx, {
       firmId: 'firm-1', propertyId: 'prop_1', residentId: RESIDENT_ID,
-      visitorName: 'G', visitorPhone: '+234', visitDate: TODAY, expiryWindowHours: 6,
+      visitorName: 'G', visitorPhone: '+2348012345678', visitDate: TODAY, expiryWindowHours: 6,
       deliveryMethod: 'client_share', sessionToken: SESSION_PLAIN_RESIDENT,
       expectedArrival: '25:99',
     })).rejects.toThrow(/Invalid expected arrival time/);
@@ -252,7 +257,7 @@ describe('roundSentry §1 — registration & pass generation (acceptance 2)', ()
     const { ctx } = makeCtx(baseTables());
     const out = await h(generateVisitorToken)(ctx, {
       firmId: 'firm-1', propertyId: 'prop_1', residentId: RESIDENT_ID,
-      visitorName: 'W', visitorPhone: '+234', visitDate: TODAY, expiryWindowHours: 2,
+      visitorName: 'W', visitorPhone: '08012345678', visitDate: TODAY, expiryWindowHours: 2,
       deliveryMethod: 'client_share', sessionToken: SESSION_PLAIN_RESIDENT,
       expectedArrival: '09:00',
     });
@@ -367,112 +372,12 @@ describe('roundSentry §3 — arrival & departure recording (acceptance 7/8)', (
 // ═══════════════════════════════════════════════════════════════════════════
 // §2 — Resident authorisation workflow (acceptance 1)
 // ═══════════════════════════════════════════════════════════════════════════
-describe('roundSentry §2 — arrival-request workflow (acceptance 1)', () => {
-  it('createArrivalRequest resolves the resident SERVER-SIDE from the active tenancy, notifies in-app, and leaves a pending row', async () => {
-    const { ctx, tables } = makeCtx(baseTables());
-    const out = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'b14',
-      visitorName: 'Chidi Courier', visitorPhone: '+2348090000004',
-      notes: 'Says he has a delivery for Ada', requestedBy: 'Main Gate',
-    });
-    const row = tables.sentry_arrival_requests[0];
-    expect(row.status).toBe('pending');
-    expect(row.residentId).toBe(RESIDENT_ID);           // from the tenancy, not the caller
-    expect(row.requestedBy).toBe('Main Gate');
-    expect(tables.app_notifications.length).toBe(1);     // the resident ping
-    expect(tables.app_notifications[0].userId).toBe(RESIDENT_ID);
-    expect(tables.app_notifications[0].type).toBe('security');
-    expect(out.residentName).toBe('Ada Resident');
-  });
-
-  it('an unknown unit is refused honestly (no resident invented)', async () => {
-    const { ctx } = makeCtx(baseTables());
-    await expect(h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'Z99',
-      visitorName: 'Nobody', requestedBy: 'Main Gate',
-    })).rejects.toThrow(/No active resident found/);
-  });
-
-  it('approval mints a today-pass through the same gate + uniqueness rule, links tokenId, and schedules WhatsApp when a phone was left', async () => {
-    const { ctx, tables } = makeCtx(baseTables());
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'Chidi Courier', visitorPhone: '+2348090000004',
-      requestedBy: 'Main Gate',
-    });
-
-    const out = await h(decideArrivalRequest)(ctx, {
-      requestId: req.requestId, decision: 'approved',
-      residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT,
-    });
-    expect(out.decision).toBe('approved');
-    expect(out.tokenCode).toMatch(/^\d{6}$/);
-    expect(out.passRef).toMatch(/^[A-HJKMNP-Z2-9]{12}$/);
-    expect(out.delivered).toBe('whatsapp');
-
-    const reqRow = tables.sentry_arrival_requests[0];
-    expect(reqRow.status).toBe('approved');
-    expect(String(reqRow.tokenId)).toBe(String(out.tokenId));
-    expect(reqRow.decidedBy).toBe(RESIDENT_ID);
-
-    const tokenRow = tables.visitor_tokens.find((t: any) => String(t._id) === String(out.tokenId))!;
-    expect(tokenRow.visitDate).toBe(TODAY);
-    expect(tokenRow.status).toBe('active');
-
-    expect((ctx.scheduler.runAfter as any).mock.calls.length).toBeGreaterThanOrEqual(1); // WhatsApp scheduled
-  });
-
-  it('rejection is recorded with the reason on the row (the authorisation record)', async () => {
-    const { ctx, tables } = makeCtx(baseTables());
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'Stranger', requestedBy: 'Post 3',
-    });
-    const out = await h(decideArrivalRequest)(ctx, {
-      requestId: req.requestId, decision: 'rejected',
-      rejectReason: 'Not expecting anyone',
-      residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT,
-    });
-    expect(out.decision).toBe('rejected');
-    const reqRow = tables.sentry_arrival_requests[0];
-    expect(reqRow.status).toBe('rejected');
-    expect(reqRow.rejectReason).toBe('Not expecting anyone');
-    expect(tables.visitor_tokens.length).toBe(0); // no pass minted
-  });
-
-  it('a pending request cannot be decided twice, and an expired request cannot be decided at all', async () => {
-    const { ctx } = makeCtx(baseTables());
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'Late Arrival', requestedBy: 'Main Gate',
-    });
-    await h(decideArrivalRequest)(ctx, { requestId: req.requestId, decision: 'approved', residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT });
-    await expect(h(decideArrivalRequest)(ctx, { requestId: req.requestId, decision: 'rejected', residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT }))
-      .rejects.toThrow(/already approved/);
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// §4/§7 — Permission enforcement (acceptance 9)
-// ═══════════════════════════════════════════════════════════════════════════
 describe('roundSentry §4/§7.9 — permission enforcement (acceptance 9)', () => {
-  it('a resident cannot decide a request that belongs to someone else', async () => {
-    const { ctx } = makeCtx(baseTables());
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'Ada Visitor', requestedBy: 'Main Gate',
-    });
-    await expect(h(decideArrivalRequest)(ctx, {
-      requestId: req.requestId, decision: 'approved',
-      residentId: OTHER_RESIDENT_ID, sessionToken: SESSION_PLAIN_OTHER,
-    })).rejects.toThrow(/belongs to another resident/);
-  });
-
   it('generateVisitorToken refuses a caller whose session is not the resident named in the args', async () => {
     const { ctx } = makeCtx(baseTables());
     await expect(h(generateVisitorToken)(ctx, {
       firmId: 'firm-1', propertyId: 'prop_1', residentId: RESIDENT_ID,
-      visitorName: 'Spoofed', visitorPhone: '+234', visitDate: TODAY, expiryWindowHours: 6,
+      visitorName: 'Spoofed', visitorPhone: '+2348012345678', visitDate: TODAY, expiryWindowHours: 6,
       deliveryMethod: 'client_share', sessionToken: SESSION_PLAIN_OTHER,  // Bode's session
     })).rejects.toThrow(/Not authorized/);
   });
@@ -483,32 +388,38 @@ describe('roundSentry §4/§7.9 — permission enforcement (acceptance 9)', () =
       .rejects.toThrow(/Unauthenticated/);
   });
 
-  it('the §5 reports are firm-gated: no session → unauthenticated; the gatehouse board stays public-but-minimal', async () => {
+  it('the §5 reports are firm-gated: no session → unauthenticated; the gatehouse LOGS board stays public-but-minimal', async () => {
     const { ctx } = makeCtx(baseTables());
     await expect(h(getSentryDailyReport)(ctx, { date: TODAY }))
       .rejects.toThrow(/Unauthenticated/);
-    const board = await h(getGatehouseRequests)(ctx, { propertyId: 'prop_1' });
-    expect(Array.isArray(board)).toBe(true); // public board answers (throttled in production)
+    const board = await h(getGatehouseLogs)(ctx, { propertyId: 'prop_1' });
+    expect(Array.isArray(board)).toBe(true); // public board answers (throttled + station-gated in production)
   });
 
-  it('approval does NOT bypass the VMS billing gate (a Starter firm without the add-on is refused)', async () => {
+  it('issueStaffPass does NOT bypass the VMS billing gate (a Starter firm without the add-on is refused)', async () => {
     const tables = baseTables();
-    tables.firms = [{ _id: 'firm_1', id: 'firm-1', name: 'Starter Co', email: 'pay@starter.ng', subscriptionPlan: 'Starter', subscriptionAddons: { vms: { status: 'none' } } }];
-    const { ctx } = makeCtx(tables);
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'Trial Visitor', requestedBy: 'Main Gate',
+    // A Starter firm with its own admin + session, no VMS add-on, not the
+    // founder firm.
+    tables.firms.push({
+      _id: 'firm_starter', id: 'firm-starter', name: 'Starter Estates', email: 'starter@eg.ng',
+      subscriptionPlan: 'Starter', subscriptionAddons: {},
     });
-    await expect(h(decideArrivalRequest)(ctx, {
-      requestId: req.requestId, decision: 'approved',
-      residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT,
+    tables.users.push({
+      _id: 'users_10_starter', id: 'users_10_starter', name: 'Starter Admin', email: 'starter@eg.ng',
+      role: 'Administrator', firmId: 'firm-starter',
+    });
+    tables.sessions.push({
+      _id: 'sess_10', tokenHash: hashSessionToken('sess-starter-4444'), userId: 'users_10_starter',
+      expiresAt: NOW + DAY, revokedAt: null,
+    });
+    const { ctx } = makeCtx(tables);
+    await expect(h(issueStaffPass)(ctx, {
+      firmId: 'firm-starter', propertyId: 'prop_1', staffName: 'Worker W', visitDate: TODAY,
+      expiryWindowHours: 6, userEmail: 'starter@eg.ng', sessionToken: 'sess-starter-4444',
     })).rejects.toThrow(/VMS_ADDON_REQUIRED/);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// §5 + §7.10 — Audit history (acceptance 10)
-// ═══════════════════════════════════════════════════════════════════════════
 describe('roundSentry §5/§7.10 — denied entries & audit history (acceptance 10)', () => {
   it('recordDeniedEntry lands a sentry_denied_entry security event with the minimal payload + tokenId join', async () => {
     const { ctx, tables } = makeCtx({ ...baseTables(), visitor_tokens: [activeToken()] });
@@ -577,26 +488,8 @@ describe('roundSentry §5/§7.10 — denied entries & audit history (acceptance 
     expect(out.counts.throttled).toBe(1);
     expect(out.events.length).toBe(3); // excludes the login throttle + the 9-day-old denial
   });
-
-  it('the resident sees their own request history (pending + last 7 days) via their session', async () => {
-    const { ctx } = makeCtx(baseTables());
-    const req = await h(createArrivalRequest)(ctx, {
-      firmId: 'firm-1', propertyId: 'prop_1', unitLabel: 'B14',
-      visitorName: 'History Check', requestedBy: 'Main Gate',
-    });
-    const rows = await h(getSentryResidentRequests)(ctx, { firmId: 'firm-1', residentId: RESIDENT_ID, sessionToken: SESSION_PLAIN_RESIDENT });
-    expect(rows.length).toBe(1);
-    expect(rows[0].visitorName).toBe('History Check');
-    expect(rows[0].status).toBe('pending');
-    // No phones in the projection
-    expect((rows[0] as any).residentPhone).toBeUndefined();
-    expect((rows[0] as any).visitorPhone).toBeUndefined();
-  });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// §4 — Source-scanned security contracts (hard to fake through fixtures)
-// ═══════════════════════════════════════════════════════════════════════════
 describe('roundSentry §4 — source-scanned security contracts', () => {
   const vm = read('convex/visitorManagement.ts');
   const sr = read('convex/sentryRequests.ts');
@@ -607,7 +500,11 @@ describe('roundSentry §4 — source-scanned security contracts', () => {
   it('passRef entropy comes from the crypto-secure helpers (never Math.random), and the alphabet excludes I/L/O/0/1', () => {
     expect(vm).toContain('const PASSREF_CHARSET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"');
     expect(vm).toContain('codeFromCharset(PASSREF_CHARSET, PASSREF_LENGTH)');
-    expect(sr).toContain('codeFromCharset(PASSREF_CHARSET, PASSREF_LENGTH)');
+    // TASK 94: the retired arrival-request surface mints nothing any more —
+    // only the stale-pending hygiene cron remains in sentryRequests.ts.
+    expect(sr).toContain('expireStaleArrivalRequests');
+    expect(sr).not.toContain('export const createArrivalRequest');
+    expect(sr).not.toContain('export const decideArrivalRequest');
   });
 
   it('a visitor pass can never be permanent: every generated row carries expiresAt + expiryWindowHours, and the expiry cron still sweeps', () => {
@@ -639,9 +536,10 @@ describe('roundSentry §4 — source-scanned security contracts', () => {
     expect(projBody).not.toContain('propertyAddress');
   });
 
-  it('every new public endpoint is throttled (verify/check-in/check-out/denial/search/requests/boards)', () => {
-    for (const key of ['vms-verify:', 'vms-checkin:', 'vms-checkout:', 'vms-denied:', 'vms-search:', 'sentry-req:', 'sentry-req-board:']) {
-      expect(vm + sr).toContain(key);
+  it('every public endpoint is throttled (verify/check-in/check-out/denial/search/logs/stations/login)', () => {
+    const ga = read('convex/gatehouseAccounts.ts');
+    for (const key of ['vms-verify:', 'vms-checkin:', 'vms-checkout:', 'vms-denied:', 'vms-search:', 'vms-logs:', 'gatehouse-login:', 'gatehouse-stations:']) {
+      expect(vm + sr + ga).toContain(key);
     }
   });
 
@@ -658,7 +556,8 @@ describe('roundSentry §4 — source-scanned security contracts', () => {
     expect(gatekeeper).toContain('Record denied entry');
     expect(gatekeeper).toContain('Access instructions');
     expect(portal).toContain('never widens the');
-    expect(portal).toContain('At the gate (');
+    expect(portal).toContain('Will be sent to'); // TASK 94: live canonical-phone hint
+    expect(gatekeeper).toContain('No code?');   // TASK 94: guests are directed to their resident host
   });
 
   it('the §1 information-minimisation promise: only what the resident volunteers (arrival + note are optional on the form)', () => {

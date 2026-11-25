@@ -17,8 +17,21 @@
  *   - Fast search over today's expected visitors (name / code / passRef).
  *   - Today's board distinguishes expired passes and shows each
  *     visitor's expected arrival.
- *   - Arrival-request desk: raise a request when a visitor has no pass,
- *     and watch the resident's approval/rejection land on the board.
+ *
+ * TASK 94 (2026-11-25, owner spec):
+ *   - STATION LOGIN. When the estate admin has provisioned gatehouse
+ *     stations (Atrium → Security & Access → Gatehouse), this terminal
+ *     locks: the guard logs in with their station + PIN before the
+ *     verification screen renders. A station session is strictly
+ *     least-privilege — it can reach NOTHING but this verification
+ *     surface (no financials, leases, directories, settings). Firms with
+ *     no stations keep the legacy anonymous terminal unchanged.
+ *   - RESIDENT-DISPATCHED PASSES ONLY. The visitor-facing "No pass?
+ *     Raise a request" desk is REMOVED — a resident's guest gets their
+ *     pass from the resident ahead of arrival; the gate only verifies.
+ *   - STAFF BADGE. Admin-issued worker passes (passCategory 'staff')
+ *     render a STAFF chip so guards know it's a worker movement, not a
+ *     guest visit — arrival/departure logging is the attendance log.
  *
  * Accessible from the main app as a separate view, or from the
  * tenant portal via a "Gate Access" button.
@@ -27,7 +40,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Button, Input, Textarea } from '../ui';
+import { Button, Input, Select, Textarea } from '../ui';
 import { GateIcon, CheckIcon, XCircleIcon, ClockIcon, UserIcon, MapPinIcon, SearchIcon, InfoIcon } from '../../constants';
 
 interface VerificationResult {
@@ -40,6 +53,9 @@ interface VerificationResult {
     address?: string;
     unitName?: string;
     residentName?: string;
+    passCategory?: string;      // TASK 94: 'staff' renders the STAFF badge
+    staffRole?: string;
+    issuedByName?: string;
     expectedArrival?: string;
     accessNote?: string;
     expiresAt?: number;
@@ -49,9 +65,19 @@ interface VerificationResult {
     expiredAt?: number;
 }
 
+interface StationSession {
+    stationToken: string;
+    stationName: string;
+    propertyId: string;
+    propertyName?: string;
+    firmId: string;
+    expiresAt: number;
+}
+
 const OFFLINE_CACHE_KEY = 'practicepro_sentrypass_cache';
 const MAX_CACHE_SIZE = 100;
 const GATEKEEPER_NAME_KEY = 'practicepro_gatekeeper_name';
+const STATION_SESSION_KEY = 'practicepro_sentrypass_station';
 
 const DENIAL_REASONS = [
     'Not on the list',
@@ -71,6 +97,12 @@ const cleanIdentifier = (raw: string) => raw.toUpperCase().replace(/[^A-Z0-9]/g,
 
 /** PIN = 6 pure digits. passRef = contains letters (12 chars when issued). */
 const looksLikePin = (v: string) => v.length === 6 && /^\d{6}$/.test(v);
+
+const StaffChip: React.FC<{ staffRole?: string }> = ({ staffRole }) => (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 text-3xs font-black uppercase tracking-wider">
+        Staff{staffRole ? ` · ${staffRole}` : ''}
+    </span>
+);
 
 export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void }> = ({ firmId, onBack }) => {
     const convex = useConvex();
@@ -94,36 +126,42 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
     const [searchResults, setSearchResults] = useState<any[] | null>(null);
     const [isSearching, setIsSearching] = useState(false);
 
-    // ── Arrival-request desk state
-    const [requestFormOpen, setRequestFormOpen] = useState(false);
-    const [reqVisitorName, setReqVisitorName] = useState('');
-    const [reqUnit, setReqUnit] = useState('');
-    const [reqPhone, setReqPhone] = useState('');
-    const [reqNotes, setReqNotes] = useState('');
-    const [reqSubmitting, setReqSubmitting] = useState(false);
-    const [reqError, setReqError] = useState<string | null>(null);
+    // ── TASK 94: station login state
+    const [station, setStation] = useState<StationSession | null>(null);
+    const [stationsChecked, setStationsChecked] = useState(false);
+    const [stationPick, setStationPick] = useState<string>('');   // accountId chosen at login
+    const [stationPin, setStationPin] = useState('');
+    const [stationLoggingIn, setStationLoggingIn] = useState(false);
+    const [stationError, setStationError] = useState<string | null>(null);
 
-    // ── Gate post name (stamped on check-ins, denials and requests)
+    // ── Gate post name (legacy anonymous mode — stamped on check-ins/denials)
     const [gatekeeperName, setGatekeeperName] = useState('');
     const [nameEditing, setNameEditing] = useState(false);
     const [nameDraft, setNameDraft] = useState('');
 
     // ─── Queries ────────────────────────────────────────────────────────
-    const properties = useQuery(api.visitorManagement.getGatekeeperProperties, firmId ? { firmId } : 'skip');
+    // TASK 94: stations for this firm — their existence LOCKS the terminal.
+    const stations = useQuery(
+        api.gatehouseAccounts.getGatehouseStations,
+        firmId ? { firmId } : 'skip'
+    );
+    // Legacy estate picker — only fetched in anonymous mode.
+    const properties = useQuery(
+        api.visitorManagement.getGatekeeperProperties,
+        (!stationsChecked || (stations && stations.length === 0)) && firmId ? { firmId } : 'skip'
+    );
     const logs = useQuery(
         api.visitorManagement.getGatehouseLogs,
-        selectedPropertyId ? { propertyId: selectedPropertyId } : 'skip'
-    );
-    const requests = useQuery(
-        api.sentryRequests.getGatehouseRequests,
-        selectedPropertyId ? { propertyId: selectedPropertyId } : 'skip'
+        (station || selectedPropertyId)
+            ? { propertyId: station ? station.propertyId : selectedPropertyId, stationToken: station?.stationToken }
+            : 'skip'
     );
 
     // ─── Mutations ──────────────────────────────────────────────────────
     const checkIn = useMutation(api.visitorManagement.checkInVisitor);
     const checkOut = useMutation(api.visitorManagement.checkOutVisitor);
     const denyEntry = useMutation(api.visitorManagement.recordDeniedEntry);
-    const raiseRequest = useMutation(api.sentryRequests.createArrivalRequest);
+    const stationLogin = useMutation(api.gatehouseAccounts.gatehouseLogin);
 
     // ─── Online/offline detection ───────────────────────────────────────
     useEffect(() => {
@@ -137,7 +175,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         };
     }, []);
 
-    // ─── Load offline cache + gatekeeper name ───────────────────────────
+    // ─── Load offline cache + gatekeeper name + station session ─────────
     useEffect(() => {
         try {
             const cached = localStorage.getItem(OFFLINE_CACHE_KEY);
@@ -146,14 +184,34 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         try {
             setGatekeeperName(localStorage.getItem(GATEKEEPER_NAME_KEY) || '');
         } catch {}
+        try {
+            const raw = localStorage.getItem(STATION_SESSION_KEY);
+            if (raw) {
+                const s = JSON.parse(raw) as StationSession;
+                if (s.expiresAt > Date.now() && s.stationToken) {
+                    setStation(s);
+                } else {
+                    localStorage.removeItem(STATION_SESSION_KEY);
+                }
+            }
+        } catch { /* corrupted session → treat as logged out */ }
     }, []);
 
-    // ─── Auto-select first property ─────────────────────────────────────
+    // ─── Auto-select first property (legacy anonymous mode only) ────────
     useEffect(() => {
-        if (properties && properties.length > 0 && !selectedPropertyId) {
+        if (!station && properties && properties.length > 0 && !selectedPropertyId) {
             setSelectedPropertyId(properties[0].id);
         }
-    }, [properties]);
+    }, [properties, station]);
+
+    // ─── Auto-pick the only station on the login screen ─────────────────
+    useEffect(() => {
+        if (stations && stations.length === 1 && !stationPick) {
+            setStationPick(String(stations[0].accountId));
+        }
+    }, [stations]);
+
+    useEffect(() => { if (stations) setStationsChecked(true); }, [stations]);
 
     // ─── Debounce the search box (400ms — kind to low-power hardware) ──
     useEffect(() => {
@@ -161,19 +219,21 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         return () => clearTimeout(t);
     }, [searchTerm]);
 
-    // ─── Run the search when the term settles (≥2 chars) ───────────────
+    // ─── Run the search when the term settles (≥2 chars) ─────────────
     useEffect(() => {
         let cancelled = false;
         (async () => {
-            if (!selectedPropertyId || debouncedTerm.length < 2) {
+            const propertyId = station ? station.propertyId : selectedPropertyId;
+            if (!propertyId || debouncedTerm.length < 2) {
                 setSearchResults(null);
                 return;
             }
             setIsSearching(true);
             try {
                 const rows = await convex.query(api.visitorManagement.searchExpectedVisitors, {
-                    propertyId: selectedPropertyId,
+                    propertyId,
                     term: debouncedTerm,
+                    stationToken: station?.stationToken,
                 });
                 if (!cancelled) setSearchResults(rows as any[]);
             } catch {
@@ -183,12 +243,48 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             }
         })();
         return () => { cancelled = true; };
-    }, [debouncedTerm, selectedPropertyId, convex]);
+    }, [debouncedTerm, station, selectedPropertyId, convex]);
+
+    // ─── TASK 94: station login / logout ─────────────────────────────────
+    const handleStationLogin = async () => {
+        if (!stationPick || !stationPin.trim()) return;
+        setStationLoggingIn(true);
+        setStationError(null);
+        try {
+            const s: any = await stationLogin({ accountId: stationPick as any, pin: stationPin.trim() });
+            const session: StationSession = {
+                stationToken: s.stationToken,
+                stationName: s.stationName,
+                propertyId: s.propertyId,
+                propertyName: s.propertyName,
+                firmId: s.firmId,
+                expiresAt: s.expiresAt,
+            };
+            setStation(session);
+            try { localStorage.setItem(STATION_SESSION_KEY, JSON.stringify(session)); } catch {}
+            setStationPin('');
+        } catch (err: any) {
+            setStationError(err.message || 'Login failed.');
+        } finally {
+            setStationLoggingIn(false);
+        }
+    };
+
+    const handleStationLogout = () => {
+        setStation(null);
+        try { localStorage.removeItem(STATION_SESSION_KEY); } catch {}
+        setIdentifier('');
+        setVerification(null);
+        setStationPick('');
+        setStationPin('');
+        inputRef.current?.focus();
+    };
 
     // ─── Verify code / passRef ──────────────────────────────────────────
     const handleVerify = useCallback(async (rawValue?: string) => {
+        const propertyId = station ? station.propertyId : selectedPropertyId;
         const value = cleanIdentifier(rawValue ?? identifier);
-        if (!value || !selectedPropertyId) return;
+        if (!value || !propertyId) return;
         // Auto-mode only fires on complete identifiers; a manual press
         // verifies whatever is present (≥1 char).
         setIsVerifying(true);
@@ -198,8 +294,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
 
         const asPin = looksLikePin(value);
         const payload = asPin
-            ? { tokenCode: value, propertyId: selectedPropertyId }
-            : { passRef: value, propertyId: selectedPropertyId };
+            ? { tokenCode: value, propertyId, stationToken: station?.stationToken }
+            : { passRef: value, propertyId, stationToken: station?.stationToken };
 
         if (!isOnline) {
             // Offline fallback: check local cache.
@@ -207,7 +303,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             // it had been verified online once — expired and revoked codes
             // kept passing at the gate while offline. Now a cached entry is
             // only honored while its own expiresAt is in the future.
-            const cached = offlineCache.find(c => (c.tokenCode === value || c.passRef === value) && c.propertyId === selectedPropertyId);
+            const cached = offlineCache.find(c => (c.tokenCode === value || c.passRef === value) && c.propertyId === propertyId);
             const cacheEntryStillValid = cached && typeof cached.expiresAt === 'number' && cached.expiresAt > Date.now();
             if (cached && !cacheEntryStillValid) {
                 setVerification({
@@ -227,6 +323,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     address: cached.address,
                     unitName: cached.unitName,
                     residentName: cached.residentName,
+                    passCategory: cached.passCategory,
+                    staffRole: cached.staffRole,
                     expectedArrival: cached.expectedArrival,
                     accessNote: cached.accessNote,
                     expiresAt: cached.expiresAt,
@@ -254,12 +352,14 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     tokenId: r.tokenId,
                     tokenCode: asPin ? value : undefined,
                     passRef: asPin ? undefined : value,
-                    propertyId: selectedPropertyId,
+                    propertyId,
                     visitorName: r.visitorName,
                     estateName: r.estateName,
                     address: r.address,
                     unitName: r.unitName,
                     residentName: r.residentName,
+                    passCategory: r.passCategory,
+                    staffRole: r.staffRole,
                     expectedArrival: r.expectedArrival,
                     accessNote: r.accessNote,
                     expiresAt: r.expiresAt,
@@ -279,7 +379,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         } finally {
             setIsVerifying(false);
         }
-    }, [identifier, selectedPropertyId, isOnline, offlineCache, convex]);
+    }, [identifier, station, selectedPropertyId, isOnline, offlineCache, convex]);
 
     // ─── Identifier input: normalise + auto-verify on complete ──────────
     const onIdentifierChange = (raw: string) => {
@@ -288,7 +388,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         setVerification(null);
         setDenyOpen(false);
         setDenyDone(null);
-        if (!selectedPropertyId || isVerifying) return;
+        const propertyId = station ? station.propertyId : selectedPropertyId;
+        if (!propertyId || isVerifying) return;
         if (looksLikePin(value) || (/[A-Z]/.test(value) && value.length >= 12)) {
             handleVerify(value);
         }
@@ -296,14 +397,16 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
 
     // ─── Approve entry (check in) ───────────────────────────────────────
     const handleApproveEntry = async () => {
-        if (!verification || !identifier || !selectedPropertyId) return; // ROUND A (C8): check-in carries the typed identifier (possession proof)
+        const propertyId = station ? station.propertyId : selectedPropertyId;
+        if (!verification || !identifier || !propertyId) return; // ROUND A (C8): check-in carries the typed identifier (possession proof)
         const asPin = looksLikePin(identifier);
         try {
             await checkIn({
                 tokenCode: asPin ? identifier : undefined,
                 passRef: asPin ? undefined : identifier,
-                propertyId: selectedPropertyId,
-                gatekeeperName: gatekeeperName || 'Gatekeeper',
+                propertyId,
+                gatekeeperName: station ? station.stationName : (gatekeeperName || 'Gatekeeper'),
+                stationToken: station?.stationToken,
             });
             setVerification({ ...verification, valid: false, reason: 'checked_in', message: `${verification.visitorName} checked in successfully.` });
             setIdentifier('');
@@ -315,9 +418,10 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
 
     // ─── Check out ──────────────────────────────────────────────────────
     const handleCheckOut = async (tokenCode: string) => { // ROUND A (C8): code + property, not a bare tokenId
-        if (!tokenCode || !selectedPropertyId) return;
+        const propertyId = station ? station.propertyId : selectedPropertyId;
+        if (!tokenCode || !propertyId) return;
         try {
-            await checkOut({ tokenCode, propertyId: selectedPropertyId });
+            await checkOut({ tokenCode, propertyId, stationToken: station?.stationToken });
         } catch (err: any) {
             console.error('Checkout failed:', err);
         }
@@ -325,17 +429,19 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
 
     // ─── Record a denial (§3: one tap + one reason, that's it) ──────────
     const submitDenial = async () => {
+        const propertyId = station ? station.propertyId : selectedPropertyId;
         const reason = denyReason === 'Other' ? denyOther.trim() : denyReason;
-        if (!reason) return;
+        if (!reason || !propertyId) return;
         try {
             await denyEntry({
-                propertyId: selectedPropertyId,
-                propertyName: properties?.find((p: any) => p.id === selectedPropertyId)?.name,
+                propertyId,
+                propertyName: station?.propertyName ?? properties?.find((p: any) => p.id === propertyId)?.name,
                 tokenCode: looksLikePin(identifier) ? identifier : undefined,
                 passRef: looksLikePin(identifier) ? undefined : /[A-Z]/.test(identifier) ? identifier : undefined,
                 visitorName: verification?.visitorName || undefined,
                 reason,
-                gatekeeperName: gatekeeperName || 'Gatekeeper',
+                gatekeeperName: station ? station.stationName : (gatekeeperName || 'Gatekeeper'),
+                stationToken: station?.stationToken,
             });
             setDenyDone(reason);
             setDenyOpen(false);
@@ -347,33 +453,6 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             setDenyDone(null);
             setDenyOpen(false);
             console.error('Denial recording failed:', err);
-        }
-    };
-
-    // ─── Raise an arrival request (§2 gatehouse side) ───────────────────
-    const submitRequest = async () => {
-        if (!reqVisitorName.trim() || !reqUnit.trim() || !selectedPropertyId || !firmId) return;
-        setReqSubmitting(true);
-        setReqError(null);
-        try {
-            await raiseRequest({
-                firmId,
-                propertyId: selectedPropertyId,
-                unitLabel: reqUnit.trim(),
-                visitorName: reqVisitorName.trim(),
-                visitorPhone: reqPhone.trim() || undefined,
-                notes: reqNotes.trim() || undefined,
-                requestedBy: gatekeeperName || 'Gatehouse',
-            });
-            setReqVisitorName('');
-            setReqUnit('');
-            setReqPhone('');
-            setReqNotes('');
-            setRequestFormOpen(false);
-        } catch (err: any) {
-            setReqError(err.message || 'Could not raise the request.');
-        } finally {
-            setReqSubmitting(false);
         }
     };
 
@@ -406,6 +485,72 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         );
     }
 
+    // ─── TASK 94: STATION LOGIN SCREEN ─────────────────────────────────
+    // Shown when the firm has gatehouse stations and this device has no
+    // live station session. Least privilege: nothing renders beyond the
+    // login until the station PIN is presented.
+    if (!station && stations && stations.length > 0) {
+        return (
+            <div className="min-h-[100dvh] bg-slate-100 dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
+                <div className="w-full max-w-sm">
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-3">
+                            <GateIcon className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <h1 className="text-xl font-black text-slate-900 dark:text-white">Sentry Pass Terminal</h1>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+                            This gate terminal is locked. Sign in with your station PIN.
+                        </p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-soft p-6 space-y-4">
+                        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                            Station
+                        </label>
+                        <Select
+                            value={stationPick}
+                            onChange={(e: any) => setStationPick(e.target.value)}
+                        >
+                            <option value="">Choose your gate…</option>
+                            {stations.map((s: any) => (
+                                <option key={String(s.accountId)} value={String(s.accountId)}>
+                                    {s.stationName}{s.propertyName ? ` — ${s.propertyName}` : ''}
+                                </option>
+                            ))}
+                        </Select>
+                        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                            Station PIN
+                        </label>
+                        <Input
+                            type="password"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            value={stationPin}
+                            onChange={(e: any) => setStationPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                            onKeyDown={(e: any) => e.key === 'Enter' && handleStationLogin()}
+                            placeholder="••••••"
+                            className="!text-center !text-2xl !font-black !tracking-[0.4em] !py-4"
+                        />
+                        {stationError && (
+                            <p className="text-2xs font-bold text-rose-600 dark:text-rose-400 text-center">{stationError}</p>
+                        )}
+                        <Button
+                            variant="primary"
+                            size="md"
+                            className="w-full"
+                            disabled={!stationPick || stationPin.length < 4 || stationLoggingIn}
+                            onClick={handleStationLogin}
+                        >
+                            {stationLoggingIn ? 'Signing in…' : 'Sign in to terminal'}
+                        </Button>
+                        <p className="text-3xs text-slate-400 dark:text-zinc-500 text-center leading-relaxed">
+                            Wrong PIN is recorded in the estate security log. Lost your PIN? Ask your estate admin (Atrium → Security &amp; Access → Gatehouse).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const statusBadge = (log: any) => {
         if (log.status === 'used' && log.checkedOutAt) return { cls: 'bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400', label: 'Completed' };
         if (log.status === 'used') return { cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', label: 'Inside' };
@@ -413,6 +558,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         if (log.status === 'expired') return { cls: 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400', label: 'Expired' };
         return { cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', label: 'Active' };
     };
+
+    const propertyId = station ? station.propertyId : selectedPropertyId;
 
     return (
         <div className="min-h-[100dvh] bg-slate-100 dark:bg-zinc-950 flex flex-col">
@@ -442,8 +589,16 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                         <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'} ${isOnline ? '' : 'animate-pulse'}`} />
                         {isOnline ? 'Online' : 'Offline'}
                     </div>
-                    {/* Gate post name (stamped on every check-in / denial / request) */}
-                    {nameEditing ? (
+                    {station ? (
+                        <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-1 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 text-2xs font-bold flex-shrink-0">
+                                Post: {station.stationName}
+                            </span>
+                            <Button variant="ghost" size="sm" className="!text-2xs" onClick={handleStationLogout}>
+                                Log out
+                            </Button>
+                        </div>
+                    ) : nameEditing ? (
                         <div className="flex items-center gap-1">
                             <Input
                                 value={nameDraft}
@@ -460,7 +615,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                             size="sm"
                             onClick={() => { setNameDraft(gatekeeperName); setNameEditing(true); }}
                             className="!rounded-full !text-2xs"
-                            title="Name this gate post — stamped on check-ins, denials and requests"
+                            title="Name this gate post — stamped on check-ins and denials"
                         >
                             {gatekeeperName ? `Post: ${gatekeeperName}` : 'Name this post'}
                         </Button>
@@ -468,8 +623,9 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                 </div>
             </div>
 
-            {/* Property selector */}
-            {properties && properties.length > 1 && (
+            {/* Property selector — legacy anonymous mode only; a station is
+                permanently bound to its estate. */}
+            {!station && properties && properties.length > 1 && (
                 <div className="flex-shrink-0 px-4 py-2 bg-white dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
                     <select
                         value={selectedPropertyId}
@@ -509,7 +665,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     </p>
                     <button
                         onClick={() => handleVerify()}
-                        disabled={!identifier || isVerifying || !selectedPropertyId}
+                        disabled={!identifier || isVerifying || !propertyId}
                         className="w-full mt-4 px-6 py-3.5 bg-emerald-600 text-white rounded-lg font-bold text-base hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed transition-colors"
                     >
                         {isVerifying ? 'Verifying...' : 'Verify'}
@@ -530,14 +686,21 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                         <CheckIcon className="w-7 h-7 text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-black text-emerald-700 dark:text-emerald-400">Valid Entry</h2>
-                                        <p className="text-sm text-emerald-600 dark:text-emerald-500">Code verified successfully</p>
+                                        <h2 className="text-xl font-black text-emerald-700 dark:text-emerald-400">
+                                            {verification.passCategory === 'staff' ? 'Valid Staff Pass' : 'Valid Entry'}
+                                        </h2>
+                                        <p className="text-sm text-emerald-600 dark:text-emerald-500">
+                                            {verification.passCategory === 'staff'
+                                                ? 'Estate worker — movement logged as attendance'
+                                                : 'Code verified successfully'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="space-y-2 mb-4">
-                                    <div className="flex items-center gap-2 text-sm">
+                                    <div className="flex items-center gap-2 text-sm flex-wrap">
                                         <UserIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                         <span className="font-bold text-slate-900 dark:text-white">{verification.visitorName}</span>
+                                        {verification.passCategory === 'staff' && <StaffChip staffRole={verification.staffRole} />}
                                     </div>
                                     {verification.unitName && (
                                         <div className="flex items-center gap-2 text-sm">
@@ -548,7 +711,10 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                     {verification.residentName && (
                                         <div className="flex items-center gap-2 text-sm">
                                             <UserIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                            <span className="text-slate-700 dark:text-zinc-300">Host: {verification.residentName}</span>
+                                            <span className="text-slate-700 dark:text-zinc-300">
+                                                {verification.passCategory === 'staff' ? 'Issued by: ' : 'Host: '}
+                                                {verification.residentName}
+                                            </span>
                                         </div>
                                     )}
                                     {verification.expectedArrival && (
@@ -578,7 +744,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                     onClick={handleApproveEntry}
                                     className="w-full px-6 py-3.5 bg-emerald-600 text-white rounded-lg font-bold text-base hover:bg-emerald-700 transition-colors"
                                 >
-                                    Approve Entry
+                                    Approve Entry{verification.passCategory === 'staff' ? ' (log arrival)' : ''}
                                 </button>
                                 <Button
                                     variant="danger-soft"
@@ -705,13 +871,16 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                     <div key={i} className="py-2 px-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="min-w-0">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-sm font-bold text-slate-900 dark:text-white">{hit.visitorName}</span>
+                                                    {hit.passCategory === 'staff' && <StaffChip staffRole={hit.staffRole} />}
                                                     <span className="text-2xs font-mono text-slate-400">{hit.tokenCode}{hit.passRef ? ` · ${hit.passRef}` : ''}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                                     {hit.unitName && <span>Unit {hit.unitName}</span>}
-                                                    {hit.residentName && <span>· host {hit.residentName}</span>}
+                                                    {hit.passCategory === 'staff'
+                                                        ? (hit.residentName && <span>· issued by {hit.residentName}</span>)
+                                                        : (hit.residentName && <span>· host {hit.residentName}</span>)}
                                                     {hit.expectedArrival && <span>· ~{hit.expectedArrival}</span>}
                                                     {hit.checkedInAt && <span className="text-emerald-600 dark:text-emerald-400">· in {fmtTime(hit.checkedInAt)}</span>}
                                                     {hit.checkedOutAt && <span className="text-slate-400">· out {fmtTime(hit.checkedOutAt)}</span>}
@@ -729,64 +898,16 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     )}
                 </div>
 
-                {/* Arrival-request desk (§2 gatehouse side) */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-soft p-4">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-slate-900 dark:text-white text-sm">No pass? Raise a request</h3>
-                        <Button size="sm" variant={requestFormOpen ? 'ghost' : 'primary'} onClick={() => setRequestFormOpen(v => !v)}>
-                            {requestFormOpen ? 'Close' : 'New request'}
-                        </Button>
+                {/* TASK 94: a guest with no pass is directed to their resident
+                    host — no request form at the gate for residents' visitors. */}
+                <div className="bg-sky-50 dark:bg-sky-900/20 rounded-2xl p-4 border border-sky-200 dark:border-sky-800">
+                    <div className="flex items-start gap-2">
+                        <InfoIcon className="w-4 h-4 text-sky-600 dark:text-sky-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-2xs text-sky-800 dark:text-sky-300 leading-relaxed">
+                            <span className="font-bold">No code? </span>
+                            A visitor's access code comes from the resident they are visiting — it is sent to the visitor before arrival. Direct the guest to their host, or record a denial below if entry should not happen.
+                        </p>
                     </div>
-                    <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-3">
-                        The resident is notified in-app and approves from their portal. Approval mints a pass for today — the board below shows the decision.
-                    </p>
-                    {requestFormOpen && (
-                        <div className="space-y-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/60">
-                            <Input value={reqVisitorName} onChange={(e: any) => setReqVisitorName(e.target.value)} placeholder="Visitor name *" />
-                            <Input value={reqUnit} onChange={(e: any) => setReqUnit(e.target.value)} placeholder="Unit they're visiting * (e.g. Flat 3B)" />
-                            <Input value={reqPhone} onChange={(e: any) => setReqPhone(e.target.value)} placeholder="Visitor phone (optional — pass is WhatsApped on approval)" />
-                            <Textarea value={reqNotes} onChange={(e: any) => setReqNotes(e.target.value)} placeholder="Context for the resident (optional)" rows={2} maxLength={200} />
-                            {reqError && <p className="text-2xs font-bold text-rose-600 dark:text-rose-400">{reqError}</p>}
-                            <Button
-                                variant="primary"
-                                size="md"
-                                className="w-full"
-                                disabled={!reqVisitorName.trim() || !reqUnit.trim() || reqSubmitting}
-                                onClick={submitRequest}
-                            >
-                                {reqSubmitting ? 'Raising…' : 'Raise request to resident'}
-                            </Button>
-                        </div>
-                    )}
-                    {requests && requests.length > 0 && (
-                        <div className="space-y-1.5 mt-3 max-h-56 overflow-y-auto">
-                            {requests.map((r: any) => (
-                                <div key={r.requestId} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-slate-900 dark:text-white">{r.visitorName}</span>
-                                            {r.unitName && <span className="text-2xs text-slate-500 dark:text-zinc-400">· {r.unitName}</span>}
-                                        </div>
-                                        <div className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                            Asked {fmtDayTime(r.requestedAt)} by {r.requestedBy}
-                                            {r.decidedAt && ` · decided ${fmtTime(r.decidedAt)}`}
-                                        </div>
-                                        {r.notes && <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5 italic">“{r.notes}”</p>}
-                                    </div>
-                                    <span className={`text-3xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${
-                                        r.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                        r.status === 'approved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                        r.status === 'rejected' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                                        'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'
-                                    }`}>
-                                        {r.status === 'pending' ? 'Awaiting resident' :
-                                         r.status === 'approved' ? 'Approved — pass sent' :
-                                         r.status === 'rejected' ? 'Rejected' : 'Expired'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
 
                 {/* Today's logs */}
@@ -799,8 +920,9 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                 return (
                                     <div key={log._id} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50">
                                         <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="text-sm font-bold text-slate-900 dark:text-white">{log.visitorName}</span>
+                                                {log.passCategory === 'staff' && <StaffChip staffRole={log.staffRole} />}
                                                 <span className="text-2xs font-mono text-slate-400">{log.tokenCode}</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
