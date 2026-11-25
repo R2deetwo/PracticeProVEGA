@@ -11,6 +11,7 @@ import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 // Quick Capture surface used full-screen (embedded, with a back-to-chat
 // button and the persistent Full Office button).
 import { QuickCaptureView } from '../quickcapture/QuickCaptureView';
+import { AloaCourtMode } from './AloaCourtMode';
 // 7-day Vox-card rule (owner brief 2026-11-24): entering capture mode =
 // "launched Aloa Vox" — stamp the usage timestamp.
 import { stampVoxUsedAt } from '../../utils/voxUsageTracking';
@@ -33,7 +34,7 @@ const AloaPanel: React.FC = () => {
     // Initialized from the requested mode when the panel opens (the Header
     // mic button / Dashboard card call openPanel('capture')), reset to chat
     // when it closes so the next open starts fresh.
-    const [mode, setMode] = React.useState<'chat' | 'capture'>('chat');
+    const [mode, setMode] = React.useState<'chat' | 'capture' | 'court'>('chat');
     const wasOpenRef = React.useRef(false);
     React.useEffect(() => {
         if (isPanelOpen && !wasOpenRef.current) {
@@ -76,7 +77,7 @@ const AloaPanel: React.FC = () => {
             {isPanelOpen && (
                 <div
                     className={`fixed inset-0 ${Z_CLASS.panelVeil} transition-opacity duration-200 ${isMobile ? 'bg-black/40' : 'bg-black/5'}`}
-                    onClick={handleClose}
+                    onClick={mode === 'court' ? undefined : handleClose}
                 />
             )}
 
@@ -91,12 +92,19 @@ const AloaPanel: React.FC = () => {
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Mobile drag handle — visual only. */}
-                    {isMobile && mode === 'chat' && (
+                    {isMobile && mode !== 'capture' && (
                         <div className="flex-shrink-0 flex justify-center pt-2 pb-1 bg-slate-50/50 dark:bg-zinc-900/50">
                             <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-700" />
                         </div>
                     )}
-                    {mode === 'capture' ? (
+                    {mode === 'court' ? (
+                        <ErrorBoundary>
+                            <AloaCourtMode
+                                onBackToChat={() => setMode('chat')}
+                                onClose={() => handleClose()}
+                            />
+                        </ErrorBoundary>
+                    ) : mode === 'capture' ? (
                         // Quick Capture renders its own header inside the
                         // panel: back-to-ALOA-chat, "Start in Quick Capture
                         // on mobile" toggle, and the persistent Full Office
@@ -113,6 +121,7 @@ const AloaPanel: React.FC = () => {
                             onClose={handleClose}
                             isMobile={isMobile}
                             onOpenCapture={openCaptureMode}
+                            onOpenCourtMode={() => setMode('court')}
                         />
                     )}
                 </div>

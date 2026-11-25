@@ -52,6 +52,8 @@ export interface QuickCaptureState {
   elapsedMs: number;
   energy: number;
   error: string | null;
+  /** Verbatim text accumulated as uploaded segments are transcribed. */
+  transcriptSoFar: string;
   /** Set once the backend capture is ready (the triage card source). */
   capture: CaptureProjection | null;
   /** Live queue badge info. */
@@ -84,6 +86,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     elapsedMs: 0,
     energy: 0,
     error: null,
+    transcriptSoFar: "",
     capture: null,
     queueStats: null,
     clientLocalId: null,
@@ -145,6 +148,13 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     };
     const unsub = voiceSync.subscribe((e) => {
       refreshStats();
+      if (
+        e.type === "segment-uploaded" &&
+        e.clientLocalId === activeIdRef.current &&
+        typeof e.verbatimSoFar === "string"
+      ) {
+        setState((s) => ({ ...s, transcriptSoFar: e.verbatimSoFar! }));
+      }
       if (e.type === "ready" && e.clientLocalId) {
         if (e.clientLocalId === activeIdRef.current) {
           // Our capture finished — pull the full projection for the card.
@@ -155,7 +165,14 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
               appendOffsetRef.current = 0;
               appendBaseDurationMsRef.current = 0;
               preAppendCaptureRef.current = null;
-              setState((s) => ({ ...s, phase: "triage", capture, error: null, appending: false }));
+              setState((s) => ({
+                ...s,
+                phase: "triage",
+                capture,
+                transcriptSoFar: capture.verbatimText || s.transcriptSoFar,
+                error: null,
+                appending: false,
+              }));
               // Add More rounds get their own "Added to your draft" toast
               // from the view — don't stack a second "ready" toast on it.
               if (!wasAppend) onReadyToastRef.current?.(capture);
@@ -263,6 +280,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
                 ...s,
                 phase: restore ? "triage" : "idle",
                 capture: restore ?? s.capture,
+                transcriptSoFar: restore?.verbatimText || "",
                 appending: false,
                 clientLocalId: null,
                 segmentCount: restore?.segmentCount ?? 0,
@@ -327,7 +345,13 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
               appendOffsetRef.current = 0;
               appendBaseDurationMsRef.current = 0;
               preAppendCaptureRef.current = null;
-              setState((s) => ({ ...s, phase: "triage", capture, appending: false }));
+              setState((s) => ({
+                ...s,
+                phase: "triage",
+                capture,
+                transcriptSoFar: capture.verbatimText || s.transcriptSoFar,
+                appending: false,
+              }));
               if (!wasAppend) onReadyToastRef.current?.(capture);
             }
           })
@@ -392,6 +416,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
         elapsedMs: 0,
         energy: 0,
         error: null,
+        transcriptSoFar: "",
         capture: null,
         queueStats: state.queueStats,
         clientLocalId,
@@ -490,6 +515,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
             ...s,
             phase: restore ? "triage" : s.phase,
             capture: restore ?? s.capture,
+            transcriptSoFar: restore?.verbatimText || "",
             appending: false,
             error: err?.userMessage || "Could not start recording. Please try again.",
           }));
@@ -522,6 +548,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
         ...s,
         phase: restore ? "triage" : "idle",
         capture: restore ?? s.capture,
+        transcriptSoFar: restore?.verbatimText || "",
         appending: false,
         elapsedMs: 0,
         energy: 0,
@@ -535,7 +562,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     appendBaseDurationMsRef.current = 0;
     preAppendCaptureRef.current = null;
     if (id) await voiceSync.purgeCapture(id).catch(() => undefined);
-    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, clientLocalId: null, segmentCount: 0, appending: false }));
+    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, transcriptSoFar: "", clientLocalId: null, segmentCount: 0, appending: false }));
   }, []);
 
   const reset = useCallback(() => {
@@ -544,7 +571,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     appendOffsetRef.current = 0;
     appendBaseDurationMsRef.current = 0;
     preAppendCaptureRef.current = null;
-    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, capture: null, clientLocalId: null, segmentCount: 0, appending: false }));
+    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, transcriptSoFar: "", capture: null, clientLocalId: null, segmentCount: 0, appending: false }));
   }, []);
 
   /** Re-open the triage card for a capture in the recent list. */
@@ -552,13 +579,13 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     appendOffsetRef.current = 0;
     appendBaseDurationMsRef.current = 0;
     preAppendCaptureRef.current = null;
-    setState((s) => ({ ...s, phase: "processing", capture: null, clientLocalId, appending: false }));
+    setState((s) => ({ ...s, phase: "processing", transcriptSoFar: "", capture: null, clientLocalId, appending: false }));
     activeIdRef.current = clientLocalId;
     try {
       const capture = await getCaptureByLocalId(clientLocalId);
       if (capture?.status === "ready") {
         activeIdRef.current = null;
-        setState((s) => ({ ...s, phase: "triage", capture }));
+        setState((s) => ({ ...s, phase: "triage", capture, transcriptSoFar: capture.verbatimText || "" }));
       } else {
         setState((s) => ({
           ...s,

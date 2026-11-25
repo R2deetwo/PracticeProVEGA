@@ -20046,3 +20046,9 @@ Stage Summary: The messaging section now actually works: conversation replies se
 - Made the startup splash one-way and dismiss it when the authenticated app shell is ready, clearing its remaining timers so it cannot reappear over the dashboard.
 - Added four focused regression tests for cutout geometry, viewport clipping/body steps, geometry tracking, and splash dismissal.
 - Verification: root and Convex TypeScript checks passed; lint passed with existing warnings; all four focused Stage 1A tests passed. Full suite: 3,711 passed / 17 failed, including excluded `public/` assets and unrelated existing tests.
+
+## 2026-11-25 — Stage 1B ALOA Court Mode
+
+- Added a responsive Court Mode entry in Vega’s ALOA panel with matter switching, court/forum and case details, prior/upcoming hearing dates, attached documents, and recent matter notes/endorsements; no financial data is surfaced.
+- Connected Vox verbatim transcription updates to a per-matter editable note draft, retained manual edits while dictation continues, and added reviewed saving as an endorsement or matter note while preserving the existing Pro entitlement gate.
+- Added five focused Court Mode/Vox tests; all 172 focused Court Mode and voice tests passed. Root and Convex TypeScript checks passed, and lint passed with the repository’s existing warnings and the UI-primitives ratchet unchanged.
