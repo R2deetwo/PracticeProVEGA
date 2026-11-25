@@ -3872,3 +3872,27 @@ retirement) · root tsc 0 · convex tsc 0 · eslint 0 errors ·
 ui-primitives ratchet 2212 HELD (station login uses ui/ primitives).
 Convex schema changed → `npx convex deploy --prod` REQUIRED + Vercel
 production deploy.
+
+### Task 94 — production verification addendum (2026-11-25)
+
+- PUSHED 08e98ed9 (rebased over build-1309 churn). CI on 08e98ed9: Tests,
+  E2E smoke, CodeQL, Build Android APK, Deploy to Staging, AND the
+  Vercel production deploy workflow — ALL SUCCESS.
+- CONVEX PRODUCTION DEPLOYED (schema change made it mandatory):
+  npx convex deploy → gregarious-malamute-537; "Schema validation
+  complete" — gatehouse_accounts + gatehouse_sessions tables live,
+  visitorManagement/gatehouseAccounts/ngPhone functions live. (First
+  attempt with the --prod flag printed CLI help; the deploy key already
+  pins the production deployment, so plain `npx convex deploy` is the
+  correct invocation — same as the runbook's env commands.)
+- Vercel production: dispatch of vercel-production-deploy.yml (ref=main,
+  sha input = full 08e98ed9…41c1fa) → SUCCESS; version.json healthy at
+  sha 08e98ed9 (builtAt 2026-11-25T13:23:33Z, apkVersion 1.0.898).
+- LIVE BUNDLE MARKERS VERIFIED (probe scripts/probe_task94_prod.sh):
+  GatekeeperInterface-JSuRElLo.js carries "Sign in to terminal" (the
+  station lock) and "No code?" (guests directed to their resident);
+  SecurityAccessView-CDmVLEDl.js carries provisionGatehouseAccount /
+  issueStaffPass / getStaffAttendance / "Reset PIN" / "Attendance /
+  movement log" (both admin panels); the tenant-portal index chunk
+  carries "Will be sent to" (live +234 phone hint) + "Not delivered"
+  (delivery-status badge). /gatehouse?firmId=… serves HTTP 200.
