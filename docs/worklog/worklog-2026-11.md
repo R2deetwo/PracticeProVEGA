@@ -3742,3 +3742,48 @@ changes — web-layer deploy only.
 - Bundle note: BottomNav already statically imports VoxUpsellModal, so
   the quickcapture family already rode the main chunk; Sidebar's
   import adds no new bundle surface.
+
+### Task 93 — Sentry runbook: auth-token FAQ + exact DSN click-paths (2026-11-25)
+
+Owner question: "what is the sentry auth token?? how do i get it?" —
+understandably frustrated that Sentry is still open after the audit
+item. Full-stack audit BEFORE answering, because "auth token" appears
+nowhere in our docs:
+
+- THE APP NEEDS NO AUTH TOKEN ANYWHERE. `@sentry/react` is initialized
+  with a DSN only (src/utils/sentry.ts — VITE_SENTRY_DSN, inlined into
+  the bundle at vite build time); the backend leg reads
+  SENTRY_BACKEND_DSN at runtime (convex/observability.ts line 253);
+  there is no sentry-cli, no source-map upload, no release API usage,
+  and no SENTRY_AUTH_TOKEN in any file, env var, or doc (grep-verified
+  across the repo; the domain-named convex/sentry.ts / sentryRequests.ts
+  are unrelated estate modules; scripts/patch_sentry_auth.py was an
+  estate-module auth patch, not Sentry.io).
+- The token the owner saw is Sentry's onboarding UI offering a
+  management-API token (sntrys_…, scopes like project:releases /
+  org:read) — irrelevant to this app. What activation actually needs:
+  two DSNs (React project + Node project) from the owner's Sentry
+  account.
+- PRODUCTION STATE RE-VERIFIED FROM THE REPO (2026-11-25): Convex prod
+  (gregarious-malamute-537) env list (names-only probe,
+  scripts/list_prod_env_names.sh via CONVEX_DEPLOY_KEY) contains NO
+  SENTRY_BACKEND_DSN (BREVO/CHAKRA/FIREBASE/GEMINI/backup vars are all
+  that is set); Vercel still has no VITE_SENTRY_DSN → both Sentry legs
+  OFF exactly as the runbook records. error_events table remains live
+  regardless.
+- CHANGE: docs/ops/PRODUCTION_OBSERVABILITY.md only — added the
+  auth-token FAQ (what it is, where one would get it: sentry.io →
+  Settings → Auth Tokens → Create New Token, and why it is NOT needed
+  here), exact click-paths for the two DSNs (create React project →
+  wizard Client Key (DSN), later Project Settings → Client Keys (DSN)),
+  and the 2026-11-25 state re-verification note. No code, no env vars,
+  no Convex change, no deploy needed — the next production deploy
+  happens together with the VITE_SENTRY_DSN activation rebuild.
+- REMAINING OWNER ACTIONS (unchanged, now with exact click-paths):
+  (1) sign up at sentry.io, create React + Node projects, copy both
+  DSNs; (2) set VITE_SENTRY_DSN in Vercel (Production) — then dispatch
+  the production deploy to inline it; (3) hand the Node DSN to the
+  repo side for `npx convex env set SENTRY_BACKEND_DSN` on prod.
+
+Gates: docs-only change — full vitest suite green (3745 passed |
+1 skipped), no code touched, no build needed.

@@ -17,11 +17,35 @@
 Reference: the audit finding "Observability Gap (Sentry Silent)" and
 `src/utils/sentry.ts` (setup notes verified 2026-11-23).
 
+State re-verified 2026-11-25 from the repo: the production Convex
+deployment (gregarious-malamute-537) env list contains **no**
+`SENTRY_BACKEND_DSN`, and `VITE_SENTRY_DSN` is still unset in Vercel —
+both legs OFF, exactly as recorded below.
+
+## Auth token? (FAQ — 2026-11-25: you do NOT need one)
+
+Sentry's onboarding screens show an **auth token** (`sntrys_…`) next to
+the DSN. That token is an API credential for Sentry's *management* API —
+source-map uploads, releases, `sentry-cli` in CI. **None of that is used
+here**: the frontend is plain `@sentry/react` initialized with a **DSN
+only** (`src/utils/sentry.ts`), and the backend posts envelopes with a
+DSN only (`convex/observability.ts`). No `SENTRY_AUTH_TOKEN` exists in
+any file, env var, or doc in this repo, and none is required to finish
+activation. If source maps are ever wanted later: sentry.io → Settings →
+Auth Tokens → Create New Token (scopes `project:releases`, `org:read`) →
+set it as a Vercel build env var and add upload wiring. Until then,
+ignore tokens entirely.
+
+**The only two values this activation needs are the two DSNs below.**
+
 ## Steps (one-time, ~10 minutes)
 
-### 1. Create the Sentry account and projects
+### 1. Create the Sentry account and projects (~5 min)
 1. Sign up at https://sentry.io (free tier is sufficient).
-2. Create a project of type **React** → copy its **DSN** (`https://…@o….ingest.sentry.io/…`).
+2. Create a project → platform **React** (e.g. name it `vega-web`) → the
+   wizard shows the **Client Key (DSN)** (`https://…@o….ingest.sentry.io/…`).
+   Later it lives under Project Settings → Client Keys (DSN). Copy it.
+   The wizard may also show an auth token — ignore it (see the FAQ above).
 3. Create (or reuse) a project of type **Node / server** → copy its DSN.
    - DSNs are safe to expose client-side; they are not secrets in the
      classic sense, but they are still yours — keep them out of the repo.
