@@ -136,7 +136,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
     </button>
 );
 
-export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture }) => {
+export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void; onOpenCourtMode?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture, onOpenCourtMode }) => {
     // ─── Bulletproof close handler ──────────────────────────────────
     // Uses onPointerDown (NOT onClick) because pointerdown is the
     // VERY FIRST event in the browser's pointer event chain. It fires
@@ -3619,6 +3619,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             aria-label="Open Vox mode"
                             className="touch-target p-2 rounded-lg transition-all bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400 dark:hover:bg-primary-900/50"
                             onClick={(e) => { e.stopPropagation(); onOpenCapture(); }}
+                        />
+                    ) : null}
+                    {!isProperty && onOpenCourtMode ? (
+                        <Button
+                            variant="bare"
+                            size="md"
+                            iconOnly
+                            icon={ScalesIcon}
+                            title="Open ALOA Court Mode"
+                            aria-label="Open ALOA Court Mode"
+                            className="touch-target p-2 rounded-lg transition-all text-slate-500 hover:bg-slate-100 hover:text-primary-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-primary-300"
+                            onClick={(e) => { e.stopPropagation(); onOpenCourtMode(); }}
                         />
                     ) : null}
                     <button

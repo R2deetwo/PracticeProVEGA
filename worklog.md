@@ -20040,3 +20040,15 @@ Work Log:
 - SHIPPED: commit 2bb5502d (13 files, +367/-79). Root tsc 0, convex tsc 0, identity audit PASSED, design-token gate green, ui-primitives ratchet held 2219/2219.
 
 Stage Summary: The messaging section now actually works: conversation replies send (the platform's #1 flow was auth-dead), notices post, attachments upload on BOTH sides of the portal (staff team-chat/voice notes + resident/client messages, receipts, maintenance photos — all were silently failing), the thread trash button deletes what it says it deletes for every thread type, ticket status controls update live, the Outbox WhatsApp handoff only offers itself for phone recipients, and every feedback toast tells the truth about what happened. "Select all" + per-thread delete give the bulk-manage flow its missing levers. Every fix is CI-pinned so the exact call sites cannot regress silently again. Backend note: convex production needs the promote dispatch for generatePortalUploadUrl before the portal attachment fixes go live.
+## 2026-11-25 — Stage 1A tour spotlight and splash lifecycle
+
+- Replaced the tour’s viewport-wide blur with four backdrop segments around a clear target cutout; target geometry now follows scroll, resize, and DOM/layout changes with deterministic observer/listener cleanup.
+- Made the startup splash one-way and dismiss it when the authenticated app shell is ready, clearing its remaining timers so it cannot reappear over the dashboard.
+- Added four focused regression tests for cutout geometry, viewport clipping/body steps, geometry tracking, and splash dismissal.
+- Verification: root and Convex TypeScript checks passed; lint passed with existing warnings; all four focused Stage 1A tests passed. Full suite: 3,711 passed / 17 failed, including excluded `public/` assets and unrelated existing tests.
+
+## 2026-11-25 — Stage 1B ALOA Court Mode
+
+- Added a responsive Court Mode entry in Vega’s ALOA panel with matter switching, court/forum and case details, prior/upcoming hearing dates, attached documents, and recent matter notes/endorsements; no financial data is surfaced.
+- Connected Vox verbatim transcription updates to a per-matter editable note draft, retained manual edits while dictation continues, and added reviewed saving as an endorsement or matter note while preserving the existing Pro entitlement gate.
+- Added five focused Court Mode/Vox tests; all 172 focused Court Mode and voice tests passed. Root and Convex TypeScript checks passed, and lint passed with the repository’s existing warnings and the UI-primitives ratchet unchanged.

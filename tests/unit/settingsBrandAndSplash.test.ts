@@ -29,6 +29,7 @@ import {
     clearCachedSplashProduct,
 } from '../../src/utils/splashProductCache';
 import { SPLASH_TIMINGS } from '../../src/components/SplashScreen';
+import { getTourBackdropSegments } from '../../src/components/OnboardingTour';
 import { REVEAL_TIMINGS } from '../../src/components/ProductReveal';
 
 const ROOT = join(__dirname, '..', '..');
@@ -181,6 +182,57 @@ describe('Splash timings — the two-stage sequence stays within the brief', () 
         expect(REVEAL_TIMINGS.entryMs).toBeLessThanOrEqual(450);
         expect(REVEAL_TIMINGS.exitMs).toBeGreaterThanOrEqual(300);
         expect(REVEAL_TIMINGS.exitMs).toBeLessThanOrEqual(450);
+    });
+});
+
+describe('Tour spotlight and startup splash lifecycle', () => {
+    it('leaves a padded cutout around the target while dimming the rest of the viewport', () => {
+        const segments = getTourBackdropSegments(
+            { top: 200, left: 100, right: 400, bottom: 350 },
+            1000,
+            800,
+        );
+
+        expect(segments).toEqual([
+            { top: 0, left: 0, width: 1000, height: 192 },
+            { top: 358, left: 0, width: 1000, height: 442 },
+            { top: 192, left: 0, width: 92, height: 166 },
+            { top: 192, left: 408, width: 592, height: 166 },
+        ]);
+    });
+
+    it('clips the spotlight cutout at viewport edges and supports body steps', () => {
+        expect(getTourBackdropSegments(
+            { top: -30, left: -20, right: 60, bottom: 40 },
+            100,
+            100,
+        )).toEqual([
+            { top: 48, left: 0, width: 100, height: 52 },
+            { top: 0, left: 68, width: 32, height: 48 },
+        ]);
+        expect(getTourBackdropSegments(null, 100, 80)).toEqual([
+            { top: 0, left: 0, width: 100, height: 80 },
+        ]);
+    });
+
+    it('tracks target layout changes and removes the viewport-wide blur from its bounds', () => {
+        const tour = read('src/components/OnboardingTour.tsx');
+        expect(tour).toContain("window.addEventListener('scroll', schedulePositionUpdate, true)");
+        expect(tour).toContain("window.removeEventListener('scroll', schedulePositionUpdate, true)");
+        expect(tour).toContain('new ResizeObserver(schedulePositionUpdate)');
+        expect(tour).toContain('new MutationObserver(schedulePositionUpdate)');
+        expect(tour).toContain('getTourBackdropSegments(');
+        expect(tour).not.toContain('shadow-[0_0_0_9999px');
+    });
+
+    it('finishes and permanently dismisses the initial splash when the app shell is ready', () => {
+        const app = read('src/components/App.tsx');
+        const splash = read('src/components/SplashScreen.tsx');
+        expect(app).toMatch(
+            /if \(isDataLoaded \|\| forceEntry\) \{[\s\S]*?setSplashAnimationComplete\(true\);[\s\S]*?setHasInitialSplashFinished\(true\);[\s\S]*?\}, \[currentUser, visualsComplete, isDataLoaded, forceEntry, modal, closeModal\]\);/,
+        );
+        expect(splash).toContain('isVisible && !hasStarted.current && !hasDismissed.current');
+        expect(splash).toMatch(/hasDismissed\.current = true;[\s\S]*?clearAllTimers\(\);/);
     });
 });
 

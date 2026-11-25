@@ -1539,6 +1539,8 @@ export const App: React.FC = () => {
                         }
                     }
                     setHasInitialized(true);
+                    setSplashAnimationComplete(true);
+                    setHasInitialSplashFinished(true);
                     if (!hasInitialized && (modal === 'login' || modal === 'signup')) {
                         closeModal();
                     }
