@@ -40,7 +40,7 @@ function formatDate(value: string): string {
 
 const InfoCard: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => (
   <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">{label}</div>
+    <div className="text-2xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">{label}</div>
     <div className="mt-1 break-words text-sm font-semibold text-slate-800 dark:text-zinc-100">{value?.trim() || "Not on record"}</div>
   </div>
 );
@@ -51,7 +51,7 @@ const HearingRow: React.FC<{ hearing: CourtHearing; label?: string }> = ({ heari
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold text-slate-800 dark:text-zinc-100">{formatDate(hearing.date)}</span>
-        {label ? <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</span> : null}
+        {label ? <span className="text-2xs font-bold uppercase tracking-wide text-slate-400">{label}</span> : null}
       </div>
       <div className="break-words text-xs text-slate-600 dark:text-zinc-400">{hearing.title}</div>
     </div>
@@ -234,7 +234,7 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
         </Button>
         <div className="min-w-0 flex-1 text-center">
           <h2 className="truncate text-sm font-extrabold sm:text-base">Court Mode</h2>
-          <p className="truncate text-[10px] text-slate-500 dark:text-zinc-500">Matter details, hearings and endorsements</p>
+          <p className="truncate text-2xs text-slate-500 dark:text-zinc-500">Matter details, hearings and endorsements</p>
         </div>
         <Button
           variant="bare"
@@ -321,7 +321,7 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
             <section className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Attached documents</h3>
-                <span className="text-[10px] text-slate-400">{documents.length}</span>
+                <span className="text-2xs text-slate-400">{documents.length}</span>
               </div>
               {documents.length ? (
                 <div className="space-y-2">
@@ -371,10 +371,10 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
                     <article key={note.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
                         <h4 className="break-words text-xs font-bold">{note.title}</h4>
-                        <span className="text-[10px] text-slate-400">{formatDate(note.createdAt)}</span>
+                        <span className="text-2xs text-slate-400">{formatDate(note.createdAt)}</span>
                       </div>
                       <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-600 dark:text-zinc-400">{note.content}</p>
-                      <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
+                      <span className="mt-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-bold uppercase tracking-wide text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
                         {note.type === "endorsement" ? "Endorsement" : "Note"}
                       </span>
                     </article>
