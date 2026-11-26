@@ -398,7 +398,11 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         id: 'lawyer_firm',
         chip: "I'm a lawyer / I run a firm",
         reply:
-            `Then you are in the right place — Vega is the practice side of PracticePro: matters and cause list, court-rule-aware document drafting, billing and trust accounting, client portals, and ${name} as an in-app legal assistant. The trial is free and you can be running in minutes.`,
+            `Then you are in the right place — Vega is the practice side of PracticePro: matters and the court diary, court-rule-aware document drafting, billing and trust accounting, client portals, and ${name} as an in-app legal assistant. The trial is free and you can be running in minutes.`,
+        // ROUND 22 (owner vocabulary, binding since Round 19): the diary IS the
+        // feature's name — a law office keeps a DIARY, never the court's
+        // published list. 'cause list' stays ONLY as an invisible search
+        // synonym below (people search that term; the label never shows it).
         signupCta: true,
         keywords: ['lawyer', 'law firm', 'solicitor', 'barrister', 'advocate', 'attorney', 'legal practice', 'i run a firm', 'practice'],
     };
