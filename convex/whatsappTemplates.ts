@@ -434,6 +434,11 @@ async function syncTemplatesForFirm(ctx: any, firmId: string): Promise<{
   phoneDisplay?: string;
   pagesFetched?: number;
   autoMappedCount?: number;
+  /** Round 21 recovery visibility: names the by-name GET recovered + why
+   *  the ones that did not recover failed, + the API version used. */
+  recoveredNames?: string[];
+  recoveryNotes?: string[];
+  waVer?: string;
 }> {
   try {
     return await syncTemplatesInner(ctx, firmId);
@@ -589,6 +594,8 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
     //    and every firm would lose its mapping. Recover every KNOWN name
     //    (our template defs) that the listing omitted, via the authoritative
     //    by-name GET, before the swap.
+    const recoveredNames: string[] = [];
+    const recoveryNotes: string[] = [];
     try {
       const knownNames = new Set<string>([
         ...VEGA_TEMPLATE_DEFS.map((d) => d.name),
@@ -604,9 +611,18 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
         try { recoverData = recoverRaw ? JSON.parse(recoverRaw) : null; } catch { recoverData = null; }
         const row = Array.isArray(recoverData?.data) && recoverData.data[0] ? recoverData.data[0] : recoverData;
         const recovered = row?.name ? normalizeTemplate(row) : null;
-        if (recovered) templates.push(recovered);
+        if (recovered) {
+          templates.push(recovered);
+          recoveredNames.push(recovered.name);
+        } else {
+          // Visible diagnostics (bounded) — the response shape/status when a
+          // known name fails to recover.
+          recoveryNotes.push(`${known}: HTTP ${recoverRes.status}, ${recoverRaw.slice(0, 120)}`);
+        }
       }
-    } catch { /* recovery is best-effort — the listing's word stands */ }
+    } catch (e: any) {
+      recoveryNotes.push(`recovery threw: ${String(e?.message || e).slice(0, 200)}`);
+    }
 
     // 4) Replace the firm's registry snapshot (upsert-style wholesale swap),
     //    write the connection snapshot (real phone, WABA), and auto-map any
@@ -634,7 +650,7 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
       })),
     });
 
-    return { success: true, templates, wabaId, phoneDisplay, pagesFetched, autoMappedCount };
+    return { success: true, templates, wabaId, phoneDisplay, pagesFetched, autoMappedCount, recoveredNames, recoveryNotes, waVer: WA_VER };
 }
 
 // ─── Registry swap (internal — only syncWhatsAppTemplates calls it) ─────────
@@ -825,17 +841,36 @@ export const syncAllFirms = internalAction({
     const firmIds: string[] = await ctx.runQuery(internal.whatsappTemplates.listFirmIds, {});
     let ok = 0, failed = 0;
     const errors: string[] = [];
+    // ROUND 21: recovery visibility — what the by-name GET recovered per
+    // firm (and the raw notes when a known name did NOT recover).
+    const recoveredByFirm: Record<string, string[]> = {};
+    const recoveryNotes: string[] = [];
+    let waVer: string | undefined;
     for (const firmId of firmIds) {
       try {
         const res = await syncTemplatesForFirm(ctx, firmId);
-        if (res.success) ok++; else { failed++; if (res.error) errors.push(`${firmId}: ${res.error}`); }
+        if (res.success) {
+          ok++;
+          if (res.recoveredNames?.length) recoveredByFirm[firmId] = res.recoveredNames;
+          if (res.recoveryNotes?.length) recoveryNotes.push(...res.recoveryNotes.slice(0, 2));
+          if (res.waVer) waVer = res.waVer;
+        } else {
+          failed++;
+          if (res.error) errors.push(`${firmId}: ${res.error}`);
+        }
       } catch (e: any) {
         failed++;
         errors.push(`${firmId}: ${e?.message || e}`);
       }
     }
     if (errors.length) console.warn("[syncAllFirms] failures:", errors.slice(0, 5));
-    return { ok, failed, errors: errors.slice(0, 5) };
+    return {
+      ok, failed, errors: errors.slice(0, 5),
+      waVer,
+      recoveredFirms: Object.keys(recoveredByFirm).length,
+      recoveredSample: Object.entries(recoveredByFirm).slice(0, 3),
+      recoveryNotes: recoveryNotes.slice(0, 5),
+    };
   },
 });
 
