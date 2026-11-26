@@ -55,10 +55,12 @@ const DiaryRow: React.FC<{
         <span className="block truncate text-xs font-medium text-subtle">
           {[entry.suitNumber, entry.court].filter(Boolean).join(" · ")}
         </span>
-        <span className="mt-0.5 block truncate text-xs text-subtle">
-          {who ? `${who} · ` : ""}
-          {entry.lastOrderSnippet ? `Last order: "${entry.lastOrderSnippet}"` : "No order on record yet"}
-        </span>
+        {who || entry.lastOrderSnippet ? (
+          <span className="mt-0.5 block truncate text-xs text-subtle">
+            {who ? `${who} · ` : ""}
+            {entry.lastOrderSnippet ? `Last order: "${entry.lastOrderSnippet}"` : ""}
+          </span>
+        ) : null}
       </span>
       {showColleagueBadge ? <Badge tone="neutral">Colleague</Badge> : null}
     </Button>
@@ -85,7 +87,7 @@ const MatterCard: React.FC<{
       <span className="min-w-0 flex-1">
         <span className="block line-clamp-2 break-words text-sm font-bold leading-snug">{matter.title}</span>
         <span className="block truncate text-xs font-medium text-subtle">
-          {[matter.suitNumber, matter.court].filter(Boolean).join(" · ") || "Court details not recorded"}
+          {[matter.suitNumber, matter.court].filter(Boolean).join(" · ")}
         </span>
       </span>
       {showColleagueBadge ? <Badge tone="neutral">Colleague</Badge> : null}
@@ -125,7 +127,7 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
         <EmptyState
           icon={<Scale className="h-6 w-6 text-slate-400" aria-hidden="true" />}
           title="Nothing here yet"
-          description="Active litigation matters, and matters with a suit number, court or hearing date, appear here"
+          description="Matters appear here once they carry a suit number, court or hearing date"
           actionLabel="Add a court date"
           onAction={onAddCourtDate}
         />
@@ -154,10 +156,7 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
       <div className="space-y-3 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         <SegmentedToggle
           label="Diary scope"
-          options={[
-            { value: "mine", label: "My diary" },
-            { value: "firm", label: "Firm diary" },
-          ]}
+          options={[{ value: "mine", label: "My diary" }, { value: "firm", label: "Firm diary" }]}
           value={scope}
           onChange={(value) => onScopeChange(value as DiaryScope)}
         />

@@ -44,7 +44,7 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
       status: 'Production-Ready',
       description: 'When a visitor arrives, the gatekeeper enters the 6-digit code (or the 12-character Pass ID) at the gatehouse terminal (/gatehouse). The system verifies the code against active tokens, checks validity (not expired, not revoked, not already used), and returns the visitor name, host name, and unit number. The gatekeeper then approves entry, which logs the check-in with a timestamp. TASK 94 (2026-11-25): the terminal can be LOCKED — once the estate admin provisions a Gatehouse Station (below), the terminal requires the station\u2019s PIN and every gate endpoint validates the station session.',
       technicalDetails: [
-        'Verification: verifyToken query (public; station-gated when the estate has active stations)',
+        'Verification: verifyToken endpoint (public; station-gated when the estate has active stations; Round 20 — a mutation, because its throttle writes)',
         'Grace period: configurable (default 30 min) to accommodate slight delays',
         'States checked: active, expired, revoked, used, already_inside, not_yet_valid',
         'Offline fallback: last 100 verified tokens cached in localStorage',
@@ -54,7 +54,7 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
       icon: <Lock className="w-5 h-5" />,
       title: 'Data Isolation',
       status: 'Always Active',
-      description: 'Every access code is scoped to a specific firmId + propertyId + unitId. The verifyToken query only returns data for the property the gatekeeper is configured for. Residents can only see and revoke their own codes — the getResidentTokens query filters by residentId. The gatekeeper never sees financial data, messages, or any information beyond what is needed for entry (visitor name, host, unit).',
+      description: 'Every access code is scoped to a specific firmId + propertyId + unitId. The verifyToken endpoint only returns data for the property the gatekeeper is configured for. Residents can only see and revoke their own codes — the getResidentTokens query filters by residentId. The gatekeeper never sees financial data, messages, or any information beyond what is needed for entry (visitor name, host, unit).',
       technicalDetails: [
         'Firm-level isolation: every query/mutation requires firmId context',
         'Resident-level isolation: getResidentTokens filters by residentId',

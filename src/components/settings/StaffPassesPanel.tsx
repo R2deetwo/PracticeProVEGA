@@ -20,12 +20,13 @@
  * server-side.
  */
 import React, { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button, Input, Select, Textarea } from '../ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { ClockIcon, UserIcon, CheckIcon } from '../../constants';
+import { useGatehouseProperties } from '../../hooks/useGatehouseProperties';
 
 const today = () => new Date().toISOString().split('T')[0];
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -63,10 +64,10 @@ export const StaffPassesPanel: React.FC = () => {
     const [pulling, setPulling] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
 
-    const properties = useQuery(
-        api.visitorManagement.getGatekeeperProperties,
-        firmId ? { firmId } : 'skip'
-    );
+    // ROUND 20: the estate directory is a mutation now (its throttle
+    // writes — impossible in a read-only query) — loaded once via the
+    // shared hook instead of useQuery.
+    const properties = useGatehouseProperties(firmId);
 
     const issuePass = useMutation(api.visitorManagement.issueStaffPass);
     const getAttendance = useMutation(api.visitorManagement.getStaffAttendance);

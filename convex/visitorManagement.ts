@@ -504,9 +504,16 @@ export const markWhatsAppSent = internalMutation({
   },
 });
 
-// ─── Query: Verify Token (Gatekeeper) ────────────────────────────────────
+// ─── Verify Token (Gatekeeper) ────────────────────────────────────────
+// ROUND 20: this was a `query` and CRASHED IN PRODUCTION on every call —
+// Convex queries are strictly read-only, and the C8 throttle writes
+// (checkRateLimit inserts/patches the rateLimits table), so the calling
+// page rendered once and then fell into the error boundary (the gate
+// verify flow and the Security & Access estate pickers). It is a mutation
+// now: same args, same response, same throttle — writes are legal, and
+// the counter keeps the brute-force sweep cap real.
 
-export const verifyToken = query({
+export const verifyToken = mutation({
   args: {
     tokenCode: v.optional(v.string()),   // ROUND SENTRY: either identifier works
     passRef: v.optional(v.string()),     // alone — code OR passRef (not both needed)
@@ -880,7 +887,9 @@ export const getResidentTokens = query({
 // propertyId was an information-disclosure hole. Only the fields the
 // gatehouse board actually renders are returned.
 
-export const getGatehouseLogs = query({
+export const getGatehouseLogs = mutation({
+  // ROUND 20: was a `query` — the write-based throttle below is illegal in
+  // a read-only Convex query and threw on every call in production.
   args: {
     propertyId: v.string(),
     date: v.optional(v.string()), // YYYY-MM-DD, defaults to today
@@ -931,8 +940,13 @@ export const getGatehouseLogs = query({
 
 // ─── Query: Get Properties for Gatekeeper ────────────────────────────────
 // Returns all properties for a firm so the gatekeeper can select their estate
+// ROUND 20: `query` → `mutation` — the throttle writes, and writes are
+// illegal in a Convex query, so every call threw in production and took
+// the whole Security & Access page (and the gatehouse estate picker)
+// into the error boundary after its first paint. Callers load it once
+// on mount instead of subscribing (src/hooks/useGatehouseProperties.ts).
 
-export const getGatekeeperProperties = query({
+export const getGatekeeperProperties = mutation({
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
     // ── ROUND A (C8): this was a fully public directory of firm property
@@ -1064,7 +1078,9 @@ export const recordDeniedEntry = mutation({
 // (case-insensitive contains) or an exact/-prefix code|passRef. Returns
 // the same minimal projection as getGatehouseLogs plus expectedArrival +
 // accessNote (the "relevant access instructions" the brief asks for).
-export const searchExpectedVisitors = query({
+export const searchExpectedVisitors = mutation({
+  // ROUND 20: was a `query` — the write-based throttle is illegal in a
+  // read-only Convex query and threw on every search in production.
   args: {
     propertyId: v.string(),
     date: v.optional(v.string()),      // YYYY-MM-DD; defaults to today

@@ -190,7 +190,7 @@ export const SessionCaptureView: React.FC<{ onExit: () => void }> = ({ onExit })
               </div>
               <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-100">Session Capture</h3>
               <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                Record or upload a consultation, interview, debrief or court note. You get a
+                Record or upload a consultation, interview, debrief or endorsement. You get a
                 speaker-labelled transcript, a structured file note, an action checklist and an
                 issue map.
               </p>

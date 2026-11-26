@@ -73,8 +73,11 @@ export const VOX_SESSION_TYPE_OPTIONS: { value: VoxSessionType; label: string; h
   },
   {
     value: "court_note",
-    label: "Post-Hearing / Court Note",
-    hint: "Proceedings observed immediately after court.",
+    // ROUND 20 (owner directive): in Nigerian legal parlance this is an
+    // ENDORSEMENT (some call it a case note) — that is our vocabulary now.
+    // The stored value stays "court_note" (existing sessions depend on it).
+    label: "Endorsement",
+    hint: "Ruling, orders and next date, right after court.",
   },
   { value: "meeting", label: "General Meeting", hint: "Any other recorded meeting." },
 ];

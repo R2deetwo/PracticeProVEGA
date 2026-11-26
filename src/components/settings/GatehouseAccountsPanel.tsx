@@ -26,6 +26,7 @@ import { Button, Input, Select } from '../ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { GateIcon, KeyIcon, ShieldCheckIcon, ClipboardIcon } from '../../constants';
+import { useGatehouseProperties } from '../../hooks/useGatehouseProperties';
 
 const fmtDT = (ms?: number | null) =>
     ms ? new Date(ms).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }) : '—';
@@ -47,15 +48,18 @@ export const GatehouseAccountsPanel: React.FC = () => {
 
     const accounts = useQuery(
         api.gatehouseAccounts.listGatehouseAccounts,
-        firmId ? { firmId, userEmail, sessionToken } : 'skip'
+        // ROUND 20: only subscribe with a verified session. requireFirmUser
+        // rejects tokenless callers (demo mode / signed-out views) and a
+        // throwing useQuery takes the whole Security & Access page into
+        // the error boundary — skip instead, the panel renders empty.
+        firmId && sessionToken ? { firmId, userEmail, sessionToken } : 'skip'
     );
 
     // The firm's properties for the station's estate dropdown — the same
     // id+name picker the gate terminal uses (public, throttled, names only).
-    const properties = useQuery(
-        api.visitorManagement.getGatekeeperProperties,
-        firmId ? { firmId } : 'skip'
-    );
+    // ROUND 20: mutation directory (write-throttled) — loaded once via the
+    // shared hook instead of useQuery.
+    const properties = useGatehouseProperties(firmId);
 
     const provision = useMutation(api.gatehouseAccounts.provisionGatehouseAccount);
     const revoke = useMutation(api.gatehouseAccounts.revokeGatehouseAccount);

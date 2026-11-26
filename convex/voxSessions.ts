@@ -96,8 +96,9 @@ export function voxSessionTypeLabel(t: string): string {
       return "Witness / Third-Party Interview";
     case "debrief":
       return "Strategy & Chambers Debrief";
+    // ROUND 20: an endorsement in Nigerian practice (owner vocabulary).
     case "court_note":
-      return "Post-Hearing / Court Note";
+      return "Endorsement";
     case "meeting":
       return "General Meeting";
     default:

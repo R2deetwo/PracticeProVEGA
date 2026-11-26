@@ -43,7 +43,8 @@ describe('voxSessions — session type vocabulary', () => {
     expect(voxSessionTypeLabel('intake')).toBe('Client Intake');
     expect(voxSessionTypeLabel('interview')).toBe('Witness / Third-Party Interview');
     expect(voxSessionTypeLabel('debrief')).toBe('Strategy & Chambers Debrief');
-    expect(voxSessionTypeLabel('court_note')).toBe('Post-Hearing / Court Note');
+    // ROUND 20: the owner's vocabulary — an endorsement (Nigerian practice).
+    expect(voxSessionTypeLabel('court_note')).toBe('Endorsement');
     expect(voxSessionTypeLabel('meeting')).toBe('General Meeting');
     expect(voxSessionTypeLabel('anything-else')).toBe('Session');
   });

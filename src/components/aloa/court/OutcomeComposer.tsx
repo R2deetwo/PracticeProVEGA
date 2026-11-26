@@ -146,8 +146,7 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
         </div>
         {!isMine ? (
           <p className="rounded-sm bg-status-info/10 px-3 py-2 text-xs font-medium text-status-info">
-            Recording for {responsibleNames.join(", ")} — they will see this in the matter&apos;s notes; the next date
-            goes to their diary.
+            For {responsibleNames.join(", ")} — endorsement to the matter, next date to their diary.
           </p>
         ) : null}
 
@@ -167,9 +166,9 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
             onChange={(event) => onTextChange(event.target.value)}
             rows={6}
             label="Endorsement text"
-            placeholder="Type the outcome of today's proceedings, or dictate after court."
+            placeholder="Type or dictate today's outcome."
             containerClassName="mt-2"
-            aria-label="Editable court note"
+            aria-label="Editable endorsement"
           />
           {text.trim() ? <p className="mt-1 text-xs text-subtle">Draft saved on this device</p> : null}
         </SectionErrorBoundary>

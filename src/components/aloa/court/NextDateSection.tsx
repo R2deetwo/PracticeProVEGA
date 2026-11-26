@@ -48,7 +48,7 @@ export const NextDateSection: React.FC<NextDateSectionProps> = ({
     <p className="text-2xs font-black uppercase tracking-widest text-subtle">Next date (optional)</p>
     {showDetected && detected ? (
       <div className="flex flex-wrap items-center gap-2 rounded-sm bg-surface-2 px-3 py-2">
-        <p className="min-w-0 flex-1 text-xs font-medium text-body">Detected from your endorsement: {detected.label}</p>
+        <p className="min-w-0 flex-1 text-xs font-medium text-body">Detected: {detected.label}</p>
         <Button variant="secondary" size="sm" type="button" onClick={onUseDetected}>
           Use
         </Button>
@@ -137,7 +137,7 @@ export const NextDateSection: React.FC<NextDateSectionProps> = ({
         onClick={onToggleSetAsMatterNextDate}
         className="w-full justify-start"
       >
-        Set as the matter&apos;s next adjourned date
+        Set as the matter&apos;s next date
       </Button>
     </div>
   </div>

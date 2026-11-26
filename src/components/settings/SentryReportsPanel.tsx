@@ -21,11 +21,12 @@
  * ui-primitives ratchet stays held.
  */
 import React, { useMemo, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button, Input, Select } from '../ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { GateIcon, SearchIcon, ClockIcon, UserIcon, MapPinIcon } from '../../constants';
+import { useGatehouseProperties } from '../../hooks/useGatehouseProperties';
 
 type ReportKind = 'daily' | 'onsite' | 'historical' | 'security';
 
@@ -61,11 +62,11 @@ export const SentryReportsPanel: React.FC = () => {
     const [pulling, setPulling] = useState(false);
     const [lastPulledAt, setLastPulledAt] = useState<number | null>(null);
 
-    // Estate picker (same minimal public directory the gatehouse uses)
-    const properties = useQuery(
-        api.visitorManagement.getGatekeeperProperties,
-        firmId ? { firmId } : 'skip'
-    );
+    // Estate picker (same minimal public directory the gatehouse uses).
+    // ROUND 20: the directory is a mutation now (its throttle writes,
+    // which a read-only query can never do) — loaded once via the
+    // shared hook instead of useQuery.
+    const properties = useGatehouseProperties(firmId);
 
     // ─── The four pulls (mutations: each writes its audit row first) ────
     const pullDaily = useMutation(api.visitorManagement.getSentryDailyReport);

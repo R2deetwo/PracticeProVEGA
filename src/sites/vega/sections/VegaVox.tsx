@@ -38,7 +38,7 @@ const CAPABILITIES: { id: string; title: string; body: string }[] = [
     {
         id: 'sessions',
         title: 'Speaker-labelled session capture',
-        body: 'Record client intakes, witness interviews, chambers debriefs and post-hearing notes with every speaker separated, labelled and timestamped. Capture live or upload the recording — either way it survives a dead signal.',
+        body: 'Record client intakes, witness interviews, chambers debriefs and endorsements with every speaker separated, labelled and timestamped. Capture live or upload the recording — either way it survives a dead signal.',
     },
     {
         id: 'synthesis',

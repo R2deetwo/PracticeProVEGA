@@ -38,10 +38,11 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useQuery, useMutation, useConvex } from 'convex/react';
+import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Button, Input, Select, Textarea } from '../ui';
 import { GateIcon, CheckIcon, XCircleIcon, ClockIcon, UserIcon, MapPinIcon, SearchIcon, InfoIcon } from '../../constants';
+import { useGatehouseProperties } from '../../hooks/useGatehouseProperties';
 
 interface VerificationResult {
     valid: boolean;
@@ -139,23 +140,51 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
     const [nameEditing, setNameEditing] = useState(false);
     const [nameDraft, setNameDraft] = useState('');
 
-    // ─── Queries ────────────────────────────────────────────────────────
+    // ─── ROUND 20: loads, not subscriptions ─────────────────────────────
+    // The public gate endpoints below were write-in-query bugs (their
+    // checkRateLimit throttle WRITES, which a read-only Convex query can
+    // never do) and threw on EVERY call in production. They are mutations
+    // now: loaded on change and refreshed after the gate actions below.
+
     // TASK 94: stations for this firm — their existence LOCKS the terminal.
-    const stations = useQuery(
-        api.gatehouseAccounts.getGatehouseStations,
-        firmId ? { firmId } : 'skip'
-    );
-    // Legacy estate picker — only fetched in anonymous mode.
-    const properties = useQuery(
-        api.visitorManagement.getGatekeeperProperties,
-        (!stationsChecked || (stations && stations.length === 0)) && firmId ? { firmId } : 'skip'
-    );
-    const logs = useQuery(
-        api.visitorManagement.getGatehouseLogs,
-        (station || selectedPropertyId)
-            ? { propertyId: station ? station.propertyId : selectedPropertyId, stationToken: station?.stationToken }
-            : 'skip'
-    );
+    const [stations, setStations] = useState<any[] | null>(null);
+    const loadStations = useMutation(api.gatehouseAccounts.getGatehouseStations);
+    const loadStationsRef = useRef(loadStations);
+    loadStationsRef.current = loadStations;
+    useEffect(() => {
+        if (!firmId) return;
+        let cancelled = false;
+        loadStationsRef.current({ firmId })
+            .then((rows: any) => { if (!cancelled) setStations(rows ?? []); })
+            .catch(() => { if (!cancelled) setStations([]); });
+        return () => { cancelled = true; };
+    }, [firmId]);
+
+    // Legacy estate picker — only fetched in anonymous mode (no active
+    // stations), once per gate via the shared Round 20 hook.
+    const anonymousMode = !stationsChecked || (stations && stations.length === 0);
+    const properties = useGatehouseProperties(firmId, Boolean(anonymousMode));
+
+    // Today's movement board — loaded when the effective property changes
+    // and refreshed after every check-in / check-out / denial (the last
+    // call wins; a stale response never clobbers a fresher one).
+    const [logs, setLogs] = useState<any[] | null>(null);
+    const loadLogs = useMutation(api.visitorManagement.getGatehouseLogs);
+    const loadLogsRef = useRef(loadLogs);
+    loadLogsRef.current = loadLogs;
+    const logsPropertyId = station ? station.propertyId : selectedPropertyId;
+    const logsSeqRef = useRef(0);
+    const refreshLogs = useCallback(() => {
+        if (!logsPropertyId) return;
+        const seq = ++logsSeqRef.current;
+        loadLogsRef.current({ propertyId: logsPropertyId, stationToken: station?.stationToken })
+            .then((rows: any) => { if (logsSeqRef.current === seq) setLogs(rows ?? []); })
+            .catch(() => { if (logsSeqRef.current === seq) setLogs([]); });
+    }, [logsPropertyId, station]);
+    useEffect(() => {
+        setLogs(null);
+        refreshLogs();
+    }, [refreshLogs]);
 
     // ─── Mutations ──────────────────────────────────────────────────────
     const checkIn = useMutation(api.visitorManagement.checkInVisitor);
@@ -230,7 +259,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             }
             setIsSearching(true);
             try {
-                const rows = await convex.query(api.visitorManagement.searchExpectedVisitors, {
+                // ROUND 20: searchExpectedVisitors is a mutation now (its throttle writes).
+                const rows = await convex.mutation(api.visitorManagement.searchExpectedVisitors, {
                     propertyId,
                     term: debouncedTerm,
                     stationToken: station?.stationToken,
@@ -342,7 +372,8 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         }
 
         try {
-            const result = await convex.query(api.visitorManagement.verifyToken, payload as any);
+            // ROUND 20: verifyToken is a mutation now (its throttle writes).
+            const result = await convex.mutation(api.visitorManagement.verifyToken, payload as any);
             setVerification(result as VerificationResult);
 
             // Cache successful verifications for offline fallback
@@ -410,6 +441,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             });
             setVerification({ ...verification, valid: false, reason: 'checked_in', message: `${verification.visitorName} checked in successfully.` });
             setIdentifier('');
+            refreshLogs();
             inputRef.current?.focus();
         } catch (err: any) {
             setVerification({ ...verification, valid: false, reason: 'error', message: err.message });
@@ -422,6 +454,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
         if (!tokenCode || !propertyId) return;
         try {
             await checkOut({ tokenCode, propertyId, stationToken: station?.stationToken });
+            refreshLogs();
         } catch (err: any) {
             console.error('Checkout failed:', err);
         }
@@ -444,6 +477,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                 stationToken: station?.stationToken,
             });
             setDenyDone(reason);
+            refreshLogs();
             setDenyOpen(false);
             setDenyReason('');
             setDenyOther('');

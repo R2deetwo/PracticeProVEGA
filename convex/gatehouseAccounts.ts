@@ -255,7 +255,10 @@ export const revokeGatehouseAccount = mutation({
 // The login screen needs the station list (name + id + property). No PII,
 // no phones — station names and estate names the legacy picker already
 // exposes publicly.
-export const getGatehouseStations = query({
+export const getGatehouseStations = mutation({
+  // ROUND 20: was a `query` — the throttle writes (rateLimits), writes
+  // are illegal in a read-only Convex query, and the station-lock
+  // screen (useQuery) never resolved in production.
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
     const allowed = await checkRateLimit(ctx, `gatehouse-stations:${args.firmId}`, 30, 60_000);
