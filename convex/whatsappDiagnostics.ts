@@ -101,8 +101,12 @@ export const dumpWhatsAppState = internalQuery({
   args: {},
   handler: async (ctx) => {
     const settings = await ctx.db.query("whatsapp_settings").collect();
-    const mappings = await ctx.db.query("whatsapp_template_mappings").take(100);
-    const templates = await ctx.db.query("whatsapp_templates").take(300);
+    // ROUND 21 (visitor_pass): the old take(100)/take(300) caps silently hid
+    // the tail of a 32-firm registry (14 templates x 32 firms = 448 rows) —
+    // the dump reported visitor_pass "missing" while it sat beyond the cap.
+    // Raised to honest bounded caps that cover the full firm set.
+    const mappings = await ctx.db.query("whatsapp_template_mappings").take(1000);
+    const templates = await ctx.db.query("whatsapp_templates").take(1500);
 
     // Recent WhatsApp scheduled messages — the queue + outcomes.
     const recentScheduled = (await ctx.db
