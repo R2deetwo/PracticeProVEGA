@@ -611,13 +611,14 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
         try { recoverData = recoverRaw ? JSON.parse(recoverRaw) : null; } catch { recoverData = null; }
         const row = Array.isArray(recoverData?.data) && recoverData.data[0] ? recoverData.data[0] : recoverData;
         const recovered = row?.name ? normalizeTemplate(row) : null;
+        // Full-visibility diagnostics (bounded to the first 5): what the
+        // by-name GET returned for every attempted name.
+        if (recoveryNotes.length < 5) {
+          recoveryNotes.push(`${known}: HTTP ${recoverRes.status}, row=${String(row?.name ?? "none")}/${String(row?.status ?? "?")}, raw=${recoverRaw.slice(0, 100)}`);
+        }
         if (recovered) {
           templates.push(recovered);
           recoveredNames.push(recovered.name);
-        } else {
-          // Visible diagnostics (bounded) — the response shape/status when a
-          // known name fails to recover.
-          recoveryNotes.push(`${known}: HTTP ${recoverRes.status}, ${recoverRaw.slice(0, 120)}`);
         }
       }
     } catch (e: any) {
