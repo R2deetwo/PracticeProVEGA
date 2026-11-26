@@ -43,8 +43,9 @@ import { Z_CLASS } from '../../../overlays/constants';
  * only after the image's own load event and are keyed per exhibit, so
  * nothing lingers across a swap.
  *
- * 2026-11-22 (owner direction, this round): (1) the Tasks exhibits —
- * "Task board" renders as a TRUE KANBAN preview and "Team tasks" as
+ * 2026-11-22 (owner direction, this round; copy corrected 2026-11-25
+ * for Stage 2C): (1) the Tasks exhibits — "Task board" renders as the
+ * app's live status-grouped task list preview and "Team tasks" as
  * the per-counsel table with overlapping multi-assignee avatars, both
  * as interactive HTML previews in the app's own register (the app's
  * task model carries assignedUsers[] — the stacks are the real
@@ -68,8 +69,8 @@ export interface LightboxExhibit {
     caption: string;
     label: string;
     /** 2026-11-22: render an interactive HTML preview instead of the
-     * static capture — 'taskboard' (the Kanban) or 'teamtasks' (the
-     * per-counsel table with multi-assignee stacks). */
+     * static capture — 'taskboard' (the status-grouped task list) or
+     * 'teamtasks' (the per-counsel table with multi-assignee stacks). */
     preview?: 'taskboard' | 'teamtasks';
 }
 export interface LightboxGroup {
@@ -273,8 +274,8 @@ export const AppShotLightbox: React.FC<{
                     >
                         {current.preview ? (
                             /* 2026-11-22: the HTML task previews — the
-                             * Kanban board and the per-counsel table with
-                             * multi-assignee stacks — rendered in the
+                             * status-grouped task list and the per-counsel table
+                             * with multi-assignee stacks — rendered in the
                              * capture frame's seat, interactive. */
                             <div key={`preview-${current.src}`} className="absolute inset-0 animate-fade-in">
                                 <TaskBoardPreview view={current.preview} />

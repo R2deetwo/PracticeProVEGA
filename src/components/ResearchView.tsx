@@ -19,7 +19,7 @@ import { ResearchStudio } from './research/ResearchStudio';
 import { LAW_REPORTS_DISCLOSURE } from '../utils/citationVerification';
 import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
-import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon, ScalesIcon } from '../constants';
+import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
 import { readHashContext, type ContextResult } from '../utils/tabNavigation';
 
@@ -532,22 +532,17 @@ const ResearchView: React.FC<{ initialTab?: ResearchTab }> = ({ initialTab }) =>
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900">
-            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-wrap justify-between items-center gap-2 mb-0">
-                {/* Page header: same ResearchIcon as the sidebar nav, paired
-                    with the "Research" title and "PracticePro Research" subtitle
-                    so the page identity matches its navigation entry point. */}
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
-                        <ResearchIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Research</h2>
-                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 -mt-0.5 truncate">PracticePro Research</p>
-                    </div>
-                </div>
+            {/* Stage 2C: header simplified to match the Tasks/Documents rhythm —
+                plain "Research" title (no icon box, no "PracticePro Research"
+                subtitle, no wordy explanation) at the same py-2.5 height the
+                other page headers use. */}
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-wrap justify-between items-center gap-2 mb-0">
+                <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Research</h2>
                 {/* Tab pills — 3 tabs now (AI Notes / Practice Notes / Contract
                     Analyzer): wrap on narrow screens instead of squashing or
-                    overflowing the header. */}
+                    overflowing the header. All three carry the same clean
+                    text-only treatment (the Contract Analyzer's extra icon was
+                    retired so the tabs match). */}
                 <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex flex-wrap justify-end gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0 max-w-full">
                     {tabDef.map(tab => (
                         <button
@@ -555,7 +550,6 @@ const ResearchView: React.FC<{ initialTab?: ResearchTab }> = ({ initialTab }) =>
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-2.5 md:px-4 py-1.5 text-2xs md:text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === tab.id ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'}`}
                         >
-                            {tab.id === 'contract_analyzer' && <ScalesIcon className="w-3.5 h-3.5 flex-shrink-0" />}
                             {tab.label}
                             {tab.locked && <LockClosedIcon className="w-3 h-3 text-slate-400" />}
                         </button>

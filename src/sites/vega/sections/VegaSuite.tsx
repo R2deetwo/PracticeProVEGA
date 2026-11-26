@@ -33,23 +33,24 @@ import { AppShotLightbox, type LightboxGroup } from './AppShotLightbox';
  * are exported so the hero's dashboard capture joins the same gallery.
  */
 
-/** 2026-11-22 (owner direction): the redundant "Flat list" task exhibit
- *  is RETIRED alongside "Task board"'s grouped-list capture — Task board
- *  renders as a TRUE KANBAN (three status columns, click a card to
- *  advance it) and Team tasks as the per-counsel table with overlapping
- *  multi-assignee stacks, both as interactive TaskBoardPreview exhibits
- *  (the app's task model carries assignedUsers[] — the stacks are real
- *  behaviour, honestly Preview-chipped). The task exhibits move to the
- *  Team Workflows tab, where they belong; the Matters tab keeps the
- *  ledger and contacts, and the ledger exhibit gains the interactive
- *  highlight callouts (MattersHotspots) in the gallery. */
+/** 2026-11-22 (owner direction), corrected 2026-11-25 (Stage 2C): the
+ *  redundant "Flat list" task exhibit is RETIRED alongside "Task board"'s
+ *  grouped-list capture — Task board renders as the app's live
+ *  status-grouped task list (To Do / In Progress / Done sections, tap a
+ *  task to advance it) and Team tasks as the per-counsel table with
+ *  overlapping multi-assignee stacks, both as interactive
+ *  TaskBoardPreview exhibits (the app's task model carries assignedUsers[]
+ *  — the stacks are real behaviour, honestly Preview-chipped). The task
+ *  exhibits live on the Team Workflows tab, where they belong; the Matters
+ *  tab keeps the ledger and contacts, and the ledger exhibit gained the
+ *  interactive highlight callouts (MattersHotspots) in the gallery. */
 type Shot = {
     src: string;
     alt: string;
     caption: string;
     label: string;
     /** 2026-11-22: render the interactive TaskBoardPreview instead of a
-     *  static capture (the Kanban / the per-counsel table). */
+     *  static capture (the status-grouped task list / the per-counsel table). */
     preview?: 'taskboard' | 'teamtasks';
 };
 
@@ -203,8 +204,8 @@ const TABS: SuiteTab[] = [
         shots: [
             {
                 src: '/assets/landing/app/tasks-status.jpg',
-                alt: 'Vega task board — a kanban of To Do, In Progress and Done columns, each card carrying its matter, due date, priority and assignees',
-                caption: 'THE TASK BOARD — A TRUE KANBAN: CLICK A CARD TO ADVANCE IT',
+                alt: 'Vega task board — tasks grouped by status (To Do, In Progress, Done), each row carrying its matter, due date, priority and assignees',
+                caption: 'THE TASK BOARD — GROUPED BY STATUS: TAP A TASK TO ADVANCE IT',
                 label: 'Task board',
                 preview: 'taskboard',
             },
@@ -455,9 +456,9 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                             ))}
                         </div>
                         {/* 2026-11-22: the task exhibits render as interactive
-                            TaskBoardPreview exhibits (the Kanban and the
-                            per-counsel table) in a compact seat; every other
-                            exhibit stays the REAL capture in the sheet
+                            TaskBoardPreview exhibits (the status-grouped task
+                            list and the per-counsel table) in a compact seat; every
+                            other exhibit stays the REAL capture in the sheet
                             chrome, with the presence overlay and the expand
                             affordance. */}
                         {exhibit.preview ? (
@@ -466,7 +467,7 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                                     {/* The HTML previews take a TALLER seat than the 8:5
                                         captures — they are layouts, not screenshots, and
                                         the compact panel needs the extra rows (the table
-                                        and the kanban both fit at 4:3; the lightbox keeps
+                                        and the task list both fit at 4:3; the lightbox keeps
                                         the capture ratio). */}
                                     <div className="relative" style={{ containerType: 'inline-size', aspectRatio: '4 / 3' }}>
                                         <TaskBoardPreview view={exhibit.preview} compact />

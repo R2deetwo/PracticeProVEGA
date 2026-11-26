@@ -1331,7 +1331,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(dockedModal).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
   });
 
-  it("2026-11-22: the Matters callouts, the true Kanban, the multi-assignee stacks and the always-visible close X", () => {
+  it("2026-11-22 + 2026-11-25 Stage 2C: the Matters callouts, the status-grouped task board, the multi-assignee stacks and the always-visible close X", () => {
     // Owner direction (verbatim shape): "extend interactive highlightable
     // feature callouts — explaining what each feature does and its
     // practical benefit to a law firm — to Matters as well, rather than
@@ -1341,6 +1341,10 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // can visibly show multiple assignees… using overlapping avatars in
     // the Assigned column"; and the close X beside Fit/1:1 must be
     // "clearly visible at all times — not invisible until hovered".
+    // 2026-11-25 (Stage 2C): the in-app Tasks view retired its board for
+    // drag-and-drop reliability and renders a status-grouped list — the
+    // landing exhibit and copy now mirror THAT presentation, and no
+    // marketing surface may claim a Kanban view anymore.
     const matters = read("src", "sites", "vega", "sections", "MattersHotspots.tsx");
     const board = read("src", "sites", "vega", "sections", "TaskBoardPreview.tsx");
     const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
@@ -1357,11 +1361,20 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(matters).toContain("ZoneRing");
     expect(lightbox).toContain("MattersHotspots");
     expect(lightbox).toContain("'/assets/landing/app/matters-ledger.jpg'");
-    // THE TRUE KANBAN: three status columns, cards advancing on click,
-    // the matter chips, due dates, priority pills and assignee stacks.
+    // THE STATUS-GROUPED TASK LIST (Stage 2C): sections stacked in reading
+    // order, rows advancing one status on click, the matter chips, due
+    // dates, priority pills and assignee stacks — and no Kanban-view
+    // claims or column layouts on the landing surfaces (the board words
+    // surviving in TaskBoardPreview's doc comment are the OWNER'S original
+    // direction quote, not marketing copy).
     expect(board).toContain("NEXT_STATUS");
     expect(board).toContain("Grouped by status");
     expect(board).toContain("In Progress");
+    expect(board).toContain("flex flex-col gap-[0.9cqw]");
+    expect(board).not.toContain("TRUE KANBAN");
+    expect(board).not.toContain("grid-cols-3");
+    expect(suite).not.toMatch(/kanban/i);
+    expect(lightbox).not.toMatch(/kanban/i);
     // THE MULTI-ASSIGNEE STACKS: the Assigned column renders one ringed
     // circle per assignee, overlapped (the app model carries
     // assignedUsers[] — this is the real behaviour, Preview-chipped).
@@ -1374,7 +1387,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(suite).toContain("preview: 'taskboard'");
     expect(suite).toContain("preview: 'teamtasks'");
     expect(suite).toContain("TaskBoardPreview");
-    expect(suite).toContain("THE TASK BOARD — A TRUE KANBAN: CLICK A CARD TO ADVANCE IT");
+    expect(suite).toContain("THE TASK BOARD — GROUPED BY STATUS: TAP A TASK TO ADVANCE IT");
     expect(suite).toContain("TEAM TASKS — FILTER BY COUNSEL; SHARED FILES CARRY CO-ASSIGNEES");
     expect(suite).not.toContain("label: 'Task list'");
     expect(lightbox).toContain("TaskBoardPreview");

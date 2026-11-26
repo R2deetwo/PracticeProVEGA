@@ -3,21 +3,29 @@ import { Button } from '../../../components/ui';
 
 /**
  * TaskBoardPreview — the interactive Tasks exhibits (2026-11-22 owner
- * direction), rendered in the app's own register inside the capture
- * frame's seat (container-type: inline-size — every size below is cqw).
+ * direction, reworked 2026-11-25 for Stage 2C), rendered in the app's own
+ * register inside the capture frame's seat (container-type: inline-size —
+ * every size below is cqw).
  *
- * Owner direction (verbatim shape): "Remove redundant Task list
- * alongside Task board and render Task Board as a true Kanban board view
- * instead of a list. On Team Tasks, ensure tasks can visibly show
- * multiple assignees (not only a single user/avatar), using overlapping
- * avatars in the Assigned column whenever more than one person is
- * assigned to a task."
+ * Owner direction (verbatim shape): "Remove redundant Task list alongside
+ * Task board and render Task Board as a true Kanban board view instead of
+ * a list. On Team Tasks, ensure tasks can visibly show multiple assignees
+ * (not only a single user/avatar), using overlapping avatars in the
+ * Assigned column whenever more than one person is assigned to a task."
+ *
+ * 2026-11-25 honesty correction (Stage 2C): the in-app Tasks view retired
+ * its board (drag-and-drop reliability) and now renders a status-grouped
+ * list — collapsible To Do / In Progress / Done sections with task rows.
+ * This exhibit now mirrors THAT presentation so the marketing matches the
+ * product: same sections, same cards, same one-tap status change (status
+ * changes are real in-app behaviour; the board geography is not).
  *
  * THE TWO VIEWS:
- *   • view="taskboard" — a TRUE KANBAN: three columns (To Do · In
- *     Progress · Done), cards carrying the matter chip, the due date,
- *     the priority pill and the assignee stack. Clicking a card advances
- *     it one column — the board is alive, not a picture.
+ *   • view="taskboard" — the status-grouped task list: To Do · In
+ *     Progress · Done sections stacked in reading order, rows carrying
+ *     the matter chip, the due date, the priority pill and the assignee
+ *     stack. Clicking a row advances it one status — the list is alive,
+ *     not a picture.
  *   • view="teamtasks" — the per-counsel table: person filter pills
  *     (counts = the tasks each person owns, all statuses, matching the
  *     rows the filter shows), status-grouped sections, and the
@@ -170,19 +178,19 @@ export const TaskBoardPreview: React.FC<{
             ? tasks.length
             : tasks.filter((t) => t.assignees.includes(initials)).length;
 
-    /* The compact (suite-panel) seat caps what it shows — a card per
-     * column and a row per section truncate ugly at ~560px, so it pages
-     * the first two and points at the full view; the lightbox stage
-     * shows everything. */
-    const PER_COLUMN = compact ? 2 : 99;
+    /* The compact (suite-panel) seat caps what it shows — a row per section
+     * truncates ugly at ~560px, so it pages the first two and points at
+     * the full view; the lightbox stage shows everything. */
     const PER_SECTION = compact ? 2 : 99;
 
-    /* ── THE KANBAN ── */
+    /* ── THE STATUS-GROUPED TASK LIST (the app's live Tasks presentation —
+        sections stacked in reading order, rows one tap from the next
+        status). ── */
     if (view === 'taskboard') {
-        const columns: PreviewStatus[] = ['todo', 'in_progress', 'done'];
+        const sections: PreviewStatus[] = ['todo', 'in_progress', 'done'];
         return (
             <div className="relative h-full w-full bg-white flex flex-col overflow-hidden" style={{ fontSize: s(1) }}>
-                {/* The board header — the app's own furniture (title, the
+                {/* The list header — the app's own furniture (title, the
                     group-by indicator), plus the quiet Preview chip. */}
                 <div className="flex items-center justify-between gap-[1cqw] px-[1.4cqw] py-[0.9cqw] border-b border-slate-100 bg-slate-50/60">
                     <div className="flex items-baseline gap-[1cqw] min-w-0">
@@ -191,27 +199,28 @@ export const TaskBoardPreview: React.FC<{
                     </div>
                     <PreviewChip scale={scale} />
                 </div>
-                {/* The three columns — a TRUE kanban: status becomes
-                    geography. Clicking a card advances it one column. The
-                    compact seat reserves a bottom band (9cqw — the host's
-                    Expand chip height) so nothing runs under it. */}
-                <div className={`flex-1 min-h-0 grid grid-cols-3 gap-[1cqw] p-[1.1cqw] ${compact ? 'pb-[9cqw]' : ''}`}>
-                    {columns.map((col) => {
-                        const all = tasks.filter((t) => t.status === col);
-                        const cards = all.slice(0, PER_COLUMN);
-                        const extra = all.length - cards.length;
+                {/* The sections — To Do / In Progress / Done stacked in
+                    reading order (the app's collapsed-by-default groups,
+                    shown open so the exhibit reads at a glance). The compact
+                    seat reserves a bottom band (9cqw — the host's Expand chip
+                    height) so nothing runs under it. */}
+                <div className={`flex-1 min-h-0 overflow-hidden px-[1.4cqw] py-[1cqw] flex flex-col gap-[0.9cqw] ${compact ? 'pb-[9cqw]' : ''}`}>
+                    {sections.map((section) => {
+                        const all = tasks.filter((t) => t.status === section);
+                        const rows = all.slice(0, PER_SECTION);
+                        const extra = all.length - rows.length;
                         return (
-                            <div key={col} className="min-w-0 flex flex-col gap-[0.8cqw] rounded-[0.8cqw] bg-slate-50 border border-slate-100 p-[0.8cqw] overflow-hidden">
+                            <div key={section} className="min-w-0 flex flex-col gap-[0.5cqw]">
                                 <div className="flex items-center gap-[0.6cqw] px-[0.3cqw]">
-                                    <span className={`h-[0.7cqw] w-[0.7cqw] rounded-full ${STATUS_DOT[col]}`} aria-hidden="true" />
+                                    <span className={`h-[0.7cqw] w-[0.7cqw] rounded-full ${STATUS_DOT[section]}`} aria-hidden="true" />
                                     <span className="font-mono uppercase tracking-widest font-semibold text-slate-500" style={{ fontSize: s(0.85) }}>
-                                        {STATUS_LABEL[col]}
+                                        {STATUS_LABEL[section]}
                                     </span>
-                                    <span className="ml-auto flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 font-bold" style={{ fontSize: s(0.75), width: s(1.5), height: s(1.5) }}>
+                                    <span className="flex items-center justify-center rounded-full bg-white border border-slate-200 text-slate-500 font-bold" style={{ fontSize: s(0.75), width: s(1.5), height: s(1.5) }}>
                                         {all.length}
                                     </span>
                                 </div>
-                                {cards.map((t) => (
+                                {rows.map((t) => (
                                     <Button
                                         key={t.id}
                                         variant="bare"
@@ -223,14 +232,14 @@ export const TaskBoardPreview: React.FC<{
                                         <span className="font-semibold text-slate-900 leading-snug" style={{ fontSize: s(1.05) }}>
                                             {t.title}
                                         </span>
-                                        {t.matter ? (
-                                            <span className="inline-block self-start rounded bg-slate-100 text-slate-500 font-medium truncate max-w-full" style={{ fontSize: s(0.8), padding: `${s(0.22)} ${s(0.6)}` }}>
-                                                {t.matter}
-                                            </span>
-                                        ) : (
-                                            <span className="italic text-slate-400" style={{ fontSize: s(0.8) }}>No matter</span>
-                                        )}
                                         <span className="flex items-center gap-[0.7cqw] min-w-0">
+                                            {t.matter ? (
+                                                <span className="inline-block self-start rounded bg-slate-100 text-slate-500 font-medium truncate max-w-full" style={{ fontSize: s(0.8), padding: `${s(0.22)} ${s(0.6)}` }}>
+                                                    {t.matter}
+                                                </span>
+                                            ) : (
+                                                <span className="italic text-slate-400 truncate" style={{ fontSize: s(0.8) }}>No matter</span>
+                                            )}
                                             <span className={`font-bold ${t.status === 'done' ? 'text-slate-400' : t.urgent ? 'text-amber-600' : 'text-slate-500'}`} style={{ fontSize: s(0.85) }}>
                                                 {t.due}
                                             </span>

@@ -1207,7 +1207,8 @@ const MessagesView: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowCompose(true)}
-                            className="p-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold min-h-[40px]"
+                            className="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-2 text-xs font-bold"
+                            aria-label="New Message"
                         >
                             <PlusIcon className="w-4 h-4" /> New Message
                         </button>

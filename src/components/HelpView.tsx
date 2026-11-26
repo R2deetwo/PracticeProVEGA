@@ -158,9 +158,10 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                 <header className="mb-10 text-center">
-                    <p className="text-slate-600 dark:text-zinc-400 mb-6 max-w-2xl mx-auto text-lg">
-                        Find answers, master workflows, and learn how to get the most out of PracticePro.
-                    </p>
+                    {/* Stage 2D: the intro line that repeated the page header's
+                        "Find answers and master workflows." subtitle was retired —
+                        the header now says it exactly once; this block leads
+                        straight into the search field. */}
                     <div className="max-w-lg mx-auto mb-3">
                         <div className="relative">
                             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />

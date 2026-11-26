@@ -20052,3 +20052,21 @@ Stage Summary: The messaging section now actually works: conversation replies se
 - Added a responsive Court Mode entry in Vega’s ALOA panel with matter switching, court/forum and case details, prior/upcoming hearing dates, attached documents, and recent matter notes/endorsements; no financial data is surfaced.
 - Connected Vox verbatim transcription updates to a per-matter editable note draft, retained manual edits while dictation continues, and added reviewed saving as an endorsement or matter note while preserving the existing Pro entitlement gate.
 - Added five focused Court Mode/Vox tests; all 172 focused Court Mode and voice tests passed. Root and Convex TypeScript checks passed, and lint passed with the repository’s existing warnings and the UI-primitives ratchet unchanged.
+
+## 2026-11-26 — Stage 2A+2B: Documents dark-mode/pills + full-screen reader (selection, find, header overlap)
+
+- Audit note: Stage 1A/1B (merged via PR #20/#21) re-verified in code — tour cutout/geometry tracking and one-way splash dismissal are sound; Court Mode covers the full courtroom brief with Vox live-dictation and no billing surfaces.
+- Dark-mode contrast: every Documents master-row litigation pill now carries dark text/border variants (the default branch was text-slate-700 on zinc-800 — near-invisible), and the matter-documents-tab extension badge moved from zinc-500 to zinc-300 on its dark surface.
+- Bracketed titles: splitBracketedTitle() renders the trailing qualifier ("Client Interview Guide: Divorce (Abusive Husband)") as its own fully-wrapping pill on Documents rows and inside Breadcrumbs, instead of a single-line truncate clipping mid-bracket.
+- Full-screen header overlap (root cause): DocumentPreviewModal rendered inline inside the SplitMasterDetail detail pane, whose mobile stacking context (fixed inset-0 z-20) trapped the z-5000 modal UNDER the z-40 global header and the z-30 "Documents" sticky header. It now portals to document.body, so modalPeak beats every pane chrome deterministically.
+- Text selection: HTML page sheets carry the `selectable` opt-in (the app shell's blanket no-select stays intact outside the reader), and PdfViewer now renders the pdf.js TextLayer over each painted canvas in single AND continuous modes.
+- Find-in-document: a find bar (Ctrl/Cmd+F or toolbar button) with match counting, next/prev cycling and Enter/Shift+Enter navigation. HTML pages get string-level <mark> highlighting via the tag/entity-safe findInDocument tokenizer; PDFs extract per-page text (getTextContent) and highlight occurrences on the text layer, jumping between matching pages. Find closes before the reader on Escape.
+- Verification: root tsc 0, convex tsc 0, eslint 0 errors (existing warnings), UI-primitives ratchet HELD at baseline 2205 (find-bar controls use ui/ Button/Input), full Vitest 3,859 passed / 0 failed, `npm run build` green.
+
+## 2026-11-26 — Stage 2C+2D: landing Kanban copy retired + page-header uniformity
+
+- Landing honesty: the in-app Tasks view retired its board (drag-and-drop reliability) and renders a status-grouped list — the Vega landing's TaskBoardPreview "taskboard" exhibit now mirrors THAT presentation (To Do / In Progress / Done sections stacked, rows one tap from the next status), and every "TRUE KANBAN" caption/alt/comment across TaskBoardPreview, VegaSuite and AppShotLightbox was rewritten ("THE TASK BOARD — GROUPED BY STATUS: TAP A TASK TO ADVANCE IT"). websiteRepositioning.test.ts pins the new copy AND asserts no Kanban claims remain.
+- Research header: plain "Research" title at the shared py-2.5 rhythm (icon box + "PracticePro Research" subtitle removed) and the Contract Analyzer tab lost its extra ScalesIcon so all three tabs match.
+- Messages: the New Message pill is vertically centered with balanced padding (px-4 py-2.5, asymmetric min-h removed).
+- Help Center: the repeated "Find answers, master workflows…" intro under the page header is gone — the header's "Find answers and master workflows." now says it exactly once.
+- Verification: as Stage 2A+2B (same gate run) plus tests/unit/stage2DocumentAndHeaderFixes.test.ts pinning all four stages' fixes.
