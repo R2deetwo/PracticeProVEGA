@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import PdfViewer from './PdfViewer';
 import HtmlPagePreview from './HtmlPagePreview';
@@ -42,8 +43,9 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         };
     }, []);
 
-    return (
+    return createPortal(
         <div
+            data-document-preview-overlay
             className={`fixed inset-0 ${Z_CLASS.modalPeak} flex flex-col bg-black/80 backdrop-blur-sm animate-in fade-in duration-200`}
             role="dialog"
             aria-modal="true"
@@ -83,7 +85,8 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

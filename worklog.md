@@ -20052,3 +20052,9 @@ Stage Summary: The messaging section now actually works: conversation replies se
 - Added a responsive Court Mode entry in Vega’s ALOA panel with matter switching, court/forum and case details, prior/upcoming hearing dates, attached documents, and recent matter notes/endorsements; no financial data is surfaced.
 - Connected Vox verbatim transcription updates to a per-matter editable note draft, retained manual edits while dictation continues, and added reviewed saving as an endorsement or matter note while preserving the existing Pro entitlement gate.
 - Added five focused Court Mode/Vox tests; all 172 focused Court Mode and voice tests passed. Root and Convex TypeScript checks passed, and lint passed with the repository’s existing warnings and the UI-primitives ratchet unchanged.
+
+## 2026-11-25 — Stage 2A/B document reader
+
+- Portaled full-screen document previews to the document body so split-pane and app-shell headers cannot overlay the reader. Added selectable PDF.js text layers and selectable HTML page content only in full-screen mode, while preserving global copy protection elsewhere; Ctrl/Cmd+F is left to native find, with continuous mode supporting cross-page search.
+- Allowed long document titles and status pills to wrap, and added readable dark-mode litigation badge colors.
+- Added three focused regression tests. Root/Convex typechecks, focused tests, lint, UI/design-token ratchets, and the production frontend build passed; lint reported 73 existing warnings.

@@ -978,6 +978,47 @@ select,
   -webkit-user-select: text !important;
 }
 
+/* PDF.js renders selectable text above the canvas in full-screen previews. */
+.pdfjs-text-layer {
+  --min-font-size: 1;
+  --min-font-size-inv: 1;
+  --text-scale-factor: calc(var(--total-scale-factor, 1) * var(--min-font-size));
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  z-index: 1;
+  cursor: text;
+}
+
+.pdfjs-text-layer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+
+.pdfjs-text-layer > :not(.markedContent),
+.pdfjs-text-layer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  z-index: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdfjs-text-layer .markedContent {
+  display: contents;
+}
+
+.pdfjs-text-layer ::selection {
+  background: rgb(0 100 255 / 25%);
+}
+
 
 /* Global Font Scaling — TASK: Fixed to prevent layout breakage.
  * Instead of changing the root font-size (which scales ALL rem-based
