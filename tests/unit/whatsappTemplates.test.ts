@@ -575,7 +575,7 @@ describe('Gap templates — the missing five (2026-11-24: "do the ones you say a
     expect(familyAligned({ name: 'visitor_pass' }, 'visitor_pass')).toBe(true);
   });
 
-  it('visitor_pass varOrder is exactly the labeled VMS fields (pinned by the Visitor code:/Visit date:/Valid until: labels)', () => {
+  it('visitor_pass varOrder is exactly the labeled VMS fields (pinned by the Pass number:/Visit date:/Valid until: labels)', () => {
     const pass = gapTemplates.find((t) => t.name === 'visitor_pass')!;
     expect(varOrderForTemplate('visitor_pass', pass)).toEqual([
       'visitorName', 'estateName', 'tokenCode', 'visitDate', 'validUntil',
@@ -584,6 +584,11 @@ describe('Gap templates — the missing five (2026-11-24: "do the ones you say a
     // generic /for {{n}}/ address pattern on purpose.
     const slots = inferLabeledSlots(pass.bodyText);
     expect(slots).toEqual({ 3: 'tokenCode', 4: 'visitDate', 5: 'validUntil' });
+    // ROUND 21: the reworked body labels slot 3 "Pass number" (the "code"
+    // phrasing triggered Meta's authentication-categorizer reject) —
+    // both labels pin tokenCode.
+    expect(pass.bodyText).toContain('Pass number: {{3}}');
+    expect(pass.bodyText).not.toContain('code');
   });
 
   it('buildTemplateVarsForOrder + buildVarsForOrder render the visitor fields IDENTICALLY (twins)', () => {

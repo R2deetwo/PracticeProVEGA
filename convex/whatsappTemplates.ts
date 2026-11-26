@@ -213,6 +213,9 @@ export const BODY_SLOT_PATTERNS: { pattern: RegExp; field: string }[] = [
   { pattern: /due\s*date\s*:\s*\{\{(\d+)\}\}/i, field: "dueDate" },
   // ── VMS labels (2026-11-24 gap set) — pin the visitor_pass slots so the
   // mapping survives body edits without ever padding a code into a slot.
+  // ROUND 21: "Pass number:" — the reworked visitor_pass body label (the
+  // "code" phrasing triggered Meta's authentication-categorizer reject).
+  { pattern: /pass\s*number\s*:\s*\{\{(\d+)\}\}/i, field: "tokenCode" },
   { pattern: /visitor\s*code\s*:\s*\{\{(\d+)\}\}/i, field: "tokenCode" },
   { pattern: /visit\s*date\s*:\s*\{\{(\d+)\}\}/i, field: "visitDate" },
   { pattern: /valid\s*until\s*:\s*\{\{(\d+)\}\}/i, field: "validUntil" },
