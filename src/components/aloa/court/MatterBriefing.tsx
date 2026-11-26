@@ -1,19 +1,22 @@
 /**
- * Round 19/21 — Court Mode matter briefing: title + copyable suit number,
- * court line, responsible lawyers, NEXT DATE with factual risk chips, the
- * matter-scoped mini-calendar (Round 21), LAST ORDER, accordions, and the
- * sticky Record outcome dock. Empty fields are HIDDEN.
+ * Round 19/21/22 — Court Mode matter briefing: title + copyable suit number,
+ * court line, responsible lawyers, the NEXT DATE card (Round 22: directly
+ * editable inline with factual risk chips + an audit trail — NextDateEditor),
+ * the matter-scoped mini-calendar (Round 22: My diary | Firm diary dots), the
+ * saved endorsement at the bottom (Round 22: directly editable inline with an
+ * audit trail — EndorsementEditor), accordions, and the sticky Record outcome
+ * dock. Empty fields are HIDDEN.
  */
-import React, { useMemo, useState } from "react";
-import { CalendarDays, ChevronRight, FileText } from "lucide-react";
+import React, { useMemo } from "react";
 import { Badge, Button, SectionErrorBoundary } from "../../ui";
 import type { CalendarEvent, Document, Matter, NotePage } from "../../../types";
-import type { CourtMatter, DateRisk } from "../courtModeUtils";
-import { assessNextDate, isCourtCalendarEvent } from "../courtModeUtils";
+import type { CourtMatter } from "../courtModeUtils";
+import { isCourtCalendarEvent } from "../courtModeUtils";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useUI } from "../../../contexts/UIContext";
 import { formatDayKeyLong, timeLabelOf } from "./format";
-import { NextDateCard } from "./NextDateCard";
+import { NextDateEditor } from "./NextDateEditor";
+import { EndorsementEditor } from "./EndorsementEditor";
 import { BriefingAccordions } from "./BriefingAccordions";
 import { MiniCalendar } from "./MiniCalendar";
 
@@ -45,12 +48,6 @@ const dayKeyOf = (dateISO: string): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
 
-const shortDate = (dateISO: string): string => {
-  const date = new Date(dateISO);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-};
-
 export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   matter,
   courtMatter,
@@ -70,7 +67,6 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   onAddCourtDetails,
   onUseDate,
 }) => {
-  const [orderExpanded, setOrderExpanded] = useState(false);
   const { addToast } = useUI();
 
   const handleCopySuit = async (suitNumber: string) => {
@@ -85,37 +81,21 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const lastOrder = endorsements[0] || null;
   const earlierNotes = notes.filter((note) => note.id !== lastOrder?.id);
-  const lastOrderLong =
-    (lastOrder?.content || "").length > 240 || (lastOrder?.content || "").split("\n").length > 6;
 
   const nextHearing = courtMatter.upcomingHearings[0] || null;
-  const attendeeIds = (matter.assignedUsers || []).length > 0 ? matter.assignedUsers : [viewerId];
-  const risks: DateRisk[] = nextHearing
-    ? assessNextDate({
-        dateISO: dayKeyOf(nextHearing.date),
-        timeHHmm: nextHearing ? timeLabelOf(nextHearing.date) : null,
-        matterId: matter.id,
-        events,
-        matters,
-        attendeeIds,
-        viewerId,
-        userNames,
-      })
-    : [];
-
   const responsibleNames = (matter.assignedUsers || []).map((id) => userNames[id] ?? id);
   const courtLine = [matter.court, matter.judicialDivision, matter.courtRoom].filter(Boolean).join(" · ");
-  const justNow =
-    lastOrder && Date.now() - new Date(lastOrder.createdAt).getTime() < 60_000 ? true : false;
 
   // Round 21 — the mini-calendar's clash surface: every visible court-type
-  // diary event, so a tap reveals what a date collides with.
+  // diary event, so a tap reveals what a date collides with. Round 22 adds
+  // attendeeIds so the My diary | Firm diary toggle can filter the dots.
   const calendarEntries = useMemo(
     () =>
       events
         .filter((event) => event.status !== "Cancelled" && isCourtCalendarEvent(event))
         .map((event) => {
           const eventMatter = matters.find((candidate) => candidate.id === event.matterId);
+          const eventAssignees = event.assignedUsers || [];
           return {
             eventId: event.id,
             matterId: event.matterId || "",
@@ -124,6 +104,7 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
             court: eventMatter?.court,
             purpose: event.type || "Hearing",
             date: event.date,
+            attendeeIds: eventAssignees.length > 0 ? eventAssignees : (eventMatter?.assignedUsers || []),
           };
         }),
     [events, matters],
@@ -175,7 +156,16 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
 
         <SectionErrorBoundary sectionName="Next date">
           {nextHearing ? (
-            <NextDateCard hearing={nextHearing} risks={risks} today={today} />
+            <NextDateEditor
+              matter={matter}
+              hearing={nextHearing}
+              events={events}
+              matters={matters}
+              viewerId={viewerId}
+              userNames={userNames}
+              today={today}
+              captureBusy={captureBusy}
+            />
           ) : (
             <div className="rounded-md border border-dashed border-edge bg-surface-2 p-3 text-sm text-body">
               No next date recorded.
@@ -203,29 +193,13 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
             today={today}
             onUseDate={onUseDate}
             captureBusy={captureBusy}
+            viewerId={viewerId}
           />
         </SectionErrorBoundary>
 
-        <SectionErrorBoundary sectionName="Last order">
-          {lastOrder ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-2xs font-black uppercase tracking-widest text-subtle">
-                  Last order · {shortDate(lastOrder.createdAt)}
-                </h3>
-                {justNow ? <Badge tone="success">Just now</Badge> : null}
-              </div>
-              <p className={`mt-1.5 break-words whitespace-pre-wrap text-sm leading-relaxed text-body ${orderExpanded ? "" : "line-clamp-6"}`}>
-                {lastOrder.content}
-              </p>
-              {lastOrderLong ? (
-                <Button variant="ghost" size="sm" type="button" className="-ml-2" onClick={() => setOrderExpanded((value) => !value)}>
-                  {orderExpanded ? "Show less" : "Show more"}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </SectionErrorBoundary>
+        {lastOrder ? (
+          <EndorsementEditor note={lastOrder} matter={matter} captureBusy={captureBusy} />
+        ) : null}
 
         <BriefingAccordions
           earlierNotes={earlierNotes}

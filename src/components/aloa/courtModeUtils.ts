@@ -180,7 +180,7 @@ const PURPOSE_EVENT_TYPE_FALLBACKS: Partial<Record<HearingPurpose, string[]>> = 
 export type DiaryScope = "mine" | "firm";
 
 /** Hearing ids synthesized from matter.nextAdjournedDate (getCourtHearings). */
-const SYNTHESIZED_HEARING_ID_PREFIX = "matter-next-hearing-";
+export const SYNTHESIZED_HEARING_ID_PREFIX = "matter-next-hearing-";
 
 /**
  * Privacy defence-in-depth (client side). The server already enforces this in
@@ -267,7 +267,8 @@ function timeMinutesFor(dateISO: string): number | null {
 }
 
 function endorsementSnippet(content: string): string {
-  const collapsed = (content || "").replace(/\s+/g, " ").trim();
+  // ROUND 22: snippet the BODY (a jacket's boilerplate never shows here).
+  const collapsed = endorsementBodyOf(content).replace(/\s+/g, " ").trim();
   if (!collapsed) return "";
   return collapsed.length > 90 ? `${collapsed.slice(0, 90).trimEnd()}…` : collapsed;
 }
@@ -578,6 +579,101 @@ export function pickLastEndorsement(notes: NotePage[], matterId: string): NotePa
   return endorsements[0] || null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUND 22 — the structured Nigerian file-jacket endorsement. A dictated or
+// typed ENDORSEMENT is never saved as raw verbatim text: it is mapped
+// deterministically onto the standard court file jacket (Date / Appearances /
+// Endorsement / Next Adjourned Date) from existing schema fields — the
+// matter's parties and representing role, the recording counsel, the legacy
+// opposing-counsel field and the plan's next date. No LLM, no invention:
+// what is not on record prints the standard fallback ("… absent /
+// unrepresented") and the body stays the lawyer's own words, verbatim.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CLAIMANT_SIDE_ROLES = ["Claimant", "Plaintiff", "Applicant", "Petitioner", "Appellant"];
+const DEFENDANT_SIDE_ROLES = ["Defendant", "Respondent", "Co-Defendant"];
+
+/** DD/MM/YYYY (the Nigerian convention) from an ISO instant or YYYY-MM-DD. */
+function toDDMMYYYY(value: string): string {
+  const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
+export interface EndorsementJacketInput {
+  matter: Matter;
+  /** The counsel on record who appeared and is recording the outcome. */
+  viewerName: string;
+  /** The dictated/typed body — the lawyer's own words. */
+  bodyText: string;
+  /** The save moment (ISO or YYYY-MM-DD) — the jacket's Date line. */
+  nowISO: string;
+  /** The plan's next date — drives the Next Adjourned Date line. */
+  nextDate: OutcomeDraft["nextDate"];
+}
+
+/** The jacket's Appearances lines — deterministic, from the matter's own
+ * fields. `firmRepresentingRole` (set by the matter forms) names our side;
+ * the parties name the other side's role; the legacy opposingCounsel field
+ * names their counsel when the firm recorded it. Nothing is invented — a
+ * side with no counsel on record prints the standard fallback. */
+export function endorsementAppearances(matter: Matter, viewerName: string): string[] {
+  const parties = (matter.parties || []).filter(
+    (party) => party && typeof party.name === "string" && party.name.trim(),
+  );
+  const representingRole = String(
+    (matter as { specialtyData?: { firmRepresentingRole?: unknown } }).specialtyData
+      ?.firmRepresentingRole || "",
+  ).trim();
+  const ourRole = representingRole || "Claimant";
+  const ourSideIsClaimant = !DEFENDANT_SIDE_ROLES.includes(ourRole);
+  const otherSideRoles = ourSideIsClaimant ? DEFENDANT_SIDE_ROLES : CLAIMANT_SIDE_ROLES;
+  const otherRole =
+    parties.find((party) => otherSideRoles.includes(party.role))?.role ||
+    (ourSideIsClaimant ? "Defendant" : "Claimant");
+  const opposingCounsel = (matter.opposingCounsel || "").trim();
+  return [
+    `- ${viewerName || "Counsel"} for the ${ourRole}`,
+    opposingCounsel
+      ? `- ${opposingCounsel} for the ${otherRole}`
+      : `- ${otherRole} absent / unrepresented`,
+  ];
+}
+
+/** The standard file jacket for one endorsement. */
+export function formatEndorsementJacket(input: EndorsementJacketInput): string {
+  const body = input.bodyText.trim();
+  const purpose =
+    input.nextDate?.purpose === "Other" && input.nextDate.purposeOther?.trim()
+      ? input.nextDate.purposeOther.trim()
+      : input.nextDate?.purpose;
+  const jacket = [
+    `Date: ${toDDMMYYYY(input.nowISO)}`,
+    "",
+    "Appearances:",
+    ...endorsementAppearances(input.matter, input.viewerName),
+    "",
+    "Endorsement:",
+    body,
+  ];
+  // No next date on record → no line (sine die is the lawyer's call to make
+  // in the body, never invented here).
+  if (input.nextDate?.dateISO) {
+    jacket.push("", `Next Adjourned Date: ${toDDMMYYYY(input.nextDate.dateISO)} — For ${purpose}`);
+  }
+  return jacket.join("\n");
+}
+
+const ENDORSEMENT_BODY_RE = /(?:^|\n)Endorsement:[^\S\n]*\n([\s\S]*?)(?=\n\nNext Adjourned Date:|$)/;
+
+/** The body text of a jacket-formatted endorsement; legacy raw notes come
+ * back unchanged. The diary snippet and the inline editor read THIS — never
+ * the jacket boilerplate. */
+export function endorsementBodyOf(content: string): string {
+  const match = ENDORSEMENT_BODY_RE.exec(content || "");
+  return match ? match[1].trim() : content || "";
+}
+
 export interface OutcomeDraft {
   matterId: string;
   noteType: "endorsement" | "user";
@@ -649,6 +745,7 @@ export function buildOutcomePlan(
 ): OutcomePlan {
   const matter = ctx.matter;
   const text = draft.text.trim();
+  const nextDate = draft.nextDate;
   const isColleaguesMatter =
     (matter.assignedUsers || []).length > 0 && !(matter.assignedUsers || []).includes(ctx.viewerId);
 
@@ -656,10 +753,19 @@ export function buildOutcomePlan(
     `${draft.noteType === "endorsement" ? "Court endorsement" : "Court note"} — ${matter.title}` +
     (isColleaguesMatter ? ` (brief held by ${ctx.viewerName})` : "");
 
-  const note = { matterId: matter.id, title: noteTitle, content: text, type: draft.noteType };
+  // ROUND 22: an ENDORSEMENT saves as the standard Nigerian file jacket —
+  // never raw verbatim text. A plain "Note" keeps the lawyer's raw words.
+  const note = {
+    matterId: matter.id,
+    title: noteTitle,
+    content:
+      draft.noteType === "endorsement"
+        ? formatEndorsementJacket({ matter, viewerName: ctx.viewerName, bodyText: text, nowISO: ctx.nowISO, nextDate })
+        : text,
+    type: draft.noteType,
+  };
 
   const skipReasons: OutcomePlan["skipReasons"] = [];
-  const nextDate = draft.nextDate;
 
   // ROUND 21: a nextDate with an empty dateISO means the purpose (and maybe
   // time) was chosen but no date — the note still saves, and the matter

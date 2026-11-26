@@ -53,7 +53,7 @@ import { JurisdictionCard } from './JurisdictionCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
-    PencilSquareIcon, ClipboardIcon, CheckIcon, ScalesIcon, DocumentIcon, 
+    PencilSquareIcon, ClipboardIcon, CheckIcon, DocumentIcon,
     SearchIcon, XMarkIcon 
 } from '../../constants';
 import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIcon as MessageSquareIcon } from '../../constants';
@@ -136,7 +136,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
     </button>
 );
 
-export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void; onOpenCourtMode?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture, onOpenCourtMode }) => {
+export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture }) => {
     // ─── Bulletproof close handler ──────────────────────────────────
     // Uses onPointerDown (NOT onClick) because pointerdown is the
     // VERY FIRST event in the browser's pointer event chain. It fires
@@ -3621,18 +3621,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             onClick={(e) => { e.stopPropagation(); onOpenCapture(); }}
                         />
                     ) : null}
-                    {!isProperty && onOpenCourtMode ? (
-                        <Button
-                            variant="bare"
-                            size="md"
-                            iconOnly
-                            icon={ScalesIcon}
-                            title="Open ALOA Court Mode"
-                            aria-label="Open ALOA Court Mode"
-                            className="touch-target p-2 rounded-lg transition-all text-slate-500 hover:bg-slate-100 hover:text-primary-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-primary-300"
-                            onClick={(e) => { e.stopPropagation(); onOpenCourtMode(); }}
-                        />
-                    ) : null}
+                    {/* ROUND 22 (owner spec): the standalone Scales Court Mode
+                        entry is GONE — Court Mode lives inside ALOA Vox now
+                        (the mic above opens Vox; Court Mode is one segment
+                        away). Deep links from matters/events still land in
+                        Court Mode directly. */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setActiveView(activeView === 'quickNote' ? 'chat' : 'quickNote'); }}
                         className={`touch-target p-2 rounded-lg transition-all ${activeView === 'quickNote' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}

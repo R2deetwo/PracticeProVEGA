@@ -19,6 +19,8 @@ const COURT_FILES = [
   'src/components/aloa/court/MatterBriefing.tsx',
   'src/components/aloa/court/OutcomeComposer.tsx',
   'src/components/aloa/court/NextDateCard.tsx',
+  'src/components/aloa/court/NextDateEditor.tsx',
+  'src/components/aloa/court/EndorsementEditor.tsx',
   'src/components/aloa/court/NextDateSection.tsx',
   'src/components/aloa/court/DictationBar.tsx',
   'src/components/aloa/court/DateRiskChips.tsx',
@@ -29,6 +31,7 @@ const COURT_FILES = [
   'src/components/aloa/court/useCourtDrafts.ts',
   'src/components/aloa/court/useCourtDictation.ts',
   'src/components/aloa/court/useCourtModeData.ts',
+  'src/components/aloa/court/useCourtInlineEdit.ts',
   'src/components/aloa/court/useOutcomeSave.ts',
 ];
 
@@ -50,6 +53,37 @@ describe('ALOA Court Mode — panel deep-link plumbing', () => {
     expect(panel).toContain("onClick={mode === 'court' ? undefined : handleClose}");
   });
 
+  it('ROUND 22: the panel hosts the Vox switcher (Consultation / Note | Court Mode) with the busy guards', () => {
+    const panel = read('src/components/aloa/AloaPanel.tsx');
+    expect(panel).toContain("label: 'Consultation / Note'");
+    expect(panel).toContain("label: 'Court Mode'");
+    expect(panel).toContain('switchVoxPane');
+    expect(panel).toContain("stampVoxUsedAt()");
+    // Court Mode backs into the Vox consultation home, not the chat.
+    expect(panel).toContain("onBackToChat={() => setMode('capture')}");
+    // Both panes report a live take; the other segment locks mid-take.
+    expect(panel).toContain('onCaptureBusyChange={setCourtBusy}');
+    expect(panel).toContain('onCaptureBusyChange={setCaptureBusy}');
+    expect(panel).toContain('disabledReason="Finish or discard the dictation first."');
+  });
+
+  it('ROUND 22: both Vox panes report capture busyness (a live take is never silently dropped)', () => {
+    const court = read('src/components/aloa/AloaCourtMode.tsx');
+    expect(court).toContain('onCaptureBusyChange?: (busy: boolean) => void');
+    expect(court).toContain('onCaptureBusyChange?.(dictation.captureBusy)');
+    const qcv = read('src/components/quickcapture/QuickCaptureView.tsx');
+    expect(qcv).toContain('onCaptureBusyChange?: (busy: boolean) => void');
+  });
+
+  it('ROUND 22: the standalone Scales entry in AloaChat is GONE (Court Mode lives inside ALOA Vox)', () => {
+    const chat = read('src/components/aloa/AloaChat.tsx');
+    expect(chat).not.toContain('onOpenCourtMode');
+    expect(chat).not.toContain('Open ALOA Court Mode');
+    expect(chat).not.toContain('ScalesIcon');
+    // The chat mic (the Vox hand-off) stays.
+    expect(chat).toContain('icon={MicrophoneIcon}');
+  });
+
   it('AloaCourtMode keeps its props (only the optional initialMatterId was added)', () => {
     const courtMode = read('src/components/aloa/AloaCourtMode.tsx');
     expect(courtMode).toContain('onBackToChat: () => void;');
@@ -57,10 +91,10 @@ describe('ALOA Court Mode — panel deep-link plumbing', () => {
     expect(courtMode).toContain('initialMatterId?: string;');
   });
 
-  it('the Scales entry button in AloaChat is unchanged and Vega-only', () => {
+  it('the Scales entry button in AloaChat is removed — Court Mode nests inside ALOA Vox (Round 22)', () => {
     const chat = read('src/components/aloa/AloaChat.tsx');
-    expect(chat).toContain('!isProperty && onOpenCourtMode');
-    expect(chat).toContain('title="Open ALOA Court Mode"');
+    expect(chat).not.toContain('!isProperty && onOpenCourtMode');
+    expect(chat).not.toContain('title="Open ALOA Court Mode"');
   });
 });
 

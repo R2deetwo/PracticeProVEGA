@@ -5,7 +5,9 @@ import {
   buildOutcomePlan,
   canSeeMatter,
   detectNextDate,
+  endorsementBodyOf,
   filterDiary,
+  formatEndorsementJacket,
   getCourtDiary,
   pickLastEndorsement,
 } from "../../src/components/aloa/courtModeUtils";
@@ -306,13 +308,14 @@ describe("buildOutcomePlan", () => {
   const detected = detectNextDate(detectedText, now);
 
   const eventTypeNames = ["Meeting", "Hearing", "Mention", "Deadline", "Consultation", "Judgment"];
+  // ROUND 22: date-only nowISO — the jacket's "Date:" line is TZ-stable.
   const planCtx = (matter: Matter, events: CalendarEvent[] = []) => ({
     matter,
     events,
     viewerId: ALICE,
     viewerName: "Alice",
     eventTypeNames,
-    nowISO: "2026-03-10T08:00:00.000Z",
+    nowISO: "2026-03-10",
   });
 
   const draft = (overrides: Partial<Parameters<typeof buildOutcomePlan>[0]> = {}) => ({
@@ -372,12 +375,34 @@ describe("buildOutcomePlan", () => {
     const plan = buildOutcomePlan(draft(), planCtx(matter));
     expect(plan.note.title).toBe("Court endorsement — Okoro v. Eze");
     expect(plan.note.type).toBe("endorsement");
-    expect(plan.note.content).toBe(detectedText);
+    // ROUND 22: the endorsement saves as the standard Nigerian file jacket —
+    // never raw verbatim text (deterministic; no LLM anywhere).
+    expect(plan.note.content).toBe(
+      [
+        "Date: 10/03/2026",
+        "",
+        "Appearances:",
+        "- Alice for the Claimant",
+        "- Defendant absent / unrepresented",
+        "",
+        "Endorsement:",
+        detectedText,
+        "",
+        "Next Adjourned Date: 16/03/2026 — For Hearing",
+      ].join("\n"),
+    );
     expect(plan.event).not.toBeNull();
     expect(plan.event?.assignedUsers).toEqual([ALICE]);
     expect((plan.event?.type as string) === "Hearing").toBe(true);
     expect(plan.matterPatch).toEqual({ nextAdjournedDate: "2026-03-16" });
     expect(plan.skipReasons).toEqual([]);
+  });
+
+  it("ROUND 22: a plain 'Note' stays the lawyer's raw words (no jacket)", () => {
+    const matter = makeMatter({ id: "m-own", title: "Okoro v. Eze" });
+    const plan = buildOutcomePlan(draft({ noteType: "user" as const }), planCtx(matter));
+    expect(plan.note.type).toBe("user");
+    expect(plan.note.content).toBe(detectedText);
   });
 
   it("marks a colleague's matter with '(brief held by …)' and routes the event to their diary", () => {
@@ -408,6 +433,126 @@ describe("buildOutcomePlan", () => {
     expect(diaryOff.event).toBeNull();
     expect(diaryOff.skipReasons).toContain("diary_off");
     expect(diaryOff.matterPatch).toEqual({ nextAdjournedDate: "2026-03-16" });
+  });
+});
+
+describe("ROUND 22 — the Nigerian file-jacket endorsement", () => {
+  const bodyText = "Matter called up. Counsel moved for an adjournment; granted.";
+  const jacketMatter = (overrides: Partial<Matter> = {}) =>
+    makeMatter({
+      id: "m-j",
+      title: "Okoro v. Eze",
+      parties: [
+        { id: "p-1", name: "Okoro", role: "Claimant" },
+        { id: "p-2", name: "Eze", role: "Defendant" },
+      ],
+      specialtyData: { firmRepresentingRole: "Claimant" },
+      ...overrides,
+    } as Partial<Matter>);
+
+  const jacket = (overrides: Partial<Parameters<typeof formatEndorsementJacket>[0]> = {}) =>
+    formatEndorsementJacket({
+      matter: jacketMatter(),
+      viewerName: "Alice",
+      bodyText,
+      nowISO: "2026-03-10",
+      nextDate: null,
+      ...overrides,
+    });
+
+  it("wraps the dictated text in the standard jacket with the next adjourned date", () => {
+    expect(
+      jacket({
+        nextDate: { dateISO: "2026-06-01", timeHHmm: "09:30", purpose: "Hearing", source: "manual" },
+      }),
+    ).toBe(
+      [
+        "Date: 10/03/2026",
+        "",
+        "Appearances:",
+        "- Alice for the Claimant",
+        "- Defendant absent / unrepresented",
+        "",
+        "Endorsement:",
+        bodyText,
+        "",
+        "Next Adjourned Date: 01/06/2026 — For Hearing",
+      ].join("\n"),
+    );
+  });
+
+  it("prints opposing counsel when the matter records one", () => {
+    expect(
+      jacket({
+        matter: jacketMatter({ opposingCounsel: "Kunle Ojo, SAN" }),
+        nextDate: { dateISO: "2026-06-01", timeHHmm: null, purpose: "Mention", source: "manual" },
+      }),
+    ).toContain("- Kunle Ojo, SAN for the Defendant");
+  });
+
+  it("prints the firm on the defence side against the recorded opposing party role", () => {
+    expect(
+      jacket({
+        matter: jacketMatter({
+          specialtyData: { firmRepresentingRole: "Defendant" },
+          parties: [{ id: "p-1", name: "Okoro", role: "Claimant" }],
+        }),
+      }),
+    ).toContain("- Alice for the Defendant");
+    // The opposing role comes from the actual party on file (Respondent firm
+    // against a Petitioner) — and falls back to the standard default.
+    expect(
+      jacket({
+        matter: jacketMatter({
+          specialtyData: { firmRepresentingRole: "Respondent" },
+          parties: [{ id: "p-1", name: "Okoro", role: "Petitioner" }],
+        }),
+      }),
+    ).toContain("- Petitioner absent / unrepresented");
+    expect(
+      jacket({
+        matter: jacketMatter({ specialtyData: { firmRepresentingRole: "Defendant" } }),
+      }),
+    ).toContain("- Claimant absent / unrepresented");
+  });
+
+  it("omits the Next Adjourned Date line when no date is on record (sine die is the lawyer's call)", () => {
+    const content = jacket();
+    expect(content).not.toContain("Next Adjourned Date:");
+    expect(content.endsWith(bodyText)).toBe(true);
+  });
+
+  it("uses the custom purpose text for 'Other'", () => {
+    expect(
+      jacket({
+        nextDate: { dateISO: "2026-06-01", timeHHmm: null, purpose: "Other", purposeOther: "Pre-trial conference", source: "manual" },
+      }),
+    ).toContain("Next Adjourned Date: 01/06/2026 — For Pre-trial conference");
+  });
+
+  it("endorsementBodyOf extracts the body from a jacket and passes legacy raw notes through", () => {
+    const content = jacket({
+      nextDate: { dateISO: "2026-06-01", timeHHmm: null, purpose: "Hearing", source: "manual" },
+    });
+    expect(endorsementBodyOf(content)).toBe(bodyText);
+    expect(endorsementBodyOf("A legacy raw note.")).toBe("A legacy raw note.");
+    expect(endorsementBodyOf("")).toBe("");
+  });
+
+  it("the diary snippet shows the BODY of a jacketed endorsement, never the boilerplate", () => {
+    const jacketContent = jacket();
+    const diary = getCourtDiary(
+      [jacketMatter({ id: "m-snippet", nextAdjournedDate: "2026-03-16" })],
+      [makeEvent({ id: "e-snippet", matterId: "m-snippet", date: "2026-03-16" })],
+      [
+        makeNote({ id: "n-j", matterId: "m-snippet", createdAt: "2026-03-10T10:00:00", content: jacketContent }),
+      ],
+      { viewerId: ALICE, scope: "firm", userNames: {}, today: "2026-03-10" },
+    );
+    const entry = diary.groups.flatMap((group) => group.entries).find((item) => item.matterId === "m-snippet");
+    expect(entry?.lastOrderSnippet).toContain(bodyText.slice(0, 30));
+    expect(entry?.lastOrderSnippet).not.toContain("Appearances:");
+    expect(entry?.lastOrderSnippet).not.toContain("Date: 10/03/2026");
   });
 });
 

@@ -31,9 +31,12 @@ interface AloaCourtModeProps {
   onBackToChat: () => void;
   onClose: () => void;
   initialMatterId?: string;
+  /** ROUND 22: reports dictation busyness up to the panel so the Vox
+   *  switcher can lock its other segment mid-take (the leave-guard rule). */
+  onCaptureBusyChange?: (busy: boolean) => void;
 }
 
-export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onClose, initialMatterId }) => {
+export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onClose, initialMatterId, onCaptureBusyChange }) => {
   const { matterState } = useMatterState();
   const { executionState } = useExecutionState();
   const { documentState } = useDocumentState();
@@ -72,6 +75,13 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
   });
 
   const dictation = useCourtDictation({ matter: selectedMatter, drafts, setDraft });
+
+  // ROUND 22: keep the panel's Vox switcher informed — a live dictation
+  // take locks the Consultation / Note segment until it is finished or
+  // discarded (nothing is silently dropped).
+  useEffect(() => {
+    onCaptureBusyChange?.(dictation.captureBusy);
+  }, [dictation.captureBusy, onCaptureBusyChange]);
 
   // Landing: a deep-linked matter opens its briefing (only when visible).
   useEffect(() => {

@@ -22,6 +22,7 @@ import React, { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button } from "../../ui";
 import { dayKeyOf, formatDayKeyLong, timeLabelOf } from "./format";
+import { SegmentedToggle } from "./SegmentedToggle";
 
 export interface MiniCalendarEntry {
   eventId: string;
@@ -32,6 +33,9 @@ export interface MiniCalendarEntry {
   /** The calendar event's type (Hearing, Mention, …). */
   purpose: string;
   date: string;
+  /** ROUND 22: who attends this hearing (the event's assignees, else the
+   *  matter's) — drives the My diary | Firm diary dot filter. */
+  attendeeIds: string[];
 }
 
 interface MiniCalendarProps {
@@ -41,11 +45,18 @@ interface MiniCalendarProps {
   matterId: string;
   /** YYYY-MM-DD of today. */
   today: string;
+  /** ROUND 22: the viewer — scopes the dots to their diary. */
+  viewerId: string;
   /** Pipes a picked date into the Record outcome flow. */
   onUseDate: (dateISO: string) => void;
   /** Disabled while dictation is busy (the preserved rule). */
   captureBusy: boolean;
 }
+
+/** My diary | Firm diary — the calendar's visibility toggle (Round 22).
+ * This matter's own dates always show; the OTHER matters' dots depend on
+ * the scope (mine = only hearings the viewer attends). */
+type CalendarDiaryScope = "mine" | "firm";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -53,24 +64,41 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
   entries,
   matterId,
   today,
+  viewerId,
   onUseDate,
   captureBusy,
 }) => {
   const todayDate = useMemo(() => new Date(`${today}T00:00:00`), [today]);
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  // ROUND 22: My diary (the default, like the diary view) | Firm diary — the
+  // visibility toggle over the dots. Local state — a matter-scoped view.
+  const [diaryScope, setDiaryScope] = useState<CalendarDiaryScope>("mine");
 
-  // dayKey → entries for the whole diary (the clash surface).
+  // ROUND 22: the scope filter — this matter's dates always show; other
+  // matters' dots only in Firm diary, or in My diary when the viewer attends.
+  const visibleEntries = useMemo(
+    () =>
+      diaryScope === "firm"
+        ? entries
+        : entries.filter(
+            (entry) => entry.matterId === matterId || entry.attendeeIds.includes(viewerId),
+          ),
+    [entries, diaryScope, matterId, viewerId],
+  );
+
+  // dayKey → visible entries (the dots + the flip-to-inspect agenda follow
+  // the same scope — one rule, one source).
   const byDay = useMemo(() => {
     const map = new Map<string, MiniCalendarEntry[]>();
-    for (const entry of entries) {
+    for (const entry of visibleEntries) {
       const key = dayKeyOf(entry.date);
       const list = map.get(key) || [];
       list.push(entry);
       map.set(key, list);
     }
     return map;
-  }, [entries]);
+  }, [visibleEntries]);
 
   const grid = useMemo(() => {
     const anchor = new Date(todayDate.getFullYear(), todayDate.getMonth() + monthOffset, 1);
@@ -95,35 +123,26 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
       <div className="flex items-center justify-between gap-2">
         <p className="text-2xs font-black uppercase tracking-widest text-subtle">Check dates</p>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            icon={ChevronLeft}
-            iconOnly
-            aria-label="Previous month"
-            onClick={() => setMonthOffset((value) => value - 1)}
-          />
+          <Button variant="ghost" size="sm" type="button" icon={ChevronLeft} iconOnly
+            aria-label="Previous month" onClick={() => setMonthOffset((value) => value - 1)} />
           <p className="min-w-24 text-center text-sm font-extrabold text-strong">
             {anchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            icon={ChevronRight}
-            iconOnly
-            aria-label="Next month"
-            onClick={() => setMonthOffset((value) => value + 1)}
-          />
+          <Button variant="ghost" size="sm" type="button" icon={ChevronRight} iconOnly
+            aria-label="Next month" onClick={() => setMonthOffset((value) => value + 1)} />
         </div>
+      </div>
+
+      {/* ROUND 22: My diary | Firm diary — the calendar's visibility toggle. */}
+      <div className="mt-2 flex items-center justify-center">
+        <SegmentedToggle label="Calendar diary scope"
+          options={[{ value: "mine", label: "My diary" }, { value: "firm", label: "Firm diary" }]}
+          value={diaryScope} onChange={(value) => setDiaryScope(value as CalendarDiaryScope)} />
       </div>
 
       <div className="mt-2 grid grid-cols-7">
         {WEEKDAYS.map((weekday) => (
-          <p key={weekday} className="py-1.5 text-center text-3xs font-bold uppercase tracking-widest text-subtle">
-            {weekday}
-          </p>
+          <p key={weekday} className="py-1.5 text-center text-3xs font-bold uppercase tracking-widest text-subtle">{weekday}</p>
         ))}
       </div>
       <div className="grid grid-cols-7">

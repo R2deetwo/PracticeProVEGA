@@ -14,6 +14,9 @@ interface NextDateCardProps {
   hearing: CourtHearing;
   risks: DateRisk[];
   today: string;
+  /** ROUND 22: an optional affordance in the card's header row (the inline
+   *  Edit button lives here — the card's own layout is unchanged). */
+  action?: React.ReactNode;
 }
 
 const dayKeyOf = (dateISO: string): string => {
@@ -27,16 +30,19 @@ const dayKeyOf = (dateISO: string): string => {
   return `${year}-${month}-${day}`;
 };
 
-export const NextDateCard: React.FC<NextDateCardProps> = ({ hearing, risks, today }) => {
+export const NextDateCard: React.FC<NextDateCardProps> = ({ hearing, risks, today, action }) => {
   const dayKey = dayKeyOf(hearing.date);
   const timeLabel = timeLabelOf(hearing.date);
   const relative = relativeDayLabel(dayKey, today);
 
   return (
     <div className="rounded-md border border-hairline bg-surface-2 p-3 dark:border-zinc-800">
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-subtle">
-        <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-        Next date
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-subtle">
+          <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+          Next date
+        </div>
+        {action}
       </div>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <p className="text-base font-extrabold leading-snug text-strong">{formatDayKeyLong(dayKey)}</p>

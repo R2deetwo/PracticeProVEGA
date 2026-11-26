@@ -195,12 +195,17 @@ export interface QuickCaptureViewProps {
   onBackToChat?: () => void;
   /** Embedded only: leave the panel for the full office (parent closes it). */
   onExitEmbedded?: () => void;
+  /** ROUND 22: report whether a capture take is live, so the panel's Vox
+   *  switcher (Consultation / Note | Court Mode) can lock the other segment
+   *  mid-take instead of unmounting a recording. */
+  onCaptureBusyChange?: (busy: boolean) => void;
 }
 
 export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   embedded = false,
   onBackToChat,
   onExitEmbedded,
+  onCaptureBusyChange,
 }) => {
   const { navigateTo, addToast, setMobileSearchOpen } = useUI();
   const { currentUser } = useAuth();
@@ -375,6 +380,14 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     const heartbeat = setInterval(markUserActivity, 30_000);
     return () => clearInterval(heartbeat);
   }, [qc.phase]);
+
+  // ROUND 22: keep the panel's Vox switcher informed — a live take locks the
+  // Court Mode segment until it is finished (no unmount mid-recording).
+  useEffect(() => {
+    onCaptureBusyChange?.(
+      qc.phase === "recording" || qc.phase === "processing" || qc.phase === "queued"
+    );
+  }, [qc.phase, onCaptureBusyChange]);
 
   const toggleWhisperMode = useCallback(() => {
     setWhisperMode((prev) => {

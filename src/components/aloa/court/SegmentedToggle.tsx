@@ -18,7 +18,12 @@ export const SegmentedToggle: React.FC<{
   value: string;
   onChange: (value: string) => void;
   className?: string;
-}> = ({ label, options, value, onChange, className }) => (
+  /** ROUND 22: option values that cannot be selected right now (e.g. the
+   *  other Vox pane while a dictation take is live). */
+  disabledValues?: string[];
+  /** Hover/focus explanation shown on a disabled option. */
+  disabledReason?: string;
+}> = ({ label, options, value, onChange, className, disabledValues, disabledReason }) => (
   <div
     role="group"
     aria-label={label}
@@ -32,6 +37,8 @@ export const SegmentedToggle: React.FC<{
         type="button"
         className="rounded-full px-3"
         aria-pressed={value === option.value}
+        disabled={disabledValues?.includes(option.value)}
+        title={disabledValues?.includes(option.value) ? disabledReason : undefined}
         onClick={() => onChange(option.value)}
       >
         {option.label}

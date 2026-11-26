@@ -12,6 +12,10 @@ import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 // button and the persistent Full Office button).
 import { QuickCaptureView } from '../quickcapture/QuickCaptureView';
 import { AloaCourtMode } from './AloaCourtMode';
+// ROUND 22 (owner spec): Court Mode nests INSIDE ALOA Vox — the compact top
+// segmented switcher (Consultation / Note | Court Mode) is the one home for
+// both panes; the standalone Court Mode entry points are gone.
+import { SegmentedToggle } from './court/SegmentedToggle';
 // 7-day Vox-card rule (owner brief 2026-11-24): entering capture mode =
 // "launched Aloa Vox" — stamp the usage timestamp.
 import { stampVoxUsedAt } from '../../utils/voxUsageTracking';
@@ -35,6 +39,10 @@ const AloaPanel: React.FC = () => {
     // mic button / Dashboard card call openPanel('capture')), reset to chat
     // when it closes so the next open starts fresh.
     const [mode, setMode] = React.useState<'chat' | 'capture' | 'court'>('chat');
+    // ROUND 22: each Vox pane reports whether a take is live so the switcher
+    // never silently drops one (mirrors Court Mode's own leave guard).
+    const [captureBusy, setCaptureBusy] = React.useState(false);
+    const [courtBusy, setCourtBusy] = React.useState(false);
     const wasOpenRef = React.useRef(false);
     React.useEffect(() => {
         if (isPanelOpen && !wasOpenRef.current) {
@@ -54,6 +62,14 @@ const AloaPanel: React.FC = () => {
         stampVoxUsedAt();
         setMode('capture');
     }, []);
+
+    // ROUND 22: the Vox home hosts Court Mode — one switcher, two panes.
+    // Entering the capture pane is a Vox launch (7-day card rule).
+    const switchVoxPane = React.useCallback((next: 'capture' | 'court') => {
+        if (next === mode) return;
+        if (next === 'capture') stampVoxUsedAt();
+        setMode(next);
+    }, [mode]);
 
     const isShifted = isPanelOpen && dockedModalType && window.innerWidth >= 1280;
 
@@ -97,12 +113,38 @@ const AloaPanel: React.FC = () => {
                             <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-700" />
                         </div>
                     )}
+                    {/* ROUND 22: the compact top Vox switcher — Court Mode
+                        lives inside ALOA Vox now. A live take on the other
+                        pane locks that pane's segment (nothing is dropped). */}
+                    {(mode === 'capture' || mode === 'court') ? (
+                        <div className="flex flex-shrink-0 justify-center border-b border-hairline bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950">
+                            <SegmentedToggle
+                                label="Vox pane"
+                                options={[
+                                    { value: 'capture', label: 'Consultation / Note' },
+                                    { value: 'court', label: 'Court Mode' },
+                                ]}
+                                value={mode}
+                                onChange={(value) => switchVoxPane(value as 'capture' | 'court')}
+                                disabledValues={
+                                    mode === 'court' && courtBusy
+                                        ? ['capture']
+                                        : mode === 'capture' && captureBusy
+                                          ? ['court']
+                                          : []
+                                }
+                                disabledReason="Finish or discard the dictation first."
+                            />
+                        </div>
+                    ) : null}
+
                     {mode === 'court' ? (
                         <ErrorBoundary>
                             <AloaCourtMode
-                                onBackToChat={() => setMode('chat')}
+                                onBackToChat={() => setMode('capture')}
                                 onClose={() => handleClose()}
                                 initialMatterId={panelInitialMatterId ?? undefined}
+                                onCaptureBusyChange={setCourtBusy}
                             />
                         </ErrorBoundary>
                     ) : mode === 'capture' ? (
@@ -115,6 +157,7 @@ const AloaPanel: React.FC = () => {
                                 embedded
                                 onBackToChat={() => setMode('chat')}
                                 onExitEmbedded={closePanel}
+                                onCaptureBusyChange={setCaptureBusy}
                             />
                         </ErrorBoundary>
                     ) : (
@@ -122,7 +165,6 @@ const AloaPanel: React.FC = () => {
                             onClose={handleClose}
                             isMobile={isMobile}
                             onOpenCapture={openCaptureMode}
-                            onOpenCourtMode={() => setMode('court')}
                         />
                     )}
                 </div>

@@ -21,8 +21,12 @@ export interface SavedNotePlan {
   matterPatch: { nextAdjournedDate: string } | null;
 }
 
+/** ROUND 22: the retry state carries the RAW body text — never the
+ * jacketed note content — so a retry can never re-wrap the jacket. */
 export interface PartialFailureState {
-  note: { matterId: string; title: string; content: string; type: "endorsement" | "user" };
+  matterId: string;
+  noteType: "endorsement" | "user";
+  text: string;
   nextDate: NonNullable<OutcomeDraft["nextDate"]>;
   addToDiary: boolean;
   setAsMatterNextDate: boolean;
@@ -90,11 +94,23 @@ export function useOutcomeSave(args: UseOutcomeSaveArgs) {
     return { diaryFailed, matterFailed };
   };
 
-  const finishAfterNoteSaved = async (plan: SavedNotePlan, failed: { diaryFailed: boolean; matterFailed: boolean }) => {
+  const finishAfterNoteSaved = async (
+    plan: SavedNotePlan,
+    failed: { diaryFailed: boolean; matterFailed: boolean },
+    rawText: string,
+  ) => {
     if (failed.diaryFailed || failed.matterFailed) {
       // ROUND 21: a purpose-only draft (empty dateISO) has no diary step to
       // fail — partial-failure retry only applies to a real next date.
-      if (nextDate?.dateISO) setPartialFailure({ note: plan.note, nextDate, addToDiary, setAsMatterNextDate });
+      if (nextDate?.dateISO)
+        setPartialFailure({
+          matterId: matter.id,
+          noteType: plan.note.type,
+          text: rawText,
+          nextDate,
+          addToDiary,
+          setAsMatterNextDate,
+        });
       args.onTextCleared();
       addToast("Note saved. The diary could not be updated.", { type: "warning" });
       setIsSaving(false);
@@ -120,22 +136,22 @@ export function useOutcomeSave(args: UseOutcomeSaveArgs) {
       return; // nothing else runs; the draft is untouched
     }
     const failed = await runDiarySteps(plan);
-    await finishAfterNoteSaved(plan, failed);
+    await finishAfterNoteSaved(plan, failed, text);
   };
 
   const retry = async (captureBusy: boolean) => {
     if (!partialFailure || isSaving || captureBusy) return;
     const plan = buildPlan({
-      matterId: matter.id,
-      noteType: partialFailure.note.type,
-      text: partialFailure.note.content,
+      matterId: partialFailure.matterId,
+      noteType: partialFailure.noteType,
+      text: partialFailure.text,
       nextDate: partialFailure.nextDate,
       addToDiary: partialFailure.addToDiary,
       setAsMatterNextDate: partialFailure.setAsMatterNextDate,
     });
     setIsSaving(true);
     const failed = await runDiarySteps(plan);
-    await finishAfterNoteSaved(plan, failed);
+    await finishAfterNoteSaved(plan, failed, partialFailure.text);
   };
 
   return { isSaving, partialFailure, save, retry };

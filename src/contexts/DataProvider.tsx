@@ -219,9 +219,16 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 throw new Error("Session not loaded: cannot perform updateItem without authenticated userEmail.");
             }
             const tableKey = table as keyof AppState;
+            // ROUND 22 FIX (found by the inline-edit QA): `i._id === item._id`
+            // used to match EVERY row when BOTH sides were undefined (rows
+            // without a server _id — the demo fixtures, offline-created rows),
+            // so one failed partial update corrupted the WHOLE table (the
+            // optimistic merge patched every row; the revert replaced every
+            // row with the first match). Undefined now never matches — a
+            // legitimate id/_id match is unaffected.
             const matchesItem = (i: any) =>
                 i.id === item.id ||
-                i._id === item._id ||
+                (i._id && item._id && i._id === item._id) ||
                 (i._id && i._id === item.id) ||
                 (item._id && i.id === item._id);
             const previousItem = (appStateRef.current[tableKey] as any[]).find(matchesItem);

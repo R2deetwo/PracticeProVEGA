@@ -158,11 +158,26 @@ describe("stand-in scenario — Alice records Bob's matter outcome", () => {
 
     // The mocked actions record the calls in execution order.
     const calls: string[] = [];
+    // ROUND 22: the endorsement saves as the standard Nigerian file jacket —
+    // never raw verbatim text (appearances from the matter's own fields; the
+    // stand-in's name on the line; the body stays the lawyer's own words).
+    const expectedJacket = [
+      "Date: 10/03/2026",
+      "",
+      "Appearances:",
+      "- Alice for the Claimant",
+      "- Defendant absent / unrepresented",
+      "",
+      "Endorsement:",
+      endorsement,
+      "",
+      "Next Adjourned Date: 16/03/2026 — For Hearing",
+    ].join("\n");
     const handleAddMatterNote = async (matterId: string, title: string, content: string, type: string) => {
       calls.push(`note:${matterId}`);
       expect(matterId).toBe("m-b");
       expect(title).toBe("Court endorsement — Okoro v. Eze (brief held by Alice)");
-      expect(content).toBe(endorsement);
+      expect(content).toBe(expectedJacket);
       expect(type).toBe("endorsement");
     };
     const addItem = async (table: string, data: any) => {
