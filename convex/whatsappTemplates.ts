@@ -1372,7 +1372,13 @@ export const createVegaTemplates = internalAction({
           let data: any = null;
           try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
           const row = Array.isArray(data?.data) && data.data[0] ? data.data[0] : data;
-          if (row?.name) {
+          // ROUND 21 (critical honesty fix): Chakra's by-name GET does NOT
+          // filter by name — it returns the first template on the account —
+          // so "found" must require the row's name to MATCH the request.
+          // (The earlier "visitor_pass APPROVED" readings were actually
+          // atrium_general_announcement's status; visitor_pass is absent
+          // from the account listing entirely.)
+          if (row?.name && String(row.name) === def.name) {
             details.push({
               name: def.name, found: true,
               status: String(row.status || "UNKNOWN"),
@@ -1381,7 +1387,8 @@ export const createVegaTemplates = internalAction({
             });
           } else {
             const parsedErr = data ? extractWaError(data) : null;
-            details.push({ name: def.name, found: false, error: parsedErr || (raw ? raw.slice(0, 200) : `HTTP ${res.status}`) });
+            const returned = row?.name ? ` (got: ${String(row.name)})` : "";
+            details.push({ name: def.name, found: false, error: `Not returned by the by-name GET${returned}. ${parsedErr || (raw ? raw.slice(0, 160) : `HTTP ${res.status}`)}`.trim() });
           }
         } catch (e: any) {
           details.push({ name: def.name, found: false, error: `Request failed: ${e?.message || e}` });
