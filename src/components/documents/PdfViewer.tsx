@@ -12,9 +12,16 @@ import {
     Eye,
     Download,
     Printer,
+    Search,
+    ArrowDown,
+    ArrowUp,
     X,
     Loader2,
 } from 'lucide-react';
+import { escapeRegExp } from './findInDocument';
+// ADR-0004: new form controls use the ui/ primitives — the find bar is new
+// code from Stage 2B, and hand-rolled form elements would trip the ratchet.
+import { Button, Input } from '../ui';
 
 // Configure pdf.js worker. Using the URL constructor ensures Vite bundles
 // the worker file correctly during build.
@@ -42,6 +49,81 @@ const MIN_ZOOM = 25;
 const MAX_ZOOM = 400;
 const ZOOM_STEP = 25;
 
+// ── Stage 2B — find-in-PDF helpers ───────────────────────────────────────
+// Page text comes from pdf.js getTextContent (one str per text item), joined
+// with single spaces; matching collapses whitespace on both sides so a
+// query with a double space still hits the extracted text.
+const normalizePdfText = (value: string): string => value.replace(/\s+/g, ' ');
+
+const countPdfMatches = (text: string, query: string): number => {
+    const needle = query.trim();
+    if (!needle) return 0;
+    const finder = new RegExp(escapeRegExp(normalizePdfText(needle)), 'gi');
+    return (normalizePdfText(text).match(finder) || []).length;
+};
+
+/**
+ * Wrap every query occurrence inside a rendered pdf.js text-layer span with
+ * a <mark class="pp-pdf-find"> element so PDF search results are visible on
+ * the page. Occurrences are per-span (pdf.js splits text into arbitrary
+ * items, so a phrase spanning two items highlights its pieces). Marks stay
+ * transparent-colored like the layer's own text — selection still works.
+ */
+function highlightTextLayerMatches(
+    container: HTMLElement,
+    query: string,
+): void {
+    const needle = query.trim();
+    if (!needle) return;
+    const finder = new RegExp(escapeRegExp(needle), 'gi');
+    container.querySelectorAll('span').forEach(span => {
+        const text = span.textContent ?? '';
+        finder.lastIndex = 0;
+        if (!finder.test(text)) return;
+        finder.lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let cursor = 0;
+        let found: RegExpExecArray | null;
+        while ((found = finder.exec(text)) !== null) {
+            if (!found[0].length) break;
+            fragment.appendChild(document.createTextNode(text.slice(cursor, found.index)));
+            const mark = document.createElement('mark');
+            mark.className = 'pp-pdf-find';
+            mark.textContent = found[0];
+            fragment.appendChild(mark);
+            cursor = found.index + found[0].length;
+        }
+        if (cursor === 0) return;
+        fragment.appendChild(document.createTextNode(text.slice(cursor)));
+        span.replaceChildren(fragment);
+    });
+}
+
+/**
+ * Stage 2B — render the pdf.js text layer over a freshly painted canvas so
+ * PDF text is selectable (and highlightable for find). `container` must be
+ * absolutely positioned over the canvas; pdf.js TextLayer sets its own
+ * dimensions from the viewport and the `--total-scale-factor` we provide.
+ */
+async function renderPdfTextLayer(
+    page: pdfjsLib.PDFPageProxy,
+    viewport: pdfjsLib.PageViewport,
+    container: HTMLDivElement,
+    scale: number,
+): Promise<void> {
+    container.replaceChildren();
+    container.className = 'textLayer selectable';
+    container.style.setProperty('--total-scale-factor', String(scale));
+    container.style.setProperty('--scale-round-x', '1px');
+    container.style.setProperty('--scale-round-y', '1px');
+    const textLayer = new pdfjsLib.TextLayer({
+        textContentSource: page.streamTextContent(),
+        container,
+        viewport,
+    });
+    await textLayer.render();
+}
+
 const PdfViewer: React.FC<PdfViewerProps> = ({
     fileUrl,
     title,
@@ -60,6 +142,72 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     const [viewMode, setViewMode] = useState<ViewMode>('single');
     const [zoom, setZoom] = useState<ZoomState>({ mode: 'fit-page' });
     const [showThumbnails, setShowThumbnails] = useState(false);
+
+    // ── Stage 2B: find-in-PDF state + per-page text extraction ─────────
+    // Text is pulled once per document (getTextContent per page) and drives
+    // the match counts; the rendered pdf.js text layers carry the visible
+    // highlights and make the pages selectable in both view modes.
+    const [findOpen, setFindOpen] = useState(false);
+    const [findQuery, setFindQuery] = useState('');
+    const [activePageHit, setActivePageHit] = useState(0);
+    const [pageTexts, setPageTexts] = useState<string[]>([]);
+    const findInputRef = useRef<HTMLInputElement>(null);
+    const textLayerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!pdfDoc) {
+            setPageTexts([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const texts: string[] = [];
+                for (let p = 1; p <= pdfDoc.numPages; p++) {
+                    const page = await pdfDoc.getPage(p);
+                    const content = await page.getTextContent();
+                    texts.push(content.items.map(item => (item as { str?: string }).str ?? '').join(' '));
+                }
+                if (!cancelled) setPageTexts(texts);
+            } catch (e) {
+                console.error('[PdfViewer] text extraction failed:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [pdfDoc]);
+
+    const pageHitCounts = useMemo(
+        () => pageTexts.map(text => countPdfMatches(text, findQuery)),
+        [pageTexts, findQuery],
+    );
+    const hitPages = useMemo(() => {
+        const pages: number[] = [];
+        pageHitCounts.forEach((count, index) => {
+            if (count > 0) pages.push(index + 1);
+        });
+        return pages;
+    }, [pageHitCounts]);
+    const totalHits = pageHitCounts.reduce((sum, count) => sum + count, 0);
+
+    useEffect(() => {
+        if (activePageHit !== 0 && activePageHit >= hitPages.length) setActivePageHit(0);
+    }, [activePageHit, hitPages.length]);
+
+    const goToHit = useCallback(
+        (delta: number) => {
+            if (!hitPages.length) return;
+            setActivePageHit(prev => (((prev + delta) % hitPages.length) + hitPages.length) % hitPages.length);
+        },
+        [hitPages.length],
+    );
+
+    // Jump the viewer to the page carrying the active hit.
+    useEffect(() => {
+        const page = hitPages[activePageHit];
+        if (!page) return;
+        if (page !== currentPage) goToPage(page);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation only
+    }, [activePageHit, hitPages]);
 
     // ─── Refs ─────────────────────────────────────────────────────────
     const containerRef = useRef<HTMLDivElement>(null);
@@ -220,6 +368,32 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         renderPage(currentPage);
     }, [pdfDoc, currentPage, viewMode, loading, renderPage]);
 
+    // ─── Stage 2B: single/reading view — the pdf.js text layer sits over
+    // the freshly painted canvas so PDF text is selectable; when a query is
+    // active its occurrences are highlighted on the layer. Runs after the
+    // canvas render settles (actualScale), and again on every query change —
+    // repainting the canvas per keystroke would be wasteful.
+    useEffect(() => {
+        if (!pdfDoc || loading || viewMode === 'continuous') return;
+        let cancelled = false;
+        (async () => {
+            const host = textLayerRef.current;
+            if (!host) return;
+            try {
+                const page = await pdfDoc.getPage(currentPage);
+                if (cancelled) return;
+                const scale = actualScaleRef.current || 1;
+                const viewport = page.getViewport({ scale });
+                await renderPdfTextLayer(page, viewport, host, scale);
+                if (cancelled) return;
+                if (findQuery.trim()) highlightTextLayerMatches(host, findQuery);
+            } catch (e) {
+                console.error('[PdfViewer] text layer render failed:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [pdfDoc, loading, viewMode, currentPage, actualScale, findQuery]);
+
     // ─── Continuous mode: render ALL pages into their own canvases ────
     // Each page is rendered lazily by an inner <PdfPageCanvas> component
     // so that we don't fight the browser by rendering hundreds of pages at once.
@@ -343,6 +517,14 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 return;
             }
 
+            // Stage 2B: Ctrl/Cmd+F opens the in-document find bar.
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+                e.preventDefault();
+                setFindOpen(true);
+                window.setTimeout(() => findInputRef.current?.focus(), 30);
+                return;
+            }
+
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
                 e.preventDefault();
                 nextPage();
@@ -371,7 +553,12 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 e.preventDefault();
                 setViewMode('reading');
             } else if (e.key === 'Escape') {
-                if (viewMode === 'reading') {
+                if (findOpen) {
+                    // The find bar closes first — never the whole reader.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setFindOpen(false);
+                } else if (viewMode === 'reading') {
                     e.preventDefault();
                     setViewMode('single');
                 } else if (isFullScreen && onClose) {
@@ -384,7 +571,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         const el = containerRef.current;
         el?.addEventListener('keydown', handleKey);
         return () => el?.removeEventListener('keydown', handleKey);
-    }, [nextPage, prevPage, goToPage, numPages, zoomIn, zoomOut, zoomReset, viewMode, isFullScreen, onClose]);
+    }, [nextPage, prevPage, goToPage, numPages, zoomIn, zoomOut, zoomReset, viewMode, isFullScreen, onClose, findOpen]);
 
     // ─── Touch handlers: swipe (horizontal) + pinch-to-zoom ───────────
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -625,6 +812,24 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         <LayoutGrid className="w-4 h-4" />
                     </button>
 
+                    {/* Stage 2B — find in document (Ctrl+F) */}
+                    <Button
+                        variant="bare"
+                        onClick={() => {
+                            setFindOpen(v => !v);
+                            if (!findOpen) window.setTimeout(() => findInputRef.current?.focus(), 30);
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                            findOpen
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                        }`}
+                        title="Find in document (Ctrl+F)"
+                        aria-label="Find in document"
+                    >
+                        <Search className="w-4 h-4" />
+                    </Button>
+
                     {/* Print */}
                     <button
                         onClick={handlePrint}
@@ -646,6 +851,85 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* ── Stage 2B — the find bar (Ctrl+F / toolbar button) ── */}
+            {findOpen && (
+                <div
+                    className={`flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 border-b ${
+                        isDark
+                            ? 'bg-zinc-900 border-zinc-800'
+                            : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                    }`}
+                >
+                    <Search className="w-4 h-4 flex-shrink-0 text-slate-400" aria-hidden="true" />
+                    <Input
+                        ref={findInputRef}
+                        type="text"
+                        value={findQuery}
+                        onChange={e => {
+                            setFindQuery(e.target.value);
+                            setActivePageHit(0);
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                goToHit(e.shiftKey ? -1 : 1);
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFindOpen(false);
+                            }
+                        }}
+                        placeholder="Find in document…"
+                        styleVariant="bare"
+                        containerClassName="flex-1 min-w-0"
+                        inputClassName="w-full px-3 py-1.5 rounded-lg text-sm bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500"
+                        aria-label="Find in document"
+                        autoComplete="off"
+                        data-lpignore="true"
+                    />
+                    <span
+                        className={`flex-shrink-0 text-2xs font-bold tabular-nums ${
+                            isDark ? 'text-zinc-400' : 'text-slate-500 dark:text-zinc-400'
+                        }`}
+                    >
+                        {hitPages.length > 0
+                            ? `${totalHits} on ${hitPages.length} page${hitPages.length === 1 ? '' : 's'} · page ${hitPages[activePageHit]} (${activePageHit + 1}/${hitPages.length})`
+                            : findQuery.trim()
+                              ? '0 results'
+                              : ''}
+                    </span>
+                    <Button
+                        variant="bare"
+                        onClick={() => goToHit(-1)}
+                        disabled={!hitPages.length}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Previous page with matches (Shift+Enter)"
+                        aria-label="Previous page with matches"
+                    >
+                        <ArrowUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => goToHit(1)}
+                        disabled={!hitPages.length}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Next page with matches (Enter)"
+                        aria-label="Next page with matches"
+                    >
+                        <ArrowDown className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => setFindOpen(false)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        title="Close find bar (Esc)"
+                        aria-label="Close find bar"
+                    >
+                        <X className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
 
             {/* ─── Page area ─── */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -689,6 +973,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                                     zoom={zoom}
                                     container={containerRef.current}
                                     isDark={isDark}
+                                    findQuery={findQuery}
                                     onRefChange={(el) => {
                                         pageRefs.current[pageNum] = el;
                                     }}
@@ -709,10 +994,16 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         }`}
                     >
                         <div className="min-h-full w-full flex items-center justify-center p-4">
-                            <canvas
-                                ref={canvasRef}
-                                className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700"
-                            />
+                            {/* Stage 2B: the canvas and its pdf.js text layer
+                                share this relative box — text is selectable and
+                                carries the find highlights. */}
+                            <div className="relative shadow-2xl">
+                                <canvas
+                                    ref={canvasRef}
+                                    className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700"
+                                />
+                                <div ref={textLayerRef} className="textLayer selectable" aria-hidden="true" />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -767,11 +1058,14 @@ const PdfPageCanvas: React.FC<{
     zoom: ZoomState;
     container: HTMLDivElement | null;
     isDark: boolean;
+    /** Stage 2B: active find-in-document query — highlights the page's text layer. */
+    findQuery?: string;
     onRefChange: (el: HTMLDivElement | null) => void;
     onVisible: (pageNum: number) => void;
-}> = ({ pdfDoc, pageNum, zoom, container, onRefChange, onVisible }) => {
+}> = ({ pdfDoc, pageNum, zoom, container, findQuery, onRefChange, onVisible }) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
+    const textLayerRef = useRef<HTMLDivElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const renderIdRef = useRef(0);
 
@@ -847,6 +1141,30 @@ const PdfPageCanvas: React.FC<{
         };
     }, [pdfDoc, pageNum, computeScale]);
 
+    // ── Stage 2B: this page's pdf.js text layer — selectable text plus the
+    // visible find highlights. Re-rendered independently of the canvas so a
+    // query keystroke never repaints the page bitmap.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const host = textLayerRef.current;
+            if (!host) return;
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                if (cancelled) return;
+                const scale = computeScale(page);
+                const viewport = page.getViewport({ scale });
+                await renderPdfTextLayer(page, viewport, host, scale);
+                if (cancelled) return;
+                if (findQuery && findQuery.trim()) highlightTextLayerMatches(host, findQuery);
+            } catch (e) {
+                if (cancelled) return;
+                console.error('[PdfPageCanvas] text layer render failed:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [pdfDoc, pageNum, computeScale, findQuery]);
+
     // Observe visibility to update the current page indicator
     useEffect(() => {
         const el = wrapRef.current;
@@ -877,6 +1195,8 @@ const PdfPageCanvas: React.FC<{
                 ref={canvasRef}
                 className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700"
             />
+            {/* Stage 2B: selectable text + find highlights, aligned to the canvas box. */}
+            <div ref={textLayerRef} className="textLayer selectable" aria-hidden="true" />
             <div className="absolute bottom-2 right-2 text-2xs font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded">
                 {pageNum}
             </div>

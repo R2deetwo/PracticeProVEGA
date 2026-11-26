@@ -195,8 +195,11 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                         </p>
                     </Tooltip>
                     <div className="flex items-center justify-center gap-2 mt-1.5">
-                        <span className="text-3xs text-slate-400 dark:text-zinc-500 font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{extension}</span>
-                        {doc.file?.size && <span className="text-3xs text-slate-400 dark:text-zinc-500 font-medium">{formatBytes(doc.file.size)}</span>}
+                        {/* Stage 2A: zinc-500-on-zinc-800 was near-invisible in
+                            dark mode — zinc-300 keeps the extension badge
+                            readable on the card's dark surfaces. */}
+                        <span className="text-3xs text-slate-400 dark:text-zinc-300 font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{extension}</span>
+                        {doc.file?.size && <span className="text-3xs text-slate-400 dark:text-zinc-400 font-medium">{formatBytes(doc.file.size)}</span>}
                     </div>
                 </div>
 

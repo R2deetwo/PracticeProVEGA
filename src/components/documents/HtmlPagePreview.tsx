@@ -11,10 +11,17 @@ import {
     Eye,
     Download,
     Printer,
+    Search,
+    ArrowDown,
+    ArrowUp,
     X,
     Loader2,
 } from 'lucide-react';
 import { sanitize } from '../../utils/sanitization';
+import { countHtmlMatches, highlightHtmlMatches } from './findInDocument';
+// ADR-0004: new form controls use the ui/ primitives — the find bar is new
+// code from Stage 2B, and hand-rolled form elements would trip the ratchet.
+import { Button, Input } from '../ui';
 
 type ViewMode = 'fit' | 'continuous' | 'reading';
 
@@ -59,6 +66,8 @@ const pageSheetCss = `
     .html-page-sheet p { margin: 0 0 8pt; text-align: justify; }
     .html-page-sheet ul, .html-page-sheet ol { margin: 0 0 8pt; padding-left: 20pt; }
     .html-page-sheet li { margin-bottom: 4pt; }
+    .html-page-sheet mark.pp-find-mark { background: rgba(250, 204, 21, 0.35); color: inherit; padding: 0; border-radius: 1pt; }
+    .html-page-sheet mark.pp-find-mark.pp-find-active { background: rgba(245, 158, 11, 0.55); outline: 1pt solid rgba(180, 83, 9, 0.55); }
     .html-page-sheet table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
     .html-page-sheet td, .html-page-sheet th { border: 1px solid #ccc; padding: 4pt 8pt; }
     .html-page-sheet th { background: #f5f5f5; font-weight: bold; }
@@ -141,16 +150,29 @@ const paginate = (rawHtml: string): string[] => {
 // This lets the parent flex container (align-items: center) properly center
 // the page even when it's been scaled — because the layout system sees the
 // post-scale bounding box, not the pre-scale one.
+//
+// Stage 2B: the sheet content is selectable (`selectable` opts the page
+// text into user-select: text — the app shell's blanket no-select stays
+// intact outside the reader) and carries the find-in-document highlight
+// when a query is active; the occurrence the user is on gets the stronger
+// pp-find-active treatment.
 const PageSheet: React.FC<{
     html: string;
     zoomPercent: number;
     pageLabel?: string;
     totalPages?: number;
-}> = ({ html, zoomPercent, pageLabel, totalPages }) => {
+    findQuery?: string;
+    activeLocalIndex?: number | null;
+}> = ({ html, zoomPercent, pageLabel, totalPages, findQuery, activeLocalIndex }) => {
     const scale = zoomPercent / 100;
     // A4 dimensions in mm
     const widthMm = 210 * scale;
     const heightMm = 297 * scale;
+    const contentHtml = useMemo(() => {
+        const clean = sanitize(html) || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>';
+        if (!findQuery || !findQuery.trim()) return clean;
+        return highlightHtmlMatches(clean, findQuery, activeLocalIndex ?? null).html || clean;
+    }, [html, findQuery, activeLocalIndex]);
     return (
         <div
             className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700 relative flex-shrink-0"
@@ -169,10 +191,8 @@ const PageSheet: React.FC<{
                 }}
             >
                 <div
-                    className="html-page-sheet"
-                    dangerouslySetInnerHTML={{
-                        __html: sanitize(html) || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>',
-                    }}
+                    className="html-page-sheet selectable"
+                    dangerouslySetInnerHTML={{ __html: contentHtml }}
                 />
             </div>
             {pageLabel && totalPages && (
@@ -206,9 +226,61 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     const [viewMode, setViewMode] = useState<ViewMode>('fit');
     const [zoom, setZoom] = useState<ZoomState>({ mode: 'fit-page' });
     const [showThumbnails, setShowThumbnails] = useState(false);
+
     const [actualScale, setActualScale] = useState(1);
     const actualScaleRef = useRef(1);
     const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+    // ── Find-in-document (Stage 2B): query, open flag, and which occurrence
+    // the user is on. Matches are counted per page from the sanitized page
+    // HTML, then flattened so next/prev can walk them in reading order.
+    const [findOpen, setFindOpen] = useState(false);
+    const [findQuery, setFindQuery] = useState('');
+    const [activeMatch, setActiveMatch] = useState(0);
+    const findInputRef = useRef<HTMLInputElement>(null);
+    const matchCounts = useMemo(
+        () => pages.map(page => countHtmlMatches(page, findQuery)),
+        [pages, findQuery],
+    );
+    const flatMatches = useMemo(() => {
+        const list: Array<{ page: number; local: number }> = [];
+        matchCounts.forEach((count, page) => {
+            for (let local = 0; local < count; local++) list.push({ page, local });
+        });
+        return list;
+    }, [matchCounts]);
+    const totalMatches = flatMatches.length;
+    const activeEntry = activeMatch < totalMatches ? flatMatches[activeMatch] : null;
+
+    // Keep the active index inside the (new) match list whenever the query
+    // or document changes, so the “i / N” counter can never point past N.
+    useEffect(() => {
+        if (activeMatch !== 0 && activeMatch >= totalMatches) setActiveMatch(0);
+    }, [activeMatch, totalMatches]);
+
+    const goToMatch = useCallback(
+        (delta: number) => {
+            if (!totalMatches) return;
+            setActiveMatch(prev => (((prev + delta) % totalMatches) + totalMatches) % totalMatches);
+        },
+        [totalMatches],
+    );
+
+    // Bring the active occurrence into view: switch the single-page view to
+    // its page (or scroll the continuous list to it), then center the actual
+    // highlighted mark when one is rendered.
+    useEffect(() => {
+        if (!activeEntry) return;
+        const target = activeEntry.page;
+        setCurrentPage(prev => (prev === target ? prev : target));
+        if (viewMode === 'continuous') {
+            const pageEl = pageRefs.current[target];
+            pageEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const mark = pageEl?.querySelector<HTMLElement>('.pp-find-active');
+            mark?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- navigation only
+    }, [activeEntry, viewMode]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -363,6 +435,14 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
             ) {
                 return;
             }
+            // Stage 2B: Ctrl/Cmd+F opens the in-document find bar (the query
+            // input then handles Enter / Shift+Enter / Escape itself).
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+                e.preventDefault();
+                setFindOpen(true);
+                window.setTimeout(() => findInputRef.current?.focus(), 30);
+                return;
+            }
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 e.preventDefault();
                 nextPage();
@@ -391,7 +471,12 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 e.preventDefault();
                 setViewMode('reading');
             } else if (e.key === 'Escape') {
-                if (viewMode === 'reading') {
+                if (findOpen) {
+                    // The find bar closes first — never the whole reader.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setFindOpen(false);
+                } else if (viewMode === 'reading') {
                     e.preventDefault();
                     setViewMode('fit');
                 } else if (isFullScreen && onRequestClose) {
@@ -403,7 +488,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         const el = containerRef.current;
         el?.addEventListener('keydown', handleKey);
         return () => el?.removeEventListener('keydown', handleKey);
-    }, [nextPage, prevPage, goToPage, pageCount, zoomIn, zoomOut, zoomReset, viewMode, isFullScreen, onRequestClose]);
+    }, [nextPage, prevPage, goToPage, pageCount, zoomIn, zoomOut, zoomReset, viewMode, isFullScreen, onRequestClose, findOpen]);
 
     // ─── Touch handlers: swipe + pinch ────────────────────────────────
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -692,6 +777,24 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         <LayoutGrid className="w-4 h-4" />
                     </button>
 
+                    {/* Stage 2B — find in document (Ctrl+F) */}
+                    <Button
+                        variant="bare"
+                        onClick={() => {
+                            setFindOpen(v => !v);
+                            if (!findOpen) window.setTimeout(() => findInputRef.current?.focus(), 30);
+                        }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                            findOpen
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                        }`}
+                        title="Find in document (Ctrl+F)"
+                        aria-label="Find in document"
+                    >
+                        <Search className="w-4 h-4" />
+                    </Button>
+
                     {/* Print */}
                     <button
                         onClick={handlePrint}
@@ -723,6 +826,75 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 </div>
             </div>
 
+            {/* ── Stage 2B — the find bar (Ctrl+F / toolbar button) ── */}
+            {findOpen && (
+                <div
+                    className={`flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 border-b ${
+                        isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                    }`}
+                >
+                    <Search className="w-4 h-4 flex-shrink-0 text-slate-400" aria-hidden="true" />
+                    <Input
+                        ref={findInputRef}
+                        type="text"
+                        value={findQuery}
+                        onChange={e => {
+                            setFindQuery(e.target.value);
+                            setActiveMatch(0);
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                goToMatch(e.shiftKey ? -1 : 1);
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setFindOpen(false);
+                            }
+                        }}
+                        placeholder="Find in document…"
+                        styleVariant="bare"
+                        containerClassName="flex-1 min-w-0"
+                        inputClassName="w-full px-3 py-1.5 rounded-lg text-sm bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500"
+                        aria-label="Find in document"
+                        autoComplete="off"
+                        data-lpignore="true"
+                    />
+                    <span className={`flex-shrink-0 text-2xs font-bold tabular-nums ${isDark ? 'text-zinc-400' : 'text-slate-500 dark:text-zinc-400'}`}>
+                        {totalMatches > 0 ? `${activeMatch + 1} / ${totalMatches}` : findQuery.trim() ? '0 results' : ''}
+                    </span>
+                    <Button
+                        variant="bare"
+                        onClick={() => goToMatch(-1)}
+                        disabled={!totalMatches}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Previous match (Shift+Enter)"
+                        aria-label="Previous match"
+                    >
+                        <ArrowUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => goToMatch(1)}
+                        disabled={!totalMatches}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Next match (Enter)"
+                        aria-label="Next match"
+                    >
+                        <ArrowDown className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => setFindOpen(false)}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        title="Close find bar (Esc)"
+                        aria-label="Close find bar"
+                    >
+                        <X className="w-4 h-4" />
+                    </Button>
+                </div>
+            )}
+
             {/* ─── Page area ─── */}
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {viewMode === 'continuous' ? (
@@ -744,6 +916,8 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                                         zoomPercent={Math.round(actualScale * 100)}
                                         pageLabel={String(idx + 1)}
                                         totalPages={pageCount}
+                                        findQuery={findQuery}
+                                        activeLocalIndex={activeEntry && activeEntry.page === idx ? activeEntry.local : null}
                                     />
                                 </div>
                             ))}
@@ -763,6 +937,8 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                                 zoomPercent={Math.round(actualScale * 100)}
                                 pageLabel={String(safeCurrentPage + 1)}
                                 totalPages={pageCount}
+                                findQuery={findQuery}
+                                activeLocalIndex={activeEntry && activeEntry.page === safeCurrentPage ? activeEntry.local : null}
                             />
                         </div>
                     </div>

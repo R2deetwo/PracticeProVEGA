@@ -14,6 +14,7 @@ import { formatBytes, formatDateSafe, dateSortKeySafe, fileExtensionSafe } from 
 // the exact row-highlight/checkbox treatment with Matters.
 import { ROW_SELECTED, ROW_UNSELECTED, CHECKBOX, CHECKBOX_SELECTED, CHECK_ICON_CLASS, CHECK_ICON_PATH } from '../utils/selectionStyles';
 import Tooltip from './Tooltip';
+import { splitBracketedTitle } from '../utils/bracketedTitle';
 import { LocalDocumentManager } from './LocalDocumentManager';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
 import DocumentPreviewModal from './documents/DocumentPreviewModal';
@@ -68,6 +69,10 @@ const DocumentRow: React.FC<{
     const uploadedByClient = uploader?.role === UserRole.Client;
     const fileName = doc.file?.name || doc.title;
     const fileType = doc.file?.type;
+    // Stage 2A: bracketed qualifiers ("… (Abusive Husband)") render as their
+    // own fully-wrapping pill instead of being clipped mid-bracket by the
+    // row's single-line truncate.
+    const bracketed = splitBracketedTitle(doc.title);
     const [showBottomSheet, setShowBottomSheet] = useState(false);
 
     return (
@@ -111,16 +116,24 @@ const DocumentRow: React.FC<{
                     </div>
                     <div className="min-w-0 flex-1 overflow-hidden">
                         <Tooltip text={doc.title}>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{bracketed.main}</p>
                         </Tooltip>
+                        {bracketed.parenthetical && (
+                            <span
+                                className="mt-0.5 inline-block max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-1.5 py-0.5 text-3xs font-semibold leading-snug text-slate-500 dark:bg-zinc-800 dark:text-zinc-300"
+                                title={doc.title}
+                            >
+                                {bracketed.parenthetical}
+                            </span>
+                        )}
                         <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
                             <span>{formatDateSafe(doc.dateFiled)}</span>
                             {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                             {doc.isCourtProcess && (
-                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
-                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
-                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
-                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
+                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' :
+                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' :
+                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800' :
+                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
                                     }`}>
                                     {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
                                         doc.litigationStatus === 'served' ? 'Served' :

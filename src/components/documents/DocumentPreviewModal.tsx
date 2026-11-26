@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import PdfViewer from './PdfViewer';
 import HtmlPagePreview from './HtmlPagePreview';
@@ -42,7 +43,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
         };
     }, []);
 
-    return (
+    return createPortal(
         <div
             className={`fixed inset-0 ${Z_CLASS.modalPeak} flex flex-col bg-black/80 backdrop-blur-sm animate-in fade-in duration-200`}
             role="dialog"
@@ -83,7 +84,15 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        // Stage 2B: portal to <body>. The modal used to render inline inside
+        // the SplitMasterDetail detail pane, whose mobile stacking context
+        // (fixed inset-0 z-20) trapped the z-5000 modal UNDER the app's z-40
+        // global header and the z-30 "Documents" sticky header — the header
+        // visibly overlapped the top of the full-screen viewer. Portaling the
+        // modal to the root stacking context puts modalPeak above every pane
+        // chrome deterministically.
+        document.body,
     );
 };
 
