@@ -1,24 +1,21 @@
 /**
- * Round 19 — Court Mode matter briefing.
- *
- * The one-glance card for a courtroom: title + copyable suit number, court
- * line, responsible lawyers (Colleague's-matter badge when !isMine), NEXT
- * DATE with factual risk chips, LAST ORDER in full (clamped to 6 lines with
- * Show more), earlier notes / documents / other diary items accordions,
- * and the sticky Record outcome dock. Empty fields are HIDDEN — nothing
- * prints "Not on record".
+ * Round 19/21 — Court Mode matter briefing: title + copyable suit number,
+ * court line, responsible lawyers, NEXT DATE with factual risk chips, the
+ * matter-scoped mini-calendar (Round 21), LAST ORDER, accordions, and the
+ * sticky Record outcome dock. Empty fields are HIDDEN.
  */
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { CalendarDays, ChevronRight, FileText } from "lucide-react";
 import { Badge, Button, SectionErrorBoundary } from "../../ui";
 import type { CalendarEvent, Document, Matter, NotePage } from "../../../types";
 import type { CourtMatter, DateRisk } from "../courtModeUtils";
-import { assessNextDate } from "../courtModeUtils";
+import { assessNextDate, isCourtCalendarEvent } from "../courtModeUtils";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useUI } from "../../../contexts/UIContext";
 import { formatDayKeyLong, timeLabelOf } from "./format";
 import { NextDateCard } from "./NextDateCard";
 import { BriefingAccordions } from "./BriefingAccordions";
+import { MiniCalendar } from "./MiniCalendar";
 
 interface MatterBriefingProps {
   matter: Matter;
@@ -37,6 +34,7 @@ interface MatterBriefingProps {
   onOpenDocument: (documentId: string) => void;
   onViewAllNotes: () => void;
   onAddCourtDetails: () => void;
+  onUseDate: (dateISO: string) => void;
 }
 
 const dayKeyOf = (dateISO: string): string => {
@@ -70,6 +68,7 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   onOpenDocument,
   onViewAllNotes,
   onAddCourtDetails,
+  onUseDate,
 }) => {
   const [orderExpanded, setOrderExpanded] = useState(false);
   const { addToast } = useUI();
@@ -108,6 +107,27 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   const courtLine = [matter.court, matter.judicialDivision, matter.courtRoom].filter(Boolean).join(" · ");
   const justNow =
     lastOrder && Date.now() - new Date(lastOrder.createdAt).getTime() < 60_000 ? true : false;
+
+  // Round 21 — the mini-calendar's clash surface: every visible court-type
+  // diary event, so a tap reveals what a date collides with.
+  const calendarEntries = useMemo(
+    () =>
+      events
+        .filter((event) => event.status !== "Cancelled" && isCourtCalendarEvent(event))
+        .map((event) => {
+          const eventMatter = matters.find((candidate) => candidate.id === event.matterId);
+          return {
+            eventId: event.id,
+            matterId: event.matterId || "",
+            matterTitle: eventMatter?.title || event.title || "Court item",
+            suitNumber: eventMatter?.suitNumber,
+            court: eventMatter?.court,
+            purpose: event.type || "Hearing",
+            date: event.date,
+          };
+        }),
+    [events, matters],
+  );
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -174,6 +194,16 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
               ))}
             </div>
           ) : null}
+        </SectionErrorBoundary>
+
+        <SectionErrorBoundary sectionName="Check dates">
+          <MiniCalendar
+            entries={calendarEntries}
+            matterId={matter.id}
+            today={today}
+            onUseDate={onUseDate}
+            captureBusy={captureBusy}
+          />
         </SectionErrorBoundary>
 
         <SectionErrorBoundary sectionName="Last order">

@@ -13,15 +13,12 @@ import {
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
     ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon,
-    ArchiveIcon, HelpIcon, MicrophoneIcon
+    ArchiveIcon, HelpIcon
 } from '../constants';
 import { lazyWithReload } from '../utils/lazyWithReload';
 import { useMessagesBadge } from '../hooks/useMessagesBadge';
 import { useAloa } from '../contexts/AloaProvider';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
-import { Button } from './ui/Button';
-import { stampVoxUsedAt } from '../utils/voxUsageTracking';
-import { VoxUpsellModal } from './quickcapture/VoxUpsellModal';
 
 // V7 (A: initial payload): the onboarding checklist (~40 KB source) rode
 // the eager entry chunk via Sidebar's static import though it only renders
@@ -182,14 +179,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
     const currentPlan = coreState.firmDetails?.subscriptionPlan || SubscriptionPlan.Core; // Task 62: firmDetails can be undefined booting from the offline cache
     const features = useFeatures();
-    // ALOA VOX DESKTOP ENTRY (owner, 2026-11-25): the prominent sidebar
-    // recording pill — desktop parity with the APK's bottom-nav Vox tab.
-    // Entitlement mirrors the bottom-nav tab rule (quickCapture gated by
-    // canUseVox): Pro+ records in one tap; Free/Growth see the lock dot and
-    // land on the dedicated Vox upgrade card on tap.
-    const { openPanel: openAloaPanel } = useAloa();
-    const { light: hapticLight } = useHapticFeedback();
-    const [showVoxUpsell, setShowVoxUpsell] = useState(false);
     // K-3: plan hierarchy from the ONE authoritative (trial-aware)
     // entitlement computation — a firm trialing Komplete sees ALOA-X for
     // the trial window; the old raw-subscriptionPlan read said 'Core'
@@ -390,50 +379,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
             {/* Nav List */}
             <div key={product} className="flex-1 overflow-y-auto py-4 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent animate-fade-in-up">
 
-                {/* ALOA VOX — the desktop recording place (owner, 2026-11-25).
-                    The APK has its prominent bottom-nav Vox tab; after the
-                    2026-11-20 pill removal desktop's only entries were the
-                    small header mic and the in-panel chat mic. The owner
-                    checking the ADR-0007 work found the desktop lacked the
-                    APK's obvious "place for recording a message through to
-                    Aloa" — the pill returns as its own control ABOVE the
-                    main-menu list (honoring the 2026-11-20 note: not
-                    inside the menu section itself). Same entitlement as the
-                    bottom-nav tab; the pill is desktop-only by construction
-                    (the sidebar never renders on mobile widths). */}
-                <div className={`${isSidebarRetracted ? 'px-1' : 'px-3'} mb-3`}>
-                    <Button
-                        variant="bare"
-                        size="md"
-                        icon={MicrophoneIcon}
-                        iconOnly={isSidebarRetracted}
-                        aria-label="ALOA Vox — start recording"
-                        title="ALOA Vox — dictate a note, task or question"
-                        className={`relative w-full ${isSidebarRetracted ? 'justify-center' : 'justify-start'} gap-3 rounded-xl border border-primary-400/50 dark:border-primary-600/50 bg-gradient-to-r from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 text-white shadow-md shadow-primary-500/20 hover:shadow-primary-500/40 transition-all ${isSidebarRetracted ? 'w-11 h-11 mx-auto' : 'px-3 py-2.5'}`}
-                        onClick={() => {
-                            if (!features.canUseVox) {
-                                setShowVoxUpsell(true);
-                                return;
-                            }
-                            hapticLight();
-                            stampVoxUsedAt();
-                            openAloaPanel('capture');
-                        }}
-                    >
-                        {!isSidebarRetracted && (
-                            <span className="flex flex-col items-start text-left leading-tight min-w-0">
-                                <span className="text-sm font-bold">ALOA Vox</span>
-                                <span className="text-[10px] font-medium text-white/75">Tap to record — voice to Aloa</span>
-                            </span>
-                        )}
-                        {!features.canUseVox && (
-                            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border-2 border-primary-600 flex items-center justify-center shadow-sm" aria-hidden>
-                                <LockClosedIcon className="w-2.5 h-2.5 text-primary-600" />
-                            </span>
-                        )}
-                    </Button>
-                </div>
-
                 {/* Main Menu — V7 (C: information architecture): items are
                     grouped by business operation instead of interleaved. Legal
                     practice operations (Matters → Documents → Contract
@@ -442,12 +387,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     utilities (Tasks, Messages, Calendar, Clients). Product
                     gating and every lock are unchanged — order only. */}
                 <NavSection title="MAIN MENU" isRetracted={isSidebarRetracted}>
-                    {/* (The Vox pill itself is ABOVE this section since
-                        2026-11-25 — see the pill block. It deliberately
-                        does NOT live inside the menu list, per the
-                        2026-11-20 owner note; the Header mic button and the
-                        mobile bottom nav's Vox tab remain voice entry
-                        points.) */}
+
+                    {/* (ROUND 21, owner directive 2026-11-26: the sidebar
+                        Vox pill is REMOVED — voice capture is already
+                        reachable from the header mic. Voice entry points
+                        that remain: the header mic, the mobile bottom-nav
+                        Vox tab, and the in-panel chat mic.) */}
                     <NavItemLink
                         item={{ view: 'dashboard', text: 'Home', icon: <DashboardIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
@@ -574,10 +519,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 </NavSection>
 
             </div>
-            {/* ALOA VOX desktop entry (2026-11-25) — Free/Growth taps on the
-                sidebar pill land on the same dedicated Vox upgrade card as
-                the bottom-nav tab (owner spec 2026-11-20). */}
-            {showVoxUpsell && <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} />}
+
         </aside>
     );
 };

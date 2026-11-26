@@ -1,9 +1,8 @@
 /**
  * Round 19 — the record-outcome composer (full-height view, not a modal):
  * type or dictate the endorsement, detect the next date from the text
- * (debounced 500ms; never overwriting a manual date; Ignore suppresses
- * that exact date), factual risk chips (never blocking), the toggles and
- * the single Save press (the save sequence lives in useOutcomeSave.ts).
+ * (debounced 500ms; never overwriting a manual date), factual risk chips,
+ * the toggles and the single Save press (useOutcomeSave.ts).
  */
 import React, { useEffect, useRef, useState } from "react";
 import { Button, SectionErrorBoundary, Textarea } from "../../ui";
@@ -118,7 +117,9 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
     return () => window.clearTimeout(timer);
   }, [text]);
 
-  const showDetected = detected && !nextDate && detected.dateISO !== ignoredDetected;
+  // ROUND 21: a draft nextDate may exist with an EMPTY dateISO (a purpose
+  // chosen before the date) — the detected prompt shows until a real date.
+  const showDetected = detected && !nextDate?.dateISO && detected.dateISO !== ignoredDetected;
 
   const risks = React.useMemo(() => {
     if (!nextDate?.dateISO) return [];
@@ -170,7 +171,7 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
             containerClassName="mt-2"
             aria-label="Editable endorsement"
           />
-          {text.trim() ? <p className="mt-1 text-xs text-subtle">Draft saved on this device</p> : null}
+          {text.trim() || nextDate ? <p className="mt-1 text-xs text-subtle">Draft saved on this device</p> : null}
         </SectionErrorBoundary>
 
         {saveState.partialFailure ? (
@@ -200,8 +201,9 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
               if (!detected) return;
               onNextDateChange({
                 dateISO: detected.dateISO,
-                timeHHmm: detected.timeHHmm,
-                purpose: "Hearing",
+                timeHHmm: nextDate?.timeHHmm ?? null,
+                purpose: nextDate?.purpose ?? "Hearing",
+                purposeOther: nextDate?.purposeOther,
                 source: "detected",
               });
             }}

@@ -94,6 +94,17 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
     const base = drafts[matterId] ?? { text: "", noteType: "endorsement" as const, nextDate: null, updatedAt: Date.now() };
     setDraft(matterId, { ...base, ...patch, updatedAt: Date.now() });
   };
+
+  // Round 21: documents per matter — the collapsed diary cards print the count.
+  const documentCountByMatter = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const document of documentState.documents || []) {
+      const matterId = document.matterId || (document as { matter?: { id?: string } }).matter?.id;
+      if (matterId) counts[matterId] = (counts[matterId] || 0) + 1;
+    }
+    return counts;
+  }, [documentState.documents]);
+
   const openMatter = (matterId: string) => {
     if (dictation.captureBusy) {
       addToast("Finish or discard dictation before switching matters.", { type: "info" });
@@ -110,8 +121,13 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
     dictation.leaveGuard(onBackToChat);
   };
 
-  const leaveToMatters = () => {
-    navigateTo("matters");
+  // Round 21 — the deep-linked New Matter modal: the empty diary's "Add a
+  // court date" opens the form straight at the court/litigation section
+  // (the accordion opens + scrolls there itself). A workflow that carries a
+  // section hint uses the same contract: openModal('newMatter', null,
+  // { focusSection: 'court' | 'parties' | 'basics' | … }).
+  const openNewMatterAtCourtSection = () => {
+    openModal("newMatter", null, { focusSection: "court" });
     onClose();
   };
 
@@ -124,10 +140,12 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
       onScopeChange={setScope}
       onOpenMatter={openMatter}
       onShowFirmDiary={() => setScope("firm")}
-      onAddCourtDate={leaveToMatters}
+      onAddCourtDate={openNewMatterAtCourtSection}
       isDataLoaded={isDataLoaded}
       hasAnyCourtMatters={visibleCourtMatters.length > 0}
       viewerId={viewerId}
+      userNames={userNames}
+      documentCountByMatter={documentCountByMatter}
       headingRef={headingRef}
     />
   );
@@ -192,6 +210,21 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
             onAddCourtDetails={() => {
               openModal("editMatter", selectedMatter.id);
               onClose();
+            }}
+            onUseDate={(dateISO) => {
+              // Round 21: a mini-calendar pick pipes straight into the
+              // outcome flow — keeping any already-chosen purpose/time.
+              const base = drafts[selectedMatter.id]?.nextDate;
+              writeDraft(selectedMatter.id, {
+                nextDate: {
+                  dateISO,
+                  timeHHmm: base?.timeHHmm ?? null,
+                  purpose: base?.purpose ?? "Hearing",
+                  purposeOther: base?.purposeOther,
+                  source: "manual",
+                },
+              });
+              setView("compose");
             }}
           />
         </SectionErrorBoundary>

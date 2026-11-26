@@ -92,7 +92,9 @@ export function useOutcomeSave(args: UseOutcomeSaveArgs) {
 
   const finishAfterNoteSaved = async (plan: SavedNotePlan, failed: { diaryFailed: boolean; matterFailed: boolean }) => {
     if (failed.diaryFailed || failed.matterFailed) {
-      if (nextDate) setPartialFailure({ note: plan.note, nextDate, addToDiary, setAsMatterNextDate });
+      // ROUND 21: a purpose-only draft (empty dateISO) has no diary step to
+      // fail — partial-failure retry only applies to a real next date.
+      if (nextDate?.dateISO) setPartialFailure({ note: plan.note, nextDate, addToDiary, setAsMatterNextDate });
       args.onTextCleared();
       addToast("Note saved. The diary could not be updated.", { type: "warning" });
       setIsSaving(false);

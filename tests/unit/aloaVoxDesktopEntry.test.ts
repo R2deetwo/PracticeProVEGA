@@ -26,30 +26,25 @@ const repoRoot = existsSync(resolve(here, '../../src/components/Sidebar.tsx'))
   : process.cwd();
 const read = (p: string) => readFileSync(resolve(repoRoot, p), 'utf8');
 
-describe('ALOA Vox — the desktop recording place (Task 92)', () => {
+describe('ALOA Vox — the desktop recording place (Task 92 → Round 21 removal)', () => {
   const sidebar = read('src/components/Sidebar.tsx');
 
-  it('the Sidebar carries the Vox pill wired to capture mode with haptics + usage stamp', () => {
-    // The pill opens the panel directly in Quick Capture mode — the same
-    // one-tap recording destination as the APK's bottom-nav Vox tab.
-    expect(sidebar).toContain('openAloaPanel(\'capture\')');
-    expect(sidebar).toContain('stampVoxUsedAt()');
-    expect(sidebar).toContain('useHapticFeedback');
-    // It is a ui-primitive Button (ADR-0004) — no raw <button> added.
-    expect(sidebar).toContain("import { Button } from './ui/Button'");
-    // The pill is a labeled place, not a bare icon.
-    expect(sidebar).toContain('ALOA Vox');
-    expect(sidebar).toContain('Tap to record — voice to Aloa');
+  it('the sidebar Vox pill is GONE (owner directive 2026-11-26: the header mic is the voice entry)', () => {
+    // ROUND 21, owner directive: "Remove the redundant ALOA Vox card from
+    // the left navigation panel — voice recording is already accessible
+    // from the microphone control in the top header." The pill, its lock
+    // dot, its upsell modal and its usage stamp are all removed; this pin
+    // keeps them out so the sidebar can never grow the card back.
+    expect(sidebar).not.toContain('Tap to record — voice to Aloa');
+    expect(sidebar).not.toContain('ALOA Vox — start recording');
+    expect(sidebar).not.toContain('openAloaPanel(\'capture\')');
+    expect(sidebar).not.toContain('<VoxUpsellModal');
+    expect(sidebar).not.toContain('stampVoxUsedAt');
   });
 
-  it('the entitlement ladder mirrors the bottom-nav tab exactly', () => {
-    // Pro+ records; Free/Growth see the pill with a lock dot and land on
-    // the DEDICATED Vox upgrade card (owner spec 2026-11-20).
-    expect(sidebar).toContain('features.canUseVox');
-    expect(sidebar).toContain('setShowVoxUpsell(true)');
-    expect(sidebar).toContain('<VoxUpsellModal');
-    expect(sidebar).toContain('MicrophoneIcon');
-    expect(sidebar).toContain('LockClosedIcon');
+  it('the header mic remains the desktop voice entry (the removal never touched it)', () => {
+    const header = read('src/components/Header.tsx');
+    expect(header).toContain('ALOA Vox — start recording');
   });
 
   it('the in-panel chat mic wiring (voice → send through to Aloa) stays intact', () => {

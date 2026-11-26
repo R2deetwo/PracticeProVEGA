@@ -14,6 +14,8 @@ const read = (rel: string): string => readFileSync(resolve(__dirname, '../..', r
 const COURT_FILES = [
   'src/components/aloa/AloaCourtMode.tsx',
   'src/components/aloa/court/DiaryView.tsx',
+  'src/components/aloa/court/DiaryMatterCard.tsx',
+  'src/components/aloa/court/MiniCalendar.tsx',
   'src/components/aloa/court/MatterBriefing.tsx',
   'src/components/aloa/court/OutcomeComposer.tsx',
   'src/components/aloa/court/NextDateCard.tsx',

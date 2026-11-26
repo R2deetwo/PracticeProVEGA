@@ -141,7 +141,41 @@ export function mergeLiveTranscriptDraft(
 // concept and is intentionally NOT modelled here (see DEFERRED).
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type HearingPurpose = "Hearing" | "Mention" | "Judgment" | "Ruling" | "Trial" | "Other";
+// ROUND 21 (owner directive): the standard Nigerian courtroom endorsement
+// purposes — selectable in the composer's Purpose dropdown. "Other" reveals
+// a custom text input (draft.nextDate.purposeOther).
+export type HearingPurpose =
+  | "Mention"
+  | "Hearing"
+  | "Hearing of Motion"
+  | "Adoption of Written Addresses"
+  | "Trial / Continuation of Trial"
+  | "Ruling"
+  | "Judgment"
+  | "Report of Settlement"
+  | "Other";
+
+/** The composer's Purpose dropdown order (Nigerian practice). */
+export const HEARING_PURPOSES: HearingPurpose[] = [
+  "Mention",
+  "Hearing",
+  "Hearing of Motion",
+  "Adoption of Written Addresses",
+  "Trial / Continuation of Trial",
+  "Ruling",
+  "Judgment",
+  "Report of Settlement",
+  "Other",
+];
+
+/** Round 21: keyword fallbacks when a purpose has no exact/partial event
+ * type on the firm's calendar (keeps the diary event's type meaningful). */
+const PURPOSE_EVENT_TYPE_FALLBACKS: Partial<Record<HearingPurpose, string[]>> = {
+  "Hearing of Motion": ["Motion", "Hearing"],
+  "Adoption of Written Addresses": ["Adoption", "Written Addresses", "Hearing"],
+  "Trial / Continuation of Trial": ["Trial", "Hearing"],
+  "Report of Settlement": ["Settlement", "Report", "Mention"],
+};
 
 export type DiaryScope = "mine" | "firm";
 
@@ -549,9 +583,14 @@ export interface OutcomeDraft {
   noteType: "endorsement" | "user";
   text: string;
   nextDate: {
+    /** ROUND 21: "" = purpose/time chosen but the date itself not picked
+     * yet (the draft survives without text; see useCourtDrafts). A plan
+     * with an empty dateISO records the note only. */
     dateISO: string;
     timeHHmm: string | null;
     purpose: HearingPurpose;
+    /** Free text when purpose === "Other" (Round 21). */
+    purposeOther?: string;
     source: "detected" | "manual";
   } | null;
   addToDiary: boolean;
@@ -563,18 +602,29 @@ export interface OutcomePlan {
   /** The exact object passed to addItem('events', ...) — or null. */
   event: Record<string, unknown> | null;
   matterPatch: { nextAdjournedDate: string } | null;
-  skipReasons: ("already_in_diary" | "no_date" | "diary_off" | "matter_date_off")[];
+  skipReasons: ("already_in_diary" | "no_date" | "date_not_set" | "diary_off" | "matter_date_off")[];
 }
 
-/** Mirrors TeamDiscussionTab's private coerceEventType (exact → partial → first). */
+/** Mirrors TeamDiscussionTab's private coerceEventType (exact → partial →
+ * keyword fallbacks → first). Round 21: the new long purposes and the
+ * custom "Other" text fall back through their practice keywords. */
 function coerceCourtEventType(purpose: string, eventTypeNames: string[]): string {
   if (!purpose) return eventTypeNames[0] || "Meeting";
-  const exact = eventTypeNames.find((name) => name.toLowerCase() === purpose.toLowerCase());
+  const needle = purpose.toLowerCase();
+  const exact = eventTypeNames.find((name) => name.toLowerCase() === needle);
   if (exact) return exact;
   const partial = eventTypeNames.find(
-    (name) => name.toLowerCase().includes(purpose.toLowerCase()) || purpose.toLowerCase().includes(name.toLowerCase()),
+    (name) => name.toLowerCase().includes(needle) || needle.includes(name.toLowerCase()),
   );
-  return partial || eventTypeNames[0] || "Meeting";
+  if (partial) return partial;
+  const fallbacks = PURPOSE_EVENT_TYPE_FALLBACKS[purpose as HearingPurpose] || [];
+  for (const keyword of fallbacks) {
+    const hit = eventTypeNames.find(
+      (name) => name.toLowerCase().includes(keyword.toLowerCase()),
+    );
+    if (hit) return hit;
+  }
+  return eventTypeNames[0] || "Meeting";
 }
 
 /**
@@ -611,8 +661,14 @@ export function buildOutcomePlan(
   const skipReasons: OutcomePlan["skipReasons"] = [];
   const nextDate = draft.nextDate;
 
+  // ROUND 21: a nextDate with an empty dateISO means the purpose (and maybe
+  // time) was chosen but no date — the note still saves, and the matter
+  // stays in "Needs a New Date" (adjourned sine die / awaiting the registry).
   if (!nextDate) {
     return { note, event: null, matterPatch: null, skipReasons: ["no_date"] };
+  }
+  if (!nextDate.dateISO) {
+    return { note, event: null, matterPatch: null, skipReasons: ["date_not_set"] };
   }
 
   // Event — mirrors the TeamDiscussionTab endorsement-to-diary pattern.
@@ -639,7 +695,13 @@ export function buildOutcomePlan(
         title: endorsementTitleFrom(text),
         description: text,
         matterTitle: matter.title,
-        type: coerceCourtEventType(nextDate.purpose, ctx.eventTypeNames),
+        // "Other" carries the lawyer's own purpose text (Round 21).
+        type: coerceCourtEventType(
+          nextDate.purpose === "Other" && nextDate.purposeOther?.trim()
+            ? nextDate.purposeOther.trim()
+            : nextDate.purpose,
+          ctx.eventTypeNames,
+        ),
         date: start.toISOString(),
         endDate: end.toISOString(),
         matterId: matter.id,

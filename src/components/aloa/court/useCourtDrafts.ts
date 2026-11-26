@@ -101,7 +101,15 @@ export function useCourtDrafts(userId: string): CourtDraftsApi {
       if (!matterId) return;
       setDrafts((previous) => {
         const next = { ...previous };
-        if (!draft || !draft.text.trim()) {
+        // ROUND 21 (owner report: the Next Date picker "remains stuck on the
+        // DD/MM/YYYY placeholder"): the old guard deleted the draft when the
+        // TEXT was empty — which also threw away a freshly picked date/purpose
+        // (picking a date before typing the endorsement is the natural order
+        // at court). A draft survives while EITHER the text or a next date
+        // exists; only a fully empty draft is dropped.
+        const hasText = Boolean(draft && draft.text.trim());
+        const hasNextDate = Boolean(draft && draft.nextDate && draft.nextDate.dateISO);
+        if (!draft || (!hasText && !hasNextDate)) {
           delete next[matterId];
         } else {
           next[matterId] = draft;

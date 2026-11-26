@@ -553,6 +553,34 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
       return { success: false, error: `Template listing request failed: ${e?.message || e}` };
     }
 
+    // ── ROUND 21 (visitor_pass): Meta's BULK listing can lag (or split) a
+    //    review verdict — the single-template GET by name is the
+    //    AUTHORITATIVE read (it is what carryTemplateOps' inspect uses; the
+    //    bulk listing also omits rejected_reason). Re-verify every REJECTED
+    //    row through it before the registry swap, so a template Meta has
+    //    actually approved (e.g. visitor_pass, reclassified MARKETING on
+    //    2026-11-26) stops showing as REJECTED and can be auto-mapped.
+    //    Bounded to the rejected rows only — normally zero extra calls.
+    try {
+      for (const template of templates) {
+        if (String(template.status).toUpperCase() !== "REJECTED") continue;
+        const verifyUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(template.name)}`;
+        const verifyRes = await fetch(verifyUrl, { headers });
+        const verifyRaw = await verifyRes.text();
+        let verifyData: any = null;
+        try { verifyData = verifyRaw ? JSON.parse(verifyRaw) : null; } catch { verifyData = null; }
+        const row = Array.isArray(verifyData?.data) && verifyData.data[0] ? verifyData.data[0] : verifyData;
+        if (row?.name && String(row.status || "").toUpperCase() === "APPROVED") {
+          const confirmed = normalizeTemplate(row);
+          if (confirmed) {
+            confirmed.metaId = confirmed.metaId || template.metaId;
+            Object.assign(template, confirmed);
+          }
+        }
+      }
+    } catch { /* the per-template re-verify is best-effort — the bulk
+                 listing's word stands if the GETs fail */ }
+
     // 4) Replace the firm's registry snapshot (upsert-style wholesale swap),
     //    write the connection snapshot (real phone, WABA), and auto-map any
     //    message type that still has no mapping.

@@ -336,6 +336,37 @@ describe("buildOutcomePlan", () => {
     expect(detected?.label).toContain("16 Mar");
   });
 
+  it("ROUND 21: a purpose-only draft (empty dateISO) records the note and nothing else", () => {
+    const matter = makeMatter({ id: "m-own", title: "Okoro v. Eze" });
+    const plan = buildOutcomePlan(
+      draft({ nextDate: { dateISO: "", timeHHmm: null, purpose: "Mention" as const, source: "manual" as const } }),
+      { matter, events: [], viewerId: ALICE, viewerName: "Alice", eventTypeNames, nowISO: "2026-03-10T08:00:00.000Z" },
+    );
+    expect(plan.note.matterId).toBe("m-own");
+    expect(plan.event).toBeNull();
+    expect(plan.matterPatch).toBeNull();
+    expect(plan.skipReasons).toEqual(["date_not_set"]);
+  });
+
+  it("ROUND 21: purpose 'Other' coerces the diary event type from the custom text", () => {
+    const matter = makeMatter({ id: "m-own", title: "Okoro v. Eze" });
+    const plan = buildOutcomePlan(
+      draft({
+        nextDate: {
+          dateISO: "2026-03-16", timeHHmm: "09:30",
+          purpose: "Other" as const, purposeOther: "Pre-trial conference",
+          source: "manual" as const,
+        },
+      }),
+      {
+        matter, events: [], viewerId: ALICE, viewerName: "Alice",
+        eventTypeNames: ["Pre-trial conference", "Hearing"],
+        nowISO: "2026-03-10T08:00:00.000Z",
+      },
+    );
+    expect(plan.event?.type).toBe("Pre-trial conference");
+  });
+
   it("plans note + event + matter patch for an own matter with both toggles on", () => {
     const matter = makeMatter({ id: "m-own", title: "Okoro v. Eze" });
     const plan = buildOutcomePlan(draft(), planCtx(matter));
@@ -406,5 +437,45 @@ describe("courtDrafts persistence helpers", () => {
     expect(Object.keys(parsed)).toEqual(["m-1"]);
     expect(parsed["m-1"].text).toBe("Adjourned");
     expect(serializeDrafts({})).toBe("{}");
+  });
+});
+
+describe("ROUND 21 — Court Mode draft persistence (courtDrafts)", () => {
+  it("keeps a draft that carries ONLY a next date (picked before any text)", () => {
+    const now = Date.now();
+    const stored = serializeDrafts({
+      "m-1": {
+        text: "",
+        noteType: "endorsement",
+        nextDate: { dateISO: "2026-12-15", timeHHmm: null, purpose: "Mention", source: "manual" },
+        updatedAt: now,
+      },
+    });
+    const parsed = parseDrafts(stored, now);
+    expect(parsed["m-1"]?.nextDate?.dateISO).toBe("2026-12-15");
+    expect(parsed["m-1"]?.nextDate?.purpose).toBe("Mention");
+  });
+
+  it("keeps an empty-dateISO next date (the purpose chosen before the date)", () => {
+    const now = Date.now();
+    const stored = serializeDrafts({
+      "m-1": {
+        text: "Adjourned",
+        noteType: "endorsement",
+        nextDate: { dateISO: "", timeHHmm: null, purpose: "Other", purposeOther: "Pre-trial conference", source: "manual" },
+        updatedAt: now,
+      },
+    });
+    const parsed = parseDrafts(stored, now);
+    expect(parsed["m-1"]?.nextDate?.dateISO).toBe("");
+    expect(parsed["m-1"]?.nextDate?.purposeOther).toBe("Pre-trial conference");
+  });
+
+  it("still drops a fully empty draft", () => {
+    const now = Date.now();
+    const stored = serializeDrafts({
+      "m-1": { text: "", noteType: "endorsement", nextDate: null, updatedAt: now },
+    });
+    expect(parseDrafts(stored, now)["m-1"]).toBeUndefined();
   });
 });

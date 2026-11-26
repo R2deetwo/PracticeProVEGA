@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-25T13:45:03.883Z",
+  "generatedAt": "2026-11-26T17:19:21.313Z",
   "totals": {
-    "button": 1605,
+    "button": 1604,
     "input": 403,
     "select": 139,
     "textarea": 58
   },
-  "total": 2205,
+  "total": 2204,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -537,7 +537,7 @@
       "select": 1
     },
     "src/components/forms/MatterForm.tsx": {
-      "button": 20,
+      "button": 19,
       "input": 16,
       "select": 7
     },

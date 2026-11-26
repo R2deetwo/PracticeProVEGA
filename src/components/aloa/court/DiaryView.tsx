@@ -8,9 +8,10 @@
 import React from "react";
 import { CalendarDays, Scale, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, EmptyState, Input, SkeletonList } from "../../ui";
-import type { CourtDiary, CourtMatter, DiaryEntry, DiaryScope } from "../courtModeUtils";
+import type { CourtDiary, DiaryEntry, DiaryScope } from "../courtModeUtils";
 import { dayLabelOf } from "./format";
 import { SegmentedToggle } from "./SegmentedToggle";
+import { DiaryMatterCard } from "./DiaryMatterCard";
 
 interface DiaryViewProps {
   diary: CourtDiary;
@@ -24,6 +25,10 @@ interface DiaryViewProps {
   isDataLoaded: boolean;
   hasAnyCourtMatters: boolean;
   viewerId: string;
+  /** Round 21: counsel names for the collapsed cards (id → name). */
+  userNames: Record<string, string>;
+  /** Round 21: documents per matter for the collapsed cards. */
+  documentCountByMatter: Record<string, number>;
   headingRef: React.RefObject<HTMLHeadingElement>;
 }
 
@@ -67,33 +72,8 @@ const DiaryRow: React.FC<{
   );
 };
 
-/** A matter without a tappable date: title / suit · court (+ Colleague badge). */
-const MatterCard: React.FC<{
-  courtMatter: CourtMatter;
-  showColleagueBadge: boolean;
-  onOpen: (matterId: string) => void;
-}> = ({ courtMatter, showColleagueBadge, onOpen }) => {
-  const matter = courtMatter.matter;
-  return (
-    <Button
-      variant="outline"
-      size="md"
-      type="button"
-      minTouchTarget
-      fullWidth
-      onClick={() => onOpen(matter.id)}
-      className={DIARY_ROW_CLASSES}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block line-clamp-2 break-words text-sm font-bold leading-snug">{matter.title}</span>
-        <span className="block truncate text-xs font-medium text-subtle">
-          {[matter.suitNumber, matter.court].filter(Boolean).join(" · ")}
-        </span>
-      </span>
-      {showColleagueBadge ? <Badge tone="neutral">Colleague</Badge> : null}
-    </Button>
-  );
-};
+/** A matter without a tappable date — the collapsed summary card lives in
+ *  DiaryMatterCard (title, suit · court · division, counsel, doc count). */
 
 export const DiaryView: React.FC<DiaryViewProps> = ({
   diary,
@@ -107,6 +87,8 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
   isDataLoaded,
   hasAnyCourtMatters,
   viewerId,
+  userNames,
+  documentCountByMatter,
   headingRef,
 }) => {
   const hasResults = diary.groups.length > 0 || diary.needsNewDate.length > 0 || diary.noDate.length > 0;
@@ -160,6 +142,11 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
           value={scope}
           onChange={(value) => onScopeChange(value as DiaryScope)}
         />
+        {/* Round 21: the relationship made explicit — what you record lands
+            in the firm diary too. One place to write, two views to read. */}
+        <p className="-mt-1 text-2xs text-subtle">
+          What you record lands in the firm diary too — no double entry.
+        </p>
 
         <Input
           type="search"
@@ -210,10 +197,12 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
             </div>
             <div className="space-y-2">
               {diary.needsNewDate.map((courtMatter) => (
-                <MatterCard
+                <DiaryMatterCard
                   key={courtMatter.matter.id}
                   courtMatter={courtMatter}
                   showColleagueBadge={scope === "firm" && !courtMatter.matter.assignedUsers.includes(viewerId)}
+                  userNames={userNames}
+                  documentCountByMatter={documentCountByMatter}
                   onOpen={onOpenMatter}
                 />
               ))}
@@ -229,10 +218,12 @@ export const DiaryView: React.FC<DiaryViewProps> = ({
               </AccordionTrigger>
               <AccordionContent className="space-y-2">
                 {diary.noDate.map((courtMatter) => (
-                  <MatterCard
+                  <DiaryMatterCard
                     key={courtMatter.matter.id}
                     courtMatter={courtMatter}
                     showColleagueBadge={false}
+                    userNames={userNames}
+                    documentCountByMatter={documentCountByMatter}
                     onOpen={onOpenMatter}
                   />
                 ))}

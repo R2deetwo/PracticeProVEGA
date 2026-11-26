@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
     Matter, User, Contact, MatterType, BillingModel, MatterStatus,
     ContactType, CourtType, LitigationParty, ModalType, AppMode
@@ -62,12 +62,15 @@ const MATTER_TYPES = [
 // Legacy constant kept for recordActionUsed compatibility — display now comes from config
 const LITIGATION_ACTIONS = LITIGATION_PROCESS_OPTIONS.map(o => o.label);
 const COURTS = [
-    { value: CourtType.StateHighCourt,          label: 'State High Court' },
-    { value: CourtType.FederalHighCourt,        label: 'Federal High Court' },
-    { value: CourtType.NationalIndustrialCourt, label: 'National Industrial Court' },
-    { value: CourtType.MagistrateCourt,         label: 'Magistrate Court' },
-    { value: CourtType.CourtOfAppeal,           label: 'Court of Appeal' },
-    { value: CourtType.SupremeCourt,            label: 'Supreme Court' },
+    { value: CourtType.StateHighCourt,                        label: 'State High Court' },
+    // ROUND 21 (owner directive): the commercial / specialist divisions.
+    { value: CourtType.StateHighCourtCommercialDivision,      label: 'State High Court (Commercial Division)' },
+    { value: CourtType.FederalHighCourt,                      label: 'Federal High Court' },
+    { value: CourtType.FederalHighCourtCommercialDivision,    label: 'Federal High Court (Commercial Division)' },
+    { value: CourtType.NationalIndustrialCourt,               label: 'National Industrial Court' },
+    { value: CourtType.MagistrateCourt,                       label: 'Magistrate Court' },
+    { value: CourtType.CourtOfAppeal,                         label: 'Court of Appeal' },
+    { value: CourtType.SupremeCourt,                          label: 'Supreme Court' },
 ];
 
 const inp = 'w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-slate-900 dark:text-white placeholder-slate-400';
@@ -96,6 +99,7 @@ const AccordionSectionInner: React.FC<AccordionSectionProps> = ({ id, title, sub
     const headerRef = useRef<HTMLButtonElement>(null);
     return (
         <div
+            data-section-id={id}
             className={`rounded-lg border shadow-sm overflow-hidden ${isOpen ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700' : 'bg-slate-50/50 dark:bg-zinc-800/30 border-slate-100 dark:border-zinc-700/50'}`}
             // NOTE: Removed `style={{ willChange: 'height', contain: 'layout style' }}`
             // — CSS containment was unnecessary and can interfere with pointer events.
@@ -331,6 +335,23 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
         setStep(1);
     };
 
+    // ROUND 21 — workflow prefill (mount-once): a routed entry arrives with
+    // fields; the form opens pre-filled, past the type picker, at the
+    // deep-linked section — the user never re-enters what the workflow
+    // already knows.
+    useEffect(() => {
+        const c = workflowContext || undefined;
+        if (!c) return;
+        const fields = (c.fields && typeof c.fields === 'object') ? c.fields : c;
+        if (typeof fields.title === 'string' && fields.title) setTitle(fields.title);
+        if (typeof fields.clientId === 'string' && fields.clientId) setClientId(fields.clientId);
+        if (typeof fields.suitNumber === 'string' && fields.suitNumber) setSuitNumber(fields.suitNumber);
+        if (typeof fields.court === 'string' && fields.court) setCourt(fields.court);
+        const knownType = MATTER_TYPES.find((m) => m.type === fields.matterType);
+        if (knownType) { setMatterType(knownType.type); setStep(1); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const autoTitle = useMemo(() => {
         if (matterType === MatterType.RealEstate) {
             const address = propertyAddress.split(',')[0].trim();
@@ -349,9 +370,47 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
         } catch { return defendant ? `${claimant} v ${defendant}` : claimant; }
     }, [matterType, propertyAddress, isNewClient, newClientName, clientId, contacts, isLitigation, claimant, defendant, activeProcessConfig]);
 
+    // ─── ROUND 21 — Deep-Linked Accordion Routing ─────────────────────
+    // Any workflow that opens this modal can name the section it wants:
+    //   openModal('newMatter', null, { focusSection: 'court' })
+    // Aliases (court/parties → the litigation process section; basics → the
+    // title section) map onto the modal's own section ids, and the opened
+    // section is scrolled into view + focused after mount.
+    // A workflow context that carries court fields (court / suitNumber — e.g.
+    // the jurisdiction scenarios, ALOA's matter-creation flow) is a
+    // court-section entry too, and its fields are prefilled on mount.
+    const workflowContext = (initialContext as Record<string, any> | null | undefined) || undefined;
+    const carriedCourtFields = Boolean(
+        workflowContext && (workflowContext.court || workflowContext.suitNumber || workflowContext.focusSection === 'court' || workflowContext.focusSection === 'parties')
+    );
+    const focusSection: string | undefined = workflowContext?.focusSection ||
+        (carriedCourtFields ? 'court' : undefined);
+    const SECTION_ALIASES: Record<string, string> = {
+        court: 'process', parties: 'process', process: 'process',
+        basics: 'title', title: 'title',
+        client: 'client', billing: 'billing', team: 'assignedTeam', assignedTeam: 'assignedTeam',
+        drafting: 'drafting', property: 'property', corporate: 'corporate',
+    };
+    const focusTarget = focusSection ? (SECTION_ALIASES[focusSection] || null) : null;
+    const focusTargetRef = useRef<string | null>(focusTarget);
+    focusTargetRef.current = focusTarget;
+    useEffect(() => {
+        if (step !== 1 || !focusTargetRef.current) return;
+        const target = focusTargetRef.current;
+        const timer = window.setTimeout(() => {
+            const element = document.querySelector(`[data-section-id="${target}"]`);
+            if (!element) return;
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const header = element.querySelector('button[type="button"]') as HTMLElement | null;
+            header?.focus({ preventScroll: true });
+        }, 150);
+        return () => window.clearTimeout(timer);
+    }, [step, matterType]);
+
     // ─── Accordion State ──────────────────────────────────────────────
     // Contextual auto-expansion: when entering step 1, open the section that
-    // is most relevant for the chosen matter type.
+    // is most relevant for the chosen matter type — UNLESS a deep-linked
+    // focusSection overrides it (Round 21).
     //   - Litigation → process (the dynamic intake fields)
     //   - Real Estate → property
     //   - Corporate → corporate
@@ -370,7 +429,11 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             assignedTeam: false,
             drafting: false,
         };
-        if (isLitigation) {
+        if (focusTarget) {
+            // Deep-linked entry: the named section wins over the contextual
+            // default, so the user lands exactly where the workflow sent them.
+            initial[focusTarget] = true;
+        } else if (isLitigation) {
             initial.process = true;
         } else if (matterType === MatterType.RealEstate) {
             initial.property = true;
@@ -380,7 +443,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             initial.title = true;
         }
         setOpenSections(initial);
-    }, [step, matterType, isLitigation]);
+    }, [step, matterType, isLitigation, focusTarget]);
 
     const toggleSection = useCallback((id: string) => {
         setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));

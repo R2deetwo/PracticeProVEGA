@@ -19,9 +19,12 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const isValidNextDate = (value: unknown): value is NonNullable<StoredCourtDraft["nextDate"]> => {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Record<string, unknown>;
-  if (typeof candidate.dateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(candidate.dateISO)) return false;
+  // ROUND 21: an EMPTY dateISO is valid — the purpose/time can be chosen
+  // before the date itself (the draft survives without text).
+  if (typeof candidate.dateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$|^$/.test(candidate.dateISO)) return false;
   if (candidate.timeHHmm !== null && typeof candidate.timeHHmm !== "string") return false;
   if (typeof candidate.purpose !== "string") return false;
+  if (candidate.purposeOther !== undefined && typeof candidate.purposeOther !== "string") return false;
   if (candidate.source !== "detected" && candidate.source !== "manual") return false;
   return true;
 };
@@ -60,11 +63,15 @@ export function parseDrafts(raw: string | null, nowMs: number): Record<string, S
   return out;
 }
 
-/** Serialize the drafts record back to JSON. Never throws. */
+/** Serialize the drafts record back to JSON. Never throws.
+ * Round 21: a draft with neither text nor a dated next date is dropped —
+ * the same rule the hook's setDraft applies, so a stale empty row can never
+ * survive a round-trip. */
 export function serializeDrafts(drafts: Record<string, StoredCourtDraft>): string {
   const clean: Record<string, StoredCourtDraft> = {};
   for (const [key, value] of Object.entries(drafts)) {
     if (!isValidDraft(value)) continue;
+    if (!value.text.trim() && !value.nextDate?.dateISO) continue;
     clean[key] = value;
   }
   try {
