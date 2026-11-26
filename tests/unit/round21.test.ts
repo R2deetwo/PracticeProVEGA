@@ -171,7 +171,9 @@ describe('Round 21 — WhatsApp template sync (visitor_pass)', () => {
     const sync = read('convex/whatsappTemplates.ts');
     expect(sync).toContain('ROUND 21 (visitor_pass, part 2)');
     expect(sync).toContain('const listed = new Set(templates.map((t) => t.name.toLowerCase()));');
-    expect(sync).toContain('if (recovered) templates.push(recovered);');
+    expect(sync).toContain('templates.push(recovered);');
+    expect(sync).toContain('recoveredNames.push(recovered.name);');
+    expect(sync).toContain('recoveryNotes.push(`${known}: HTTP ${recoverRes.status},');
   });
 
   it('the template-ops workflow exposes inspect / resubmit / resync / state', () => {
