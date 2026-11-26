@@ -81,7 +81,9 @@ jobs:
           print(json.dumps([n.strip() for n in sys.argv[1].split(',') if n.strip()]))
           " "${{ inputs.names }}")
           fi
-          ARGS=$(jq -n \
+          # -c: compact single-line JSON — $GITHUB_OUTPUT only accepts
+          # single-line key=value entries.
+          ARGS=$(jq -c -n \
             --arg set "${{ inputs.set }}" \
             --argjson names "$NAMES_JSON" \
             --arg ver "${{ inputs.api_version }}" \
