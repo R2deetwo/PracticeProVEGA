@@ -581,6 +581,33 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
     } catch { /* the per-template re-verify is best-effort — the bulk
                  listing's word stands if the GETs fail */ }
 
+    // ── ROUND 21 (visitor_pass, part 2): Meta's bulk listing can also
+    //    OMIT a reclassified template outright — the live account's listing
+    //    stopped returning visitor_pass the moment Meta re-filed it
+    //    MARKETING/APPROVED (the by-name GET still returns it, and Meta
+    //    sends with it fine). A registry swap would then DROP the template
+    //    and every firm would lose its mapping. Recover every KNOWN name
+    //    (our template defs) that the listing omitted, via the authoritative
+    //    by-name GET, before the swap.
+    try {
+      const knownNames = new Set<string>([
+        ...VEGA_TEMPLATE_DEFS.map((d) => d.name),
+        ...GAP_TEMPLATE_DEFS.map((d) => d.name),
+      ]);
+      const listed = new Set(templates.map((t) => t.name.toLowerCase()));
+      for (const known of knownNames) {
+        if (listed.has(known.toLowerCase())) continue;
+        const recoverUrl = `${CHAKRA_BASE}/plugin/whatsapp/api/${WA_VER}/${wabaId}/message_templates?name=${encodeURIComponent(known)}`;
+        const recoverRes = await fetch(recoverUrl, { headers });
+        const recoverRaw = await recoverRes.text();
+        let recoverData: any = null;
+        try { recoverData = recoverRaw ? JSON.parse(recoverRaw) : null; } catch { recoverData = null; }
+        const row = Array.isArray(recoverData?.data) && recoverData.data[0] ? recoverData.data[0] : recoverData;
+        const recovered = row?.name ? normalizeTemplate(row) : null;
+        if (recovered) templates.push(recovered);
+      }
+    } catch { /* recovery is best-effort — the listing's word stands */ }
+
     // 4) Replace the firm's registry snapshot (upsert-style wholesale swap),
     //    write the connection snapshot (real phone, WABA), and auto-map any
     //    message type that still has no mapping.

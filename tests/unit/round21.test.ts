@@ -167,6 +167,13 @@ describe('Round 21 — WhatsApp template sync (visitor_pass)', () => {
     expect(sync).toContain('Object.assign(template, confirmed);');
   });
 
+  it('the sync RECOVERS known template names the bulk listing omitted (the reclassified-template hole)', () => {
+    const sync = read('convex/whatsappTemplates.ts');
+    expect(sync).toContain('ROUND 21 (visitor_pass, part 2)');
+    expect(sync).toContain('const listed = new Set(templates.map((t) => t.name.toLowerCase()));');
+    expect(sync).toContain('if (recovered) templates.push(recovered);');
+  });
+
   it('the template-ops workflow exposes inspect / resubmit / resync / state', () => {
     const wf = read('.github/workflows/whatsapp-template-ops.yml');
     expect(wf).toContain('internal.whatsappTemplates.createVegaTemplates');
