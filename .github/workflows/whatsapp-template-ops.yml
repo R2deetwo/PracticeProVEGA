@@ -1,0 +1,128 @@
+name: WhatsApp Template Ops
+
+# ROUND 21 (2026-11-26, owner directive): "Inspect the exact Meta/Chakra
+# rejection reason and payload for visitor_pass … fix any formatting,
+# variable placement, or sample-value issues triggering Meta's UTILITY
+# rejection, resubmit/re-sync visitor_pass, and confirm template mappings
+# stay aligned once approved."
+#
+# Runs the INTERNAL whatsappTemplates action family on production with the
+# deploy key — the same trust shape as whatsapp-live-test.yml. Nothing here
+# is client-invocable; the Chakra token never leaves the Convex environment.
+#
+# Modes:
+#   inspect    — per-template GET by name (includes Meta's rejected_reason).
+#               Read-only; the diagnostic surface for review verdicts.
+#   resubmit   — run createVegaTemplates for the selected set/names. The
+#               action UPDATES rejected templates in place (Meta resubmits
+#               the edited body for review) and creates missing ones.
+#   state      — dumpWhatsAppState: template statuses + per-firm mappings.
+#
+# Usage (GitHub UI → Actions → WhatsApp Template Ops → Run workflow):
+#   mode: inspect | resubmit | state
+#   set:  vega | gaps | all   (gaps = the five 2026-11-24 gap templates,
+#                              incl. visitor_pass)
+#   names: optional comma-separated subset, e.g. "visitor_pass"
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'inspect (read rejection reasons) | resubmit (update rejected in place) | state (statuses + mappings)'
+        required: true
+        default: 'inspect'
+      set:
+        description: 'Which template set: vega | gaps | all'
+        required: false
+        default: 'gaps'
+      names:
+        description: 'Optional comma-separated template names, e.g. visitor_pass'
+        required: false
+        default: ''
+      api_version:
+        description: 'Graph API version for the gateway calls (default v24.0)'
+        required: false
+        default: 'v24.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whatsapp-template-ops
+  cancel-in-progress: false
+
+jobs:
+  template-ops:
+    name: WhatsApp template ops (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build args
+        id: args
+        run: |
+          NAMES_JSON='[]'
+          if [ -n "${{ inputs.names }}" ]; then
+            NAMES_JSON=$(python3 -c "
+          import json,sys
+          print(json.dumps([n.strip() for n in sys.argv[1].split(',') if n.strip()]))
+          " "${{ inputs.names }}")
+          fi
+          ARGS=$(jq -n \
+            --arg set "${{ inputs.set }}" \
+            --argjson names "$NAMES_JSON" \
+            --arg ver "${{ inputs.api_version }}" \
+            '{set: $set, names: $names, apiVersion: $ver}')
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+
+      - name: inspect — per-template statuses + rejection reasons
+        if: ${{ inputs.mode == 'inspect' }}
+        run: |
+          ARGS='${{ steps.args.outputs.args }}'
+          echo "npx convex run internal.whatsappTemplates.createVegaTemplates --prod $ARGS.inspect"
+          npx convex run internal.whatsappTemplates.createVegaTemplates --prod "$(echo "$ARGS" | jq '. + {inspect: true}')" 2>&1 | tee template-inspect.log
+
+      - name: resubmit — update rejected templates in place
+        if: ${{ inputs.mode == 'resubmit' }}
+        run: |
+          ARGS='${{ steps.args.outputs.args }}'
+          echo "npx convex run internal.whatsappTemplates.createVegaTemplates --prod $ARGS"
+          npx convex run internal.whatsappTemplates.createVegaTemplates --prod "$ARGS" 2>&1 | tee template-resubmit.log
+
+      - name: state — template statuses + per-firm mappings
+        if: ${{ inputs.mode == 'state' }}
+        run: |
+          npx convex run internal.whatsappDiagnostics.dumpWhatsAppState --prod '{}' 2>&1 | tee template-state.log
+
+      - name: Verdict (job summary)
+        run: |
+          {
+            echo "## WhatsApp Template Ops — ${{ inputs.mode }}"
+            echo '```'
+            cat template-inspect.log template-resubmit.log template-state.log 2>/dev/null | tail -60 || echo "(no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: whatsapp-template-ops
+          path: |
+            template-inspect.log
+            template-resubmit.log
+            template-state.log
+          retention-days: 30
+          if-no-files-found: ignore
