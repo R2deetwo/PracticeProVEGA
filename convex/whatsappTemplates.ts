@@ -1211,11 +1211,16 @@ export const GAP_TEMPLATE_DEFS: VegaTemplateDef[] = [
     // "to {{2}}" (not "for {{2}}") on purpose: the generic /\bfor {{n}}/
     // inference pattern pins that slot as the ADDRESS — the estate name
     // is the visit destination, not a unit address.
+    // ROUND 21 resubmission rework: Meta REJECTED the first cut and then
+    // removed it from the account listing. The likely trigger: the word
+    // "code" — Meta treats code-bearing bodies as AUTHENTICATION material,
+    // and AUTHENTICATION bodies cannot carry five variables. Everything
+    // is now a "pass number" — same product semantics, no code trap.
     bodyText:
       "Hello {{1}},\n\n" +
       "This is your visitor pass to {{2}}.\n\n" +
-      "Visitor code: {{3}}\nVisit date: {{4}}\nValid until: {{5}}\n\n" +
-      "Please show this code at the estate gate. Thank you.",
+      "Pass number: {{3}}\nVisit date: {{4}}\nValid until: {{5}}\n\n" +
+      "Please show this pass at the estate gate. Thank you.",
     exampleVars: ["Tunde Adeyemi", "Chevron Estate, Lekki", "VG-4821", "15 December 2026", "Mon 15 Dec, 6:00 PM"],
   },
   {
