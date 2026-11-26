@@ -614,10 +614,13 @@ async function syncTemplatesInner(ctx: any, firmId: string) {
         try { recoverData = recoverRaw ? JSON.parse(recoverRaw) : null; } catch { recoverData = null; }
         const row = Array.isArray(recoverData?.data) && recoverData.data[0] ? recoverData.data[0] : recoverData;
         const recovered = row?.name ? normalizeTemplate(row) : null;
-        // Full-visibility diagnostics (bounded to the first 5): what the
-        // by-name GET returned for every attempted name.
+        // Bounded ops diagnostics: what the by-name GET returned. NOTE: the
+        // by-name GET does NOT filter by name (it returns the first template
+        // on the account), so `recovered` only fires when that first row
+        // happens to be the requested name — this path is kept for the
+        // listing-omission case but is NOT a per-template read.
         if (recoveryNotes.length < 5) {
-          recoveryNotes.push(`${known}: HTTP ${recoverRes.status}, row=${String(row?.name ?? "none")}/${String(row?.status ?? "?")}, raw=${recoverRaw.slice(0, 100)}`);
+          recoveryNotes.push(`${known}: HTTP ${recoverRes.status}, row=${String(row?.name ?? "none")}/${String(row?.status ?? "?")}`);
         }
         if (recovered) {
           templates.push(recovered);
