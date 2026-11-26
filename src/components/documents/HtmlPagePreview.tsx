@@ -144,9 +144,10 @@ const paginate = (rawHtml: string): string[] => {
 const PageSheet: React.FC<{
     html: string;
     zoomPercent: number;
+    selectable?: boolean;
     pageLabel?: string;
     totalPages?: number;
-}> = ({ html, zoomPercent, pageLabel, totalPages }) => {
+}> = ({ html, zoomPercent, selectable, pageLabel, totalPages }) => {
     const scale = zoomPercent / 100;
     // A4 dimensions in mm
     const widthMm = 210 * scale;
@@ -169,7 +170,7 @@ const PageSheet: React.FC<{
                 }}
             >
                 <div
-                    className="html-page-sheet"
+                    className={`html-page-sheet${selectable ? ' selectable' : ''}`}
                     dangerouslySetInnerHTML={{
                         __html: sanitize(html) || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>',
                     }}
@@ -363,6 +364,8 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
             ) {
                 return;
             }
+            const isArrowKey = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.key);
+            if (isFullScreen && isArrowKey && (e.shiftKey || window.getSelection()?.toString())) return;
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 e.preventDefault();
                 nextPage();
@@ -384,7 +387,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
             } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
                 e.preventDefault();
                 zoomReset();
-            } else if (e.key === 'f' || e.key === 'F') {
+            } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
                 setShowThumbnails(v => !v);
             } else if (e.key === 'r' || e.key === 'R') {
@@ -570,7 +573,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         </svg>
                     </div>
                     <div className="min-w-0">
-                        <p className={`text-xs font-bold truncate ${isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'}`}>
+                        <p className={`text-xs font-bold whitespace-normal break-words ${isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'}`}>
                             {title || 'Document'}
                         </p>
                     </div>
@@ -742,6 +745,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                                     <PageSheet
                                         html={pageHtml}
                                         zoomPercent={Math.round(actualScale * 100)}
+                                        selectable={isFullScreen}
                                         pageLabel={String(idx + 1)}
                                         totalPages={pageCount}
                                     />
@@ -761,6 +765,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                             <PageSheet
                                 html={pages[safeCurrentPage] || ''}
                                 zoomPercent={Math.round(actualScale * 100)}
+                                selectable={isFullScreen}
                                 pageLabel={String(safeCurrentPage + 1)}
                                 totalPages={pageCount}
                             />
@@ -842,7 +847,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 }`}
             >
                 <p className={`text-3xs ${isDark ? 'text-zinc-500' : 'text-slate-400 dark:text-zinc-500'}`}>
-                    ← → navigate • Ctrl +/− zoom • Ctrl 0 fit • F thumbnails • R reading • ESC exit
+                    ← → navigate • Ctrl +/− zoom • {isFullScreen ? 'Ctrl/Cmd+F find • continuous for all pages • ' : ''}Ctrl 0 fit • F thumbnails • R reading • ESC exit
                 </p>
             </div>
         </div>

@@ -65,7 +65,10 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const pageWrapperRef = useRef<HTMLDivElement | null>(null);
+    const textLayerRef = useRef<HTMLDivElement | null>(null);
     const currentRenderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+    const currentTextLayerRef = useRef<pdfjsLib.TextLayer | null>(null);
     const renderIdRef = useRef(0);
     // Actual rendered scale on the canvas — read by zoom in/out buttons so
     // they always operate on the live value rather than the stale `percent`.
@@ -128,6 +131,8 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                     /* noop */
                 }
             }
+            currentTextLayerRef.current?.cancel();
+            currentTextLayerRef.current = null;
         };
     }, [fileUrl]);
 
@@ -169,6 +174,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 }
                 currentRenderTaskRef.current = null;
             }
+            currentTextLayerRef.current?.cancel();
+            currentTextLayerRef.current = null;
+            textLayerRef.current?.replaceChildren();
 
             try {
                 const page = await pdfDoc.getPage(pageNum);
@@ -176,7 +184,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
 
                 const container = containerRef.current;
                 const canvas = canvasRef.current;
-                if (!container || !canvas) return;
+                const pageWrapper = pageWrapperRef.current;
+                const textLayerDiv = textLayerRef.current;
+                if (!container || !canvas || !pageWrapper) return;
 
                 const scale = computeScale(page);
                 const viewport = page.getViewport({ scale });
@@ -187,6 +197,8 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 canvas.height = Math.floor(viewport.height * dpr);
                 canvas.style.width = `${Math.floor(viewport.width)}px`;
                 canvas.style.height = `${Math.floor(viewport.height)}px`;
+                pageWrapper.style.width = canvas.style.width;
+                pageWrapper.style.height = canvas.style.height;
 
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return;
@@ -199,7 +211,21 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 });
                 currentRenderTaskRef.current = renderTask;
 
-                await renderTask.promise;
+                const textLayerPromise = isFullScreen && textLayerDiv
+                    ? page.getTextContent().then((textContent) => {
+                        if (myRenderId !== renderIdRef.current) return;
+                        textLayerDiv.style.setProperty('--total-scale-factor', String(scale));
+                        const textLayer = new pdfjsLib.TextLayer({
+                            textContentSource: textContent,
+                            container: textLayerDiv,
+                            viewport,
+                        });
+                        currentTextLayerRef.current = textLayer;
+                        return textLayer.render();
+                    })
+                    : Promise.resolve();
+
+                await Promise.all([renderTask.promise, textLayerPromise]);
                 if (myRenderId !== renderIdRef.current) return; // superseded
 
                 actualScaleRef.current = scale;
@@ -211,7 +237,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 console.error('[PdfViewer] renderPage failed:', e);
             }
         },
-        [pdfDoc, computeScale]
+        [pdfDoc, computeScale, isFullScreen]
     );
 
     // ─── Render the current page whenever inputs change ───────────────
@@ -342,6 +368,8 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             ) {
                 return;
             }
+            const isArrowKey = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(e.key);
+            if (isFullScreen && isArrowKey && (e.shiftKey || window.getSelection()?.toString())) return;
 
             if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
                 e.preventDefault();
@@ -364,7 +392,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
                 e.preventDefault();
                 zoomReset();
-            } else if (e.key === 'f' || e.key === 'F') {
+            } else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
                 e.preventDefault();
                 setShowThumbnails(v => !v);
             } else if (e.key === 'r' || e.key === 'R') {
@@ -426,6 +454,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             touchStartRef.current = null;
             touchStateRef.current = null;
             if (!start || viewMode === 'continuous') return;
+            if (isFullScreen && window.getSelection()?.toString()) return;
             // Single-finger swipe that ended quickly
             if (e.changedTouches.length === 1) {
                 const dx = e.changedTouches[0].clientX - start.x;
@@ -437,7 +466,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 }
             }
         },
-        [nextPage, prevPage, viewMode]
+        [nextPage, prevPage, viewMode, isFullScreen]
     );
 
     // ─── Print + download ─────────────────────────────────────────────
@@ -496,7 +525,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                     </div>
                     <div className="min-w-0">
                         <p
-                            className={`text-xs font-bold truncate ${
+                            className={`text-xs font-bold whitespace-normal break-words ${
                                 isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'
                             }`}
                         >
@@ -688,7 +717,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                                     pageNum={pageNum}
                                     zoom={zoom}
                                     container={containerRef.current}
-                                    isDark={isDark}
+                                    enableTextSelection={!!isFullScreen}
                                     onRefChange={(el) => {
                                         pageRefs.current[pageNum] = el;
                                     }}
@@ -709,10 +738,15 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         }`}
                     >
                         <div className="min-h-full w-full flex items-center justify-center p-4">
-                            <canvas
-                                ref={canvasRef}
-                                className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700"
-                            />
+                            <div
+                                ref={pageWrapperRef}
+                                className="relative flex-shrink-0 bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-slate-300 dark:ring-zinc-700"
+                            >
+                                <canvas ref={canvasRef} className="block" />
+                                {isFullScreen && (
+                                    <div ref={textLayerRef} className="pdfjs-text-layer selectable" />
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -752,7 +786,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 }`}
             >
                 <p className={`text-3xs ${isDark ? 'text-zinc-500' : 'text-slate-400 dark:text-zinc-500'}`}>
-                    ← → navigate • Ctrl +/− zoom • Ctrl 0 fit • F thumbnails • R reading • ESC exit
+                    ← → navigate • Ctrl +/− zoom • {isFullScreen ? 'Ctrl/Cmd+F find • continuous for all pages • ' : ''}Ctrl 0 fit • F thumbnails • R reading • ESC exit
                 </p>
             </div>
         </div>
@@ -766,13 +800,16 @@ const PdfPageCanvas: React.FC<{
     pageNum: number;
     zoom: ZoomState;
     container: HTMLDivElement | null;
-    isDark: boolean;
+    enableTextSelection: boolean;
     onRefChange: (el: HTMLDivElement | null) => void;
     onVisible: (pageNum: number) => void;
-}> = ({ pdfDoc, pageNum, zoom, container, onRefChange, onVisible }) => {
+}> = ({ pdfDoc, pageNum, zoom, container, enableTextSelection, onRefChange, onVisible }) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
+    const pageWrapperRef = useRef<HTMLDivElement | null>(null);
+    const textLayerRef = useRef<HTMLDivElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+    const textLayerInstanceRef = useRef<pdfjsLib.TextLayer | null>(null);
     const renderIdRef = useRef(0);
 
     const computeScale = useCallback(
@@ -800,7 +837,9 @@ const PdfPageCanvas: React.FC<{
                 const page = await pdfDoc.getPage(pageNum);
                 if (!mounted || myRenderId !== renderIdRef.current) return;
                 const canvas = canvasRef.current;
-                if (!canvas) return;
+                const pageWrapper = pageWrapperRef.current;
+                const textLayerDiv = textLayerRef.current;
+                if (!canvas || !pageWrapper) return;
 
                 if (renderTaskRef.current) {
                     try {
@@ -809,6 +848,9 @@ const PdfPageCanvas: React.FC<{
                         /* noop */
                     }
                 }
+                textLayerInstanceRef.current?.cancel();
+                textLayerInstanceRef.current = null;
+                textLayerDiv?.replaceChildren();
 
                 const scale = computeScale(page);
                 const viewport = page.getViewport({ scale });
@@ -818,6 +860,8 @@ const PdfPageCanvas: React.FC<{
                 canvas.height = Math.floor(viewport.height * dpr);
                 canvas.style.width = `${Math.floor(viewport.width)}px`;
                 canvas.style.height = `${Math.floor(viewport.height)}px`;
+                pageWrapper.style.width = canvas.style.width;
+                pageWrapper.style.height = canvas.style.height;
 
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return;
@@ -825,7 +869,20 @@ const PdfPageCanvas: React.FC<{
 
                 const task = page.render({ canvas: ctx.canvas, canvasContext: ctx, viewport });
                 renderTaskRef.current = task;
-                await task.promise;
+                const textLayerPromise = enableTextSelection && textLayerDiv
+                    ? page.getTextContent().then((textContent) => {
+                        if (!mounted || myRenderId !== renderIdRef.current) return;
+                        textLayerDiv.style.setProperty('--total-scale-factor', String(scale));
+                        const textLayer = new pdfjsLib.TextLayer({
+                            textContentSource: textContent,
+                            container: textLayerDiv,
+                            viewport,
+                        });
+                        textLayerInstanceRef.current = textLayer;
+                        return textLayer.render();
+                    })
+                    : Promise.resolve();
+                await Promise.all([task.promise, textLayerPromise]);
             } catch (e: any) {
                 if (e?.name === 'RenderingCancelledException') return;
                 if (myRenderId !== renderIdRef.current) return;
@@ -844,8 +901,9 @@ const PdfPageCanvas: React.FC<{
                     /* noop */
                 }
             }
+            textLayerInstanceRef.current?.cancel();
         };
-    }, [pdfDoc, pageNum, computeScale]);
+    }, [pdfDoc, pageNum, computeScale, enableTextSelection]);
 
     // Observe visibility to update the current page indicator
     useEffect(() => {
@@ -873,10 +931,15 @@ const PdfPageCanvas: React.FC<{
             }}
             className="flex-shrink-0 relative"
         >
-            <canvas
-                ref={canvasRef}
-                className="bg-white dark:bg-zinc-900 shadow-2xl border border-slate-300 dark:border-zinc-700"
-            />
+            <div
+                ref={pageWrapperRef}
+                className="relative bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-slate-300 dark:ring-zinc-700"
+            >
+                <canvas ref={canvasRef} className="block" />
+                {enableTextSelection && (
+                    <div ref={textLayerRef} className="pdfjs-text-layer selectable" />
+                )}
+            </div>
             <div className="absolute bottom-2 right-2 text-2xs font-bold text-slate-600 bg-white/80 px-2 py-0.5 rounded">
                 {pageNum}
             </div>

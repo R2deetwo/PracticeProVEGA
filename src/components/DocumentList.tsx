@@ -111,16 +111,16 @@ const DocumentRow: React.FC<{
                     </div>
                     <div className="min-w-0 flex-1 overflow-hidden">
                         <Tooltip text={doc.title}>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white whitespace-normal break-words">{doc.title}</p>
                         </Tooltip>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
                             <span>{formatDateSafe(doc.dateFiled)}</span>
                             {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                             {doc.isCourtProcess && (
-                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
-                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
-                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
-                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
+                                <span className={`inline-flex max-w-full whitespace-normal break-words px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' :
+                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' :
+                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800' :
+                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
                                     }`}>
                                     {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
                                         doc.litigationStatus === 'served' ? 'Served' :
