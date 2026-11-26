@@ -994,6 +994,14 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             keysToRemove.forEach(k => localStorage.removeItem(k));
         } catch { /* Non-critical */ }
 
+        // Round 19: clear Court Mode drafts + diary scope the same way —
+        // endorsements a lawyer drafted in court must never leak to the
+        // next user of a shared device (keys are user-scoped, purge all).
+        try {
+            const courtKeys = Object.keys(sessionStorage).filter(k => k.startsWith('courtmode:v1:'));
+            courtKeys.forEach(k => sessionStorage.removeItem(k));
+        } catch { /* Non-critical */ }
+
         // Clear the demo product flag so it doesn't persist into the next session
         sessionStorage.removeItem('practicepro_demo_product');
 

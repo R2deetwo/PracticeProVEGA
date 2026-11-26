@@ -18,7 +18,7 @@ import { stampVoxUsedAt } from '../../utils/voxUsageTracking';
 
 import { Z_CLASS } from '../../overlays/constants';
 const AloaPanel: React.FC = () => {
-    const { isPanelOpen, closePanel, panelInitialMode } = useAloa();
+    const { isPanelOpen, closePanel, panelInitialMode, panelInitialMatterId } = useAloa();
     const { dockedModalType } = useUI();
     const { light } = useHapticFeedback();
 
@@ -102,6 +102,7 @@ const AloaPanel: React.FC = () => {
                             <AloaCourtMode
                                 onBackToChat={() => setMode('chat')}
                                 onClose={() => handleClose()}
+                                initialMatterId={panelInitialMatterId ?? undefined}
                             />
                         </ErrorBoundary>
                     ) : mode === 'capture' ? (

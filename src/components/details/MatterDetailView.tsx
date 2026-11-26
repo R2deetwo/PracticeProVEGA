@@ -36,6 +36,11 @@ import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../ui/Skeleton';
 import { useHighlight } from '../../hooks/useHighlight';
 import { resolveContactById } from '../../utils/resolveContact';
+// Round 19 — the header Court Mode entry point reuses the diary's own
+// qualifier (same predicate as getCourtModeMatters) so the button and the
+// diary agree on what counts as a court matter.
+import { getCourtModeMatters } from '../aloa/courtModeUtils';
+import { useProduct } from '../../contexts/ProductContext';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number; 'data-tour-id'?: string }> = ({ label, isActive, onClick, badgeCount, ...rest }) => (
     <button
@@ -69,7 +74,7 @@ type MatterTab = 'notes' | 'schedule_tasks' | 'billing' | 'documents';
 
 const MatterDetailViewContent: React.FC = () => {
     const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
-    const { openWithContext } = useAloa();
+    const { openWithContext, openPanel } = useAloa();
 
     // DEEP AUDIT FIX: Wire useHighlight so the "New Event" button gets a pulse
     // ring when the user clicks "Add a court date" in the Getting Started checklist.
@@ -399,6 +404,14 @@ const MatterDetailViewContent: React.FC = () => {
         try { return new Date(matterData.createdAt || matterData.stageLastUpdated || '').toLocaleDateString('en-GB'); } catch (e) { return 'Invalid Date'; }
     }, [matterData?.createdAt, matterData?.stageLastUpdated]);
 
+    // Round 19 — Court Mode entry: the same qualifier the Court Mode diary
+    // uses (getCourtModeMatters on this single matter), shown for Vega only.
+    const qualifiesForCourtMode = useMemo(
+        () => Boolean(matterData) && getCourtModeMatters([matterData as Matter], events).length > 0,
+        [matterData, events]
+    );
+    const { isProperty } = useProduct();
+
     // All hooks have now been called; safe to execute early returns.
     if (isOnDemandLoading && !hasTimedOut) {
         return <MattersSkeleton />;
@@ -469,6 +482,25 @@ const MatterDetailViewContent: React.FC = () => {
                             >
                                 <ScalesIcon className="w-4 h-4" />
                             </button>
+
+                            {/* Round 19 — Court Mode: the diary/endorsement view
+                                for this matter (Vega only, qualifying matters). */}
+                            {!isProperty && qualifiesForCourtMode && (
+                                <Button
+                                    variant="ghost"
+                                    size="md"
+                                    iconOnly
+                                    icon={ScalesIcon}
+                                    type="button"
+                                    title="Open in Court Mode"
+                                    aria-label="Open in Court Mode"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (matterData) openPanel('court', { matterId: matterData.id });
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex items-center"
+                                />
+                            )}
 
                             {/* ⋮ More menu */}
                             <div className="relative">

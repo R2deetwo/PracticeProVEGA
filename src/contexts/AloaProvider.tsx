@@ -15,21 +15,33 @@ export type AloaView = 'chat' | 'quickNote' | 'details' | 'form';
  * The panel's top-level mode (owner addendum 2026-11-18: "House Quick
  * Capture inside the ALOA section"): 'chat' is the main ALOA assistant;
  * 'capture' renders the Quick Capture voice interface in the same panel —
- * one unified home for voice, dictation and AI workflows.
+ * one unified home for voice, dictation and AI workflows. 'court' renders
+ * the ALOA Court Mode diary (Round 19 — Vega litigation only).
  */
-export type AloaPanelMode = 'chat' | 'capture';
+export type AloaPanelMode = 'chat' | 'capture' | 'court';
+
+/** Extra panel-open options. matterId is the Court Mode deep-link target
+ *  (the MatterDetailView / EventDetailModal entry points). */
+export interface AloaPanelOpenOptions {
+    matterId?: string;
+}
 
 interface AloaContextType {
     // Standardized naming for visibility
     isPanelOpen: boolean;
     togglePanel: () => void;
     closePanel: () => void;
-    /** Opens the ALOA panel, optionally straight into Quick Capture mode
-     *  (the Header mic button and the Dashboard card use this). */
-    openPanel: (mode?: AloaPanelMode) => void;
+    /** Opens the ALOA panel, optionally straight into Quick Capture or
+     *  Court Mode (the Header mic button, the Dashboard card, and the
+     *  MatterDetailView/EventDetailModal Court Mode buttons use this).
+     *  opts.matterId deep-links Court Mode to a specific matter briefing. */
+    openPanel: (mode?: AloaPanelMode, opts?: AloaPanelOpenOptions) => void;
     /** The mode the panel should start in the next time it opens.
      *  AloaPanel consumes this on open and manages switching afterwards. */
     panelInitialMode: AloaPanelMode;
+    /** The matter the panel should open Court Mode on (consumed on open;
+     *  null means land on the diary). */
+    panelInitialMatterId: string | null;
 
     messages: AloaMessage[];
     setMessages: React.Dispatch<React.SetStateAction<AloaMessage[]>>;
@@ -91,8 +103,10 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const { appState } = useDataState();
     // Renamed from isAloaVisible to isPanelOpen to match component expectations
     const [isPanelOpen, setIsPanelOpen] = React.useState(false);
-    // Which top-level mode ('chat' | 'capture') the panel opens in.
+    // Which top-level mode ('chat' | 'capture' | 'court') the panel opens in.
     const [panelInitialMode, setPanelInitialMode] = React.useState<AloaPanelMode>('chat');
+    // Court Mode deep-link target (Round 19) — consumed on panel open.
+    const [panelInitialMatterId, setPanelInitialMatterId] = React.useState<string | null>(null);
     const [messages, setMessages] = React.useState<AloaMessage[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [urgencyStatus, setUrgencyStatus] = React.useState<UrgencyStatus>('none');
@@ -204,9 +218,12 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setIsPanelOpen(false);
     }, []);
 
-    const openPanel = React.useCallback((mode?: AloaPanelMode) => {
+    const openPanel = React.useCallback((mode?: AloaPanelMode, opts?: AloaPanelOpenOptions) => {
         if (mode) setPanelInitialMode(mode);
         else setPanelInitialMode('chat');
+        // The deep-link target only applies to a Court Mode open; any other
+        // open lands on the diary.
+        setPanelInitialMatterId(mode === 'court' ? (opts?.matterId ?? null) : null);
         setIsPanelOpen(true);
     }, []);
 
@@ -300,6 +317,7 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         closePanel,
         openPanel,
         panelInitialMode,
+        panelInitialMatterId,
         messages,
         setMessages,
         isLoading,

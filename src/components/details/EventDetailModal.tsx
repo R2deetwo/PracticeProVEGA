@@ -4,6 +4,11 @@ import { CalendarEvent, CustomEventType, Matter, User } from '../../types';
 import { getEventTypeBadgeClass, getInitials, getUserColor } from '../../utils/colorUtils';
 import { PlusIcon, CalendarIcon, ClockIcon, WarningIcon } from '../../constants';
 import { Button } from '../ui';
+// Round 19 — Court Mode entry point (court-type events on a matter).
+import { isCourtCalendarEvent } from '../aloa/courtModeUtils';
+import { useAloa } from '../../contexts/AloaProvider';
+import { useProduct } from '../../contexts/ProductContext';
+import { ScalesIcon } from '../../constants';
 
 interface EventDetailModalProps {
   event: CalendarEvent;
@@ -74,6 +79,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
   const eventTypeColor = getColorForEventType(event.type);
   const isCourtEvent = event.type === 'Court Hearing' || event.type === 'Mention';
+  // Round 19 — open this matter in ALOA Court Mode (Vega only, court-type
+  // events that belong to a matter).
+  const { openPanel } = useAloa();
+  const { isProperty } = useProduct();
+  const canOpenCourtMode = !isProperty && Boolean(event.matterId) && isCourtCalendarEvent(event);
   
   const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
   const startTime = safeFormatTime(event.date, timeOptions);
@@ -238,6 +248,18 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                 <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
             )}
             <div className="flex flex-1 justify-end items-center gap-2 w-full sm:w-auto">
+                {canOpenCourtMode && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        type="button"
+                        icon={ScalesIcon}
+                        onClick={() => openPanel('court', { matterId: event.matterId as string })}
+                        className="whitespace-nowrap"
+                    >
+                        Open in Court Mode
+                    </Button>
+                )}
                 {event.date && openedFrom !== 'calendar' && onNavigateToCalendar && (
                     <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
                         View in Calendar
