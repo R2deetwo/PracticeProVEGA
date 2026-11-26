@@ -16,6 +16,9 @@ name: WhatsApp Template Ops
 #   resubmit   — run createVegaTemplates for the selected set/names. The
 #               action UPDATES rejected templates in place (Meta resubmits
 #               the edited body for review) and creates missing ones.
+#   resync     — syncAllFirms: re-run the daily registry sync + auto-map
+#               (Round 21: used when Meta approves a template AFTER the
+#               morning cron, e.g. visitor_pass on 2026-11-26).
 #   state      — dumpWhatsAppState: template statuses + per-firm mappings.
 #
 # Usage (GitHub UI → Actions → WhatsApp Template Ops → Run workflow):
@@ -28,7 +31,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'inspect (read rejection reasons) | resubmit (update rejected in place) | state (statuses + mappings)'
+        description: 'inspect (read rejection reasons) | resubmit (update rejected in place) | resync (registry + auto-map, all firms) | state (statuses + mappings)'
         required: true
         default: 'inspect'
       set:
@@ -104,6 +107,11 @@ jobs:
           echo "npx convex run internal.whatsappTemplates.createVegaTemplates --prod $ARGS"
           npx convex run internal.whatsappTemplates.createVegaTemplates --prod "$ARGS" 2>&1 | tee template-resubmit.log
 
+      - name: resync — registry sync + auto-map for every firm
+        if: ${{ inputs.mode == 'resync' }}
+        run: |
+          npx convex run internal.whatsappTemplates.syncAllFirms --prod '{}' 2>&1 | tee template-resync.log
+
       - name: state — template statuses + per-firm mappings
         if: ${{ inputs.mode == 'state' }}
         run: |
@@ -114,7 +122,7 @@ jobs:
           {
             echo "## WhatsApp Template Ops — ${{ inputs.mode }}"
             echo '```'
-            cat template-inspect.log template-resubmit.log template-state.log 2>/dev/null | tail -60 || echo "(no log)"
+            cat template-inspect.log template-resubmit.log template-resync.log template-state.log 2>/dev/null | tail -60 || echo "(no log)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -125,6 +133,7 @@ jobs:
           path: |
             template-inspect.log
             template-resubmit.log
+            template-resync.log
             template-state.log
           retention-days: 30
           if-no-files-found: ignore
