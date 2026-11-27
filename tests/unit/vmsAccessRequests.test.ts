@@ -267,10 +267,10 @@ describe('submitVmsAccessRequest — the lightweight qualification form', () => 
     expect(firm.vmsRequest.planLabel).toBe('Atrium');
 
     // Founder in-app alert (notifyFounders → role 'Founder' users).
-    const founderAlert = tables.notifications.find((n) => n.type === 'vms_access_request');
+    const founderAlert = tables.notifications.find((n) => n.type === 'vms_access_request')!;
     expect(founderAlert).toBeTruthy();
-    expect(founderAlert.message).toContain('Atrium Estates Ltd');
-    expect(founderAlert.message).toContain('Lekki Gardens Phase 2');
+    expect(founderAlert!.message).toContain('Atrium Estates Ltd');
+    expect(founderAlert!.message).toContain('Lekki Gardens Phase 2');
     // Founder email scheduled (fire-and-forget via the scheduler).
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
   });
@@ -361,9 +361,9 @@ describe('decideVmsAccessRequest — founder Approve / Decline', () => {
     expect(firm.vmsRequest.decisionNote).toBe('Welcome aboard');
 
     // The workspace's admins are notified (in-app row).
-    const notify = tables.notifications.find((n) => n.type === 'vms_access_approved');
+    const notify = tables.notifications.find((n) => n.type === 'vms_access_approved')!;
     expect(notify).toBeTruthy();
-    expect(notify.userId).toBe(ATRIUM_ADMIN._id);
+    expect(notify!.userId).toBe(ATRIUM_ADMIN._id);
   });
 
   it('ALLOWS the founder to DECLINE: capability stays locked, admins notified', async () => {
@@ -382,9 +382,9 @@ describe('decideVmsAccessRequest — founder Approve / Decline', () => {
     const firm = tables.firms[0];
     expect(firm.vmsEnabled).toBeUndefined(); // still locked
     expect(firm.vmsRequestStatus).toBe('declined');
-    const notify = tables.notifications.find((n) => n.type === 'vms_access_declined');
+    const notify = tables.notifications.find((n) => n.type === 'vms_access_declined')!;
     expect(notify).toBeTruthy();
-    expect(String(notify.message)).toContain('not approved');
+    expect(String(notify!.message)).toContain('not approved');
   });
 
   it('REJECTS deciding a workspace with no pending request', async () => {
