@@ -34,22 +34,23 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Local/CI runs can point at a pre-installed Chromium (the audit
-        // scripts' binary — PLAYWRIGHT_CHROMIUM_PATH) instead of downloading
-        // the registry build, and the fake media stream grants the mic the
-        // Vox takes need without a real device.
-        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
-          ? {
-              launchOptions: {
-                executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH,
-                args: [
-                  '--use-fake-device-for-media-stream',
-                  '--use-fake-ui-for-media-stream',
-                  '--autoplay-policy=no-user-gesture-required',
-                ],
-              },
-            }
-          : {}),
+        // The fake media stream grants the mic the Vox takes need without a
+        // real device — ALWAYS on, not just for the audit binary. The Round
+        // 24 busy-guard spec records real takes; on plain registry Chromium
+        // (the e2e-smoke CI path) getUserMedia used to reject, the recorder
+        // never started and the tests hung to their 120s timeouts.
+        // Local runs can still point at a pre-installed Chromium (the audit
+        // scripts' binary — PLAYWRIGHT_CHROMIUM_PATH).
+        launchOptions: {
+          ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+            ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+            : {}),
+          args: [
+            '--use-fake-device-for-media-stream',
+            '--use-fake-ui-for-media-stream',
+            '--autoplay-policy=no-user-gesture-required',
+          ],
+        },
       },
     },
   ],

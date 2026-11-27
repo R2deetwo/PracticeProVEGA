@@ -21,6 +21,18 @@ const PANEL = 'div[role="dialog"][aria-label="ALOA"]';
 const KEEP_RECORDING = 'button:has-text("Keep recording")';
 const STOP_AND_CLOSE = 'button:has-text("Stop and close")';
 
+// DEV-GATED SUITE (its own header note): the demo-bypass boot below
+// (practicepro_user_session with the demo token) only exists on the local
+// Vite dev server — on production the session is never accepted, the app
+// never boots into an app-skin, and the spec can only time out. Same
+// self-skipping contract as the staging specs: run against
+// http://localhost:PORT (PUBLIC_BASE_URL), skip on any deployed URL.
+const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.STAGING_URL || 'https://practice-pro-vega.vercel.app';
+test.skip(
+  !/localhost|127\.0\.0\.1/.test(BASE_URL),
+  'demo bypass is dev-gated — run against the local Vite dev server (PUBLIC_BASE_URL=http://localhost:PORT)',
+);
+
 async function bootDemo(page: import('@playwright/test').Page) {
   await page.goto('/?boot=prep', { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.evaluate(() => {
