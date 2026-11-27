@@ -458,13 +458,19 @@ export async function editSelection(args: {
 /**
  * Tidy a dictated case endorsement — filler out, structure in, facts frozen
  * exactly as dictated (see ENDORSEMENT_FORMAT_SYSTEM_PROMPT). Powers the
- * endorsement composer's manual Format button and the auto-format that runs
- * when Aloa Vox dictation stops (TeamDiscussionTab). One shot, no storage.
+ * endorsement composer's manual Format button, the auto-format that runs
+ * when Aloa Vox dictation stops (TeamDiscussionTab), and since ROUND 25 the
+ * Court Mode dictation cleanup pass — ONE shared intelligence layer. The
+ * optional `context` adapts the output structure to the surface
+ * ("court_hearing" | "client_consultation" | "process_drafting" |
+ * "general_note"). One shot, no storage.
  */
 export async function formatEndorsement(args: {
   endorsementText: string;
   matterTitle?: string;
   matterSuitNumber?: string;
+  /** ROUND 25 (FEATURE 6): capture context for the shared engine. */
+  context?: string;
 }): Promise<{ formatted: string }> {
   return convex.action(api.voiceCapture.formatEndorsement, {
     ...args,

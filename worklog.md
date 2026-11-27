@@ -20257,3 +20257,122 @@ existed at cutover — the strict gate starts clean), then the real run
 completed (idempotent no-op, as designed). Final state: production healthy
 on `57efdaa7` (APK 1.0.924), Convex production enforcing the capability
 gate, admin VMS Access queue live in the founder app.
+
+## Round 28 — ALOA Vox & Court Mode intelligence overhaul (2026-11-28)
+
+Task ID: 82 (ALOA Vox & Court Mode voice intelligence) · Agent: GLM 5.4 ·
+Owner spec: "Prompt for App Builder: ALOA Vox & Court Mode Intelligence
+Overhaul" (2026-11-28) — BUG 1–4 + FEATURE 5–6.
+
+**BUG 1 — `NEXT DATE` rendered `undefined NaN undefined NaN · overdue`.**
+Root cause: the briefing's "Set next date" flow passes a synthetic hearing
+with `date: ""`, and `formatDayKeyLong("")` formatted an Invalid Date
+(`undefined NaN undefined NaN`) while `relativeDayLabel` NaN-compared into
+"overdue" — plus `dayKeyOf` returned `value.slice(0, 10)` garbage
+("Invalid Da") for unparseable values. Fixed at the presentation layer with
+ONE strict resolver: `format.ts` gains `isValidDayKey` (YYYY-MM-DD shape +
+real-calendar check — "2026-13-45" fails), `safeDayKeyOf` (null for
+missing/malformed), a hardened `dayKeyOf` ("" not garbage), NaN-safe
+`relativeDayLabel`, and `formatDayKeyFull` ("4 December 2026").
+NextDateCard now takes `hearing | null` and renders the clean empty state —
+"No next date set" with the subtle `action` affordance ("Set date"); the
+card can never print undefined/NaN. Clean edit & reset: NextDateEditor says
+"Set date" for a missing date, "Edit" otherwise; a matter-level (synthesized)
+next-adjourned date can be RESET via "Clear date" — saving empty clears
+`nextAdjournedDate`, the card drops to the empty state and the diary moves
+the matter to "Needs a new date" (a real diary event always keeps a date —
+moving it is the calendar's job). `onDateSet` reports every committed date
+so the diary calendar jumps (BUG 4). The local lenient `dayKeyOf` copies in
+NextDateCard/NextDateEditor/MatterBriefing are gone — one shared resolver.
+
+**BUG 2 — two-layer STT + LLM cleanup pipeline.** Layer 1 (source
+accuracy): a shared `LEGAL_STT_VOCABULARY_HINT` (counsel-not-council,
+hearing-of-motion-not-emotion, written address, notice of appeal, coram,
+suit numbers, adjourned, ruling, affidavit…) now biases BOTH Gemini
+transcription prompts (verbatim + diarizing) and the Whisper `prompt` param
+(used when no continuation tail carries it — the only biasing surface
+whisper-1 exposes; a dedicated legal STT model would tune further, flagged
+below). Layer 2 (cleanup before review/save): when a Court Mode dictation
+lands (capture → triage), `useCourtDictation` AUTO-RUNS the SHARED
+`formatEndorsement` engine (context "court_hearing") over the draft — legal
+homophone repair, stutter/false-start resolution ("the judge the judge" →
+"the judge"), crisp formal register — guarded so fresher manual edits always
+win (snapshot check, "skipped" state), with failure falling back to the
+verbatim words (never lost). Review workflow in the composer
+(DictationReviewPanel): status line ("Cleaning up dictation…" / failed /
+skipped), "Clean up with AI" re-run, and the RAW TRANSCRIPT kept in a
+disclosure beside the cleaned, editable draft; `rawTranscript` rides on the
+stored per-matter draft (validated + round-tripped) and the raw audio/words
+remain on the linked capture in Vox.
+
+**BUG 3 — standard courtroom endorsement sequence.** The shared
+ENDORSEMENT_FORMAT_SYSTEM_PROMPT gains the restructure rule: whatever order
+the facts were dictated in, the cleaned endorsement runs (i) Appearance /
+counsel, (ii) Proceedings, (iii) Ruling / orders & party directives,
+(iv) Next date & purpose — omitting stages never spoken, inventing nothing
+(every pinned no-invention guardrail from the earlier rounds is intact and
+re-pinned in courtCleanupPipeline.test.ts). Court Mode passes context
+"court_hearing" so the rule applies there; the prompt also now fixes the
+unambiguous legal homophones ("hearing of emotion" → "hearing of motion",
+"council" → "counsel" when it denotes a lawyer — a legislative council
+stays a council).
+
+**BUG 4 — dictated dates detected + diary auto-jump.** The date parser now
+understands SPOKEN ORDINAL WORDS — "the fourth of December 2026" (the
+owner's exact ignored sentence), "the twenty-first of March" — same handling
+as "4th of December", with non-ordinal words rejected (a "hearing of
+December 2026" is not a date). The detected banner is the explicit one-tap
+confirmation the spec asked for: "Detected next date: 4 December 2026 —
+[Set as next date] [Dismiss]" (long-form date, spoken time appended).
+Confirming (or picking a date in the NEXT DATE card / composer picker)
+reports the day up to AloaCourtMode's calendar focus, and the briefing's
+mini-calendar AUTO-JUMPS to that month and selects/highlights the day with
+its agenda — the lawyer immediately verifies what is on the diary that day.
+
+**FEATURE 5 — actionable structured extraction.** New pure engine
+`src/services/voice/courtroomExtraction.ts`: the owner's example passage
+yields the next date (shared detection engine — chip and banner can never
+disagree), party deadlines ("the defendants are to file their response" /
+"the court ordered the defendants to file…" / "counsel for the claimant shall
+serve…" / "we will file a written address" → "File a written address") and
+personal reminders ("remind me to prepare the written address" → "Prepare
+the written address"), with stated due dates attached (and the adjournment
+date itself never mistaken for a due date). The composer's "Detected actions"
+block (DetectedActionsList + useCourtroomActions) renders one-tap
+[Create task] / [Create reminder] rows that create real Tasks
+auto-associated with the active matter (due date when stated, reminders to
+the viewer, tasks to the matter's team), settling to "Created" — never
+stacking duplicates; server rejections re-arm the button.
+
+**FEATURE 6 — one shared intelligence layer, Court ↔ Vox sync.** The
+cleanup engine IS the shared layer: `formatEndorsement` now takes a
+`context` param ("court_hearing" | "client_consultation" |
+"process_drafting" | "general_note") adapting structure per surface — Court
+Mode, the Vox matter-timeline composer (TeamDiscussionTab) and future
+drafting all call the SAME engine + the same biased STT prompts. Cross-
+surface sync: when a DICTATED endorsement saves, AloaCourtMode links its
+capture row to the matter (guarded: only the capture actually recorded on
+that matter), so it appears in Vox → Recent voice notes TAGGED with the
+matter title and can be reopened there for further extraction (the triage
+analysis runs for quick captures regardless of output mode) or follow-up
+drafting, without re-recording.
+
+**Tests (all green):** `npx vitest run` 4,339 passed / 1 skipped (206
+files) — new: courtDateIntegrity (BUG 1 layer: strict resolver + empty
+state + reset + rawTranscript round-trip), courtroomExtraction (FEATURE 5:
+the owner's exact passage + directive variants + nothing-actionable cases),
+courtCleanupPipeline (BUG 2/3/4/6 prompt + source contracts); extended:
+endorsementDateParser (spoken ordinals), aloaCourtModeEntry (the four new
+court modules join COURT_FILES — under the 250-line and raw-element
+guards), courtModeInlineEdit (two pins updated with dated comments
+2026-11-28: the "Edit"/"Set date" conditional and the save-then-jump
+block). `npx tsc --noEmit` clean; `npx tsc --noEmit -p convex` clean;
+`npm run lint` 0 errors with BOTH ratchets held (raw-element total 2201 ==
+baseline); `npm run build` green (26.9s).
+
+**Flag for the owner (BUG 2 caveat):** the STT layer is now biased with the
+litigation vocabulary everywhere a prompt can reach, but the underlying
+whisper-1 model only loosely follows its `prompt` param — if homophone
+mis-hearings persist at the source, switching `TRANSCRIPTION_MODEL` to a
+prompt-following model (e.g. gpt-4o-transcribe) is an env change with no
+code work; the cleanup pass repairs the unambiguous cases either way.

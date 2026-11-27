@@ -33,6 +33,11 @@ const COURT_FILES = [
   'src/components/aloa/court/useCourtModeData.ts',
   'src/components/aloa/court/useCourtInlineEdit.ts',
   'src/components/aloa/court/useOutcomeSave.ts',
+  // ROUND 25 (ALOA Vox intelligence overhaul): the composer's new modules.
+  'src/components/aloa/court/ComposerNextDate.tsx',
+  'src/components/aloa/court/DetectedActionsList.tsx',
+  'src/components/aloa/court/DictationReviewPanel.tsx',
+  'src/components/aloa/court/useCourtroomActions.ts',
 ];
 
 describe('ALOA Court Mode — panel deep-link plumbing', () => {

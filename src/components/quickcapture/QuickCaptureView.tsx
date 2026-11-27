@@ -1490,6 +1490,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   const Icon = INTENT_ICON[r.triageIntent || "share"] || ClipboardIcon;
                   const confirming = confirmDeleteId === r.clientLocalId;
                   const deleting = deletingId === r.clientLocalId;
+                  // ROUND 25 (FEATURE 6 — Court ↔ Vox sync): a Court Mode
+                  // dictation that saved into a matter carries that matter's
+                  // tag on its row, so the lawyer reopens the right file
+                  // without re-recording.
+                  const linkedMatter = r.matterId
+                    ? matterState.matters?.find((m) => m.id === r.matterId || (m as { _id?: string })._id === r.matterId)
+                    : undefined;
                   return (
                     <div
                       key={r.captureId}
@@ -1512,6 +1519,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                             {/* §3.8 (Round 24): the row label is "Note" — the
                                 retired vocabulary never returns (pinned in
                                 tests/unit/aloaVoxCopy.test.ts). */}
+                            {linkedMatter ? (
+                              <span className="font-semibold text-primary-600 dark:text-primary-400">{linkedMatter.title}</span>
+                            ) : null}
+                            {linkedMatter ? " · " : ""}
                             {r.kind === "legalpad" ? "Legal Pad" : "Note"}
                             {r.status === "ready" ? "" : ` · ${r.status}`}
                             {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString()}` : ""}

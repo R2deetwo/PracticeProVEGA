@@ -429,11 +429,33 @@ export function parseModelJson<T = any>(text: string): T | null {
 
 // ─── Prompts (verbatim transcription / smart clean / triage / merge) ───────
 
+/**
+ * ROUND 25 (ALOA Vox intelligence overhaul, owner bug report 2026-11-28:
+ * "hearing of emotion" / "council" mis-hearings): the Nigerian litigation
+ * vocabulary the STT layer is biased with — one shared hint block for the
+ * Whisper `prompt` param (vocabulary biasing) and both Gemini transcription
+ * prompts. Domain terms captured accurately at the SOURCE reduce what the
+ * cleanup pass has to repair.
+ */
+export const LEGAL_STT_VOCABULARY_HINT = [
+  "Nigerian litigation vocabulary — transcribe these terms accurately:",
+  "counsel (a lawyer appearing in court — never 'council' unless a local-government or legislative council is clearly meant),",
+  "hearing of motion (never 'hearing of emotion'), motion on notice, motion ex parte,",
+  "written address / written addresses (never 'written addresses' for one),",
+  "notice of appeal, notice of preliminary objection, originating summons, originating motion,",
+  "adjourned / adjournment, ruling, judgment, coram (the judge, e.g. 'coram: Hon. Justice…'),",
+  "suit numbers exactly as spoken (e.g. FHC/L/CS/1234/2024, NICN/LA/45/2023, CA/L/123/2024, SC/234/2025),",
+  "mention, pre-trial conference, adoption of written addresses, holding brief, leading counsel,",
+  "affidavit, counter-affidavit, further affidavit, exhibit, locus standi, lis pendens,",
+  "claimant, defendant, respondent, appellant, applicant, petitioner.",
+].join(" ");
+
 export function buildVerbatimPrompt(continuationTail?: string): string {
   return [
     "You are a verbatim speech-to-text transcription engine for a Nigerian legal practice.",
     "Transcribe EXACTLY what is spoken — word for word. Do NOT clean up, summarise, punctuate beyond natural pauses, or remove fillers (um, uh, repetitions).",
     "Preserve Nigerian names (Chidi, Ngozi, Adebayo...), titles (Barrister, SAN, Hon. Justice), amounts in Naira, dates, case names, statute names, and Latin legal terms exactly as spoken.",
+    LEGAL_STT_VOCABULARY_HINT,
     "PRODUCT NAMES (vocabulary hints — spell them EXACTLY): the assistant is \"ALOA\" (never \"Alleva\", \"Aloha\", \"Alleluia\"), the voice-capture tool is \"Vox\" (never \"Fox\", \"Box\", \"Vocks\"), plus \"PracticePro\", \"DraftPro\", \"Atrium\", \"Vega\".",
     "If the speaker uses Nigerian Pidgin, transcribe the Pidgin phrasing — do not translate.",
     "Never add content that was not spoken. If a passage is unintelligible, write [inaudible].",
@@ -478,6 +500,7 @@ export function buildDiarizationTranscriptionPrompt(continuationTail?: string): 
     "You are a diarizing speech-to-text engine for a Nigerian legal practice: the audio may contain TWO OR MORE distinct voices (a lawyer and their client, opposing counsel, a witness, a judge).",
     "Split the audio into SPEAKER TURNS. Label each distinct voice with a short id: \"1\", \"2\", \"3\"… (local to THIS clip). Consecutive speech by the same voice is ONE turn.",
     "Transcribe each turn EXACTLY word for word — no cleaning, no summary, no fillers removed. Preserve Nigerian names, titles (Barrister, SAN, My Lord), amounts, dates and Pidgin phrasing exactly as spoken. Unintelligible passages: [inaudible].",
+    LEGAL_STT_VOCABULARY_HINT,
     "PRODUCT NAMES (vocabulary hints — spell them EXACTLY): the assistant is \"ALOA\" (never \"Alleva\", \"Aloha\"), the voice-capture tool is \"Vox\" (never \"Fox\", \"Box\"), plus \"PracticePro\", \"DraftPro\", \"Atrium\", \"Vega\".",
     "If the clip contains only ONE voice, return a single turn with speaker \"1\".",
     "Respond with STRICT JSON only, no markdown fences:",
@@ -1525,7 +1548,14 @@ export async function transcribeSegment(_ctx: any, opts: {
         wavBytes: opts.wavBytes,
         apiKey: openAiKey,
         model: (process.env.TRANSCRIPTION_MODEL || "whisper-1").trim(),
-        prompt: opts.continuationTail,
+        // ROUND 25 (owner bug report 2026-11-28): the prompt param is the
+        // ONLY biasing surface whisper-1 exposes. With no continuation tail
+        // to carry, bias it with the Nigerian litigation vocabulary so
+        // "counsel" / "hearing of motion" are captured at the source. (A
+        // dedicated legal STT model — e.g. gpt-4o-transcribe, which follows
+        // prompt instructions more closely — would tune this further;
+        // TRANSCRIPTION_MODEL is env-switchable without a code change.)
+        prompt: opts.continuationTail || LEGAL_STT_VOCABULARY_HINT,
       });
       return { text, provider: "openai-whisper" };
     } catch (err: any) {
@@ -3096,32 +3126,72 @@ export const draftVoiceEdit = action({
  * structure only. The matter context lines (title / suit number) are
  * REFERENCE-ONLY grounding so the model never "corrects" a name it half
  * heard — they are never a licence to add facts the lawyer did not say.
+ *
+ * ROUND 25 (ALOA Vox intelligence overhaul, owner bug report 2026-11-28):
+ * (a) LEGAL HOMOPHONE repair — the STT layer can still mis-hear domain
+ *     terms ("hearing of emotion" for "hearing of motion", "council" for
+ *     "counsel"), so the cleanup pass fixes the unambiguous litigation
+ *     mis-hearings; (b) STUTTER / false-start repair beyond single fillers
+ *     ("the judge the judge", "they said they were going to they were
+ *     opposed to"); (c) the STANDARD NIGERIAN COURTROOM ENDORSEMENT SEQUENCE
+ *     — regardless of the order dictated, the cleaned endorsement runs
+ *     Appearance/Counsel → Proceedings → Ruling/Orders & directives → Next
+ *     date & purpose, using only the dictated facts.
  */
 export const ENDORSEMENT_FORMAT_SYSTEM_PROMPT = `You tidy a Nigerian lawyer's spoken case endorsement (a note dictated into the matter timeline) so it reads as a clean professional entry — WITHOUT changing what was said.
 
 RULES:
 1. Remove filler and false starts ("erm", "okay so", "let me", repeated phrases, self-corrections where the final wording survives) and fix punctuation and capitalisation.
-2. Preserve the lawyer's voice: first-person, plain professional register.
-3. NEVER add anything the note does not say: no names, dates, amounts, courts, coram, case citations, suit numbers, legal conclusions, jurisdictions, participants or next steps that are not already in the dictated text. If the note mentions no date, no court and no amount, the formatted endorsement has none either.
-4. Keep every fact EXACTLY as dictated: names, dates, amounts (₦), suit numbers, statutes, Latin maxims, Nigerian legal terminology. Do not "correct", normalise or paraphrase them into something else.
-5. The MATTER CONTEXT (title / suit number), when supplied, is reference only — use it to avoid mangling a name or suit number it happens to contain; never copy anything from it into the endorsement.
-6. Structure only what was said: short paragraphs; "- " bullets only when the lawyer listed distinct items; a numbered list only when they enumerated steps in order.
-7. Nigerian English spellings (judgement, colour, learnt) are correct — never Americanise.
-8. Return ONLY the formatted endorsement text — no headings, no explanations, no quotes around it, no markdown fences.
-9. If the note is already clean, return it unchanged.`;
+2. Resolve stutters and immediate phrase repetitions: "my time and the judge the judge said" becomes "the judge said"; "they said they were going to they were opposed to" becomes "they said they were opposed to". Keep the final wording; discard the abandoned fragment entirely.
+3. Fix UNAMBIGUOUS legal-domain mis-hearings only: "hearing of emotion" → "hearing of motion"; "council" → "counsel" when it denotes a lawyer appearing in court (keep "council" when a legislative or local-government council is clearly meant); "Barister" → "Barrister". When a term is ambiguous, leave it exactly as dictated.
+4. Preserve the lawyer's voice: first-person, plain professional register.
+5. NEVER add anything the note does not say: no names, dates, amounts, courts, coram, case citations, suit numbers, legal conclusions, jurisdictions, participants or next steps that are not already in the dictated text. If the note mentions no date, no court and no amount, the formatted endorsement has none either.
+6. Keep every fact EXACTLY as dictated: names, dates, amounts (₦), suit numbers, statutes, Latin maxims, Nigerian legal terminology. Do not "correct", normalise or paraphrase them into something else.
+7. The MATTER CONTEXT (title / suit number), when supplied, is reference only — use it to avoid mangling a name or suit number it happens to contain; never copy anything from it into the endorsement.
+8. Structure only what was said: short paragraphs; "- " bullets only when the lawyer listed distinct items; a numbered list only when they enumerated steps in order.
+9. STANDARD COURTROOM ENDORSEMENT SEQUENCE: whatever order the facts were dictated in, present them in the standard Nigerian endorsement order — (i) Appearance / counsel (who appeared and for which party), (ii) Proceedings (the application or business before the court and the submissions made), (iii) Ruling / orders and party directives (what the court ruled or ordered, and what each party is to file or do), (iv) Next date and its purpose. Omit any stage the lawyer did not speak about; never invent a stage. Do not add headings the lawyer did not say — the surrounding file jacket carries its own.
+10. Nigerian English spellings (judgement, colour, learnt) are correct — never Americanise.
+11. Return ONLY the formatted endorsement text — no headings, no explanations, no quotes around it, no markdown fences.
+12. If the note is already clean, return it unchanged.`;
+
+/**
+ * ROUND 25 (FEATURE 6 — one shared intelligence layer across surfaces): the
+ * capture context that adapts the SAME cleanup engine's output structure.
+ * Court Mode passes "court_hearning" (full endorsement-sequence rule);
+ * conversation-style surfaces keep the dialogue structure; drafting surfaces
+ * keep the drafting register. Kept deliberately small — the no-invention
+ * guardrails above apply in EVERY context.
+ */
+const ENDORSEMENT_CONTEXT_NOTES: Record<string, string> = {
+  court_hearing:
+    "CONTEXT: this endorsement was dictated in COURT MODE, immediately after a hearing. Apply the STANDARD COURTROOM ENDORSEMENT SEQUENCE rule in full — Appearance/counsel first, then proceedings, then ruling/orders and party directives, then the next date and its purpose.",
+  client_consultation:
+    "CONTEXT: this note was dictated after a CLIENT CONSULTATION. Keep the consultation structure — issues discussed, client instructions, agreed next steps — in the order the lawyer gave them.",
+  process_drafting:
+    "CONTEXT: this text is dictation toward a COURT PROCESS draft. Keep the drafting register and the order the lawyer dictated; do not restructure into endorsement sequence.",
+  general_note:
+    "",
+};
 
 /**
  * formatEndorsement — the engine behind the endorsement composer's Format
- * button and the auto-format-on-dictation-stop (TeamDiscussionTab). One
- * shot: no storage row, no capture pipeline — the text in, the tidied
- * text out. Grounded by an optional matter title/suit number pair so a
- * half-heard name is not silently "corrected" into something else.
+ * button and the auto-format-on-dictation-stop (TeamDiscussionTab, and since
+ * ROUND 25 the Court Mode cleanup pass — ONE shared intelligence layer for
+ * every Vox surface). One shot: no storage row, no capture pipeline — the
+ * text in, the tidied text out. Grounded by an optional matter title/suit
+ * number pair so a half-heard name is not silently "corrected" into
+ * something else, with the optional `context` adapting the output structure
+ * (court hearing vs consultation vs process drafting vs general note).
  */
 export const formatEndorsement = action({
   args: {
     endorsementText: v.string(),
     matterTitle: v.optional(v.string()),
     matterSuitNumber: v.optional(v.string()),
+    /** ROUND 25 (FEATURE 6): the capture context — "court_hearing" |
+     *  "client_consultation" | "process_drafting" | "general_note". One
+     *  shared engine, structure adapted to the surface it serves. */
+    context: v.optional(v.string()),
     callerApiKey: v.optional(v.string()),
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -3146,11 +3216,15 @@ export const formatEndorsement = action({
         ? `MATTER CONTEXT (reference only — NEVER copy from it into the endorsement):\n` +
           `Title: ${matterTitle || "(not stated)"}\nSuit number: ${matterSuitNumber || "(not stated)"}\n\n`
         : "";
+    // ROUND 25 (FEATURE 6): the capture context adapts the shared engine's
+    // structure — Court Mode's cleanup passes "court_hearing".
+    const contextNote = ENDORSEMENT_CONTEXT_NOTES[args.context || "general_note"] ?? "";
 
     const out = await geminiText({
       apiKey: gemini.key,
       system: ENDORSEMENT_FORMAT_SYSTEM_PROMPT,
       user:
+        (contextNote ? `${contextNote}\n` : "") +
         matterContext +
         `DICTATED ENDORSEMENT (format THIS only):\n"""${endorsement}"""`,
       maxTokens: 2048,

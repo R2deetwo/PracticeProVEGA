@@ -17,8 +17,12 @@ describe('ROUND 22 — inline edits inside Court Mode (audit-trailed)', () => {
   it('both editors exist and stay behind a single visible Save press', () => {
     const endorsement = read('src/components/aloa/court/EndorsementEditor.tsx');
     const nextDate = read('src/components/aloa/court/NextDateEditor.tsx');
+    expect(endorsement).toMatch(/>\s*Edit\s*<\/Button>/);
+    // 2026-11-28 (owner direction, Round 25): the NEXT DATE affordance says
+    // "Edit" when a valid date exists and "Set date" for the clean empty
+    // state ("No next date set") — a single button either way.
+    expect(nextDate).toContain('{existingDayKey ? "Edit" : "Set date"}');
     for (const source of [endorsement, nextDate]) {
-      expect(source).toMatch(/>\s*Edit\s*<\/Button>/);
       expect(source).toMatch(/>\s*Save\s*<\/Button>/);
       expect(source).toMatch(/>\s*Cancel\s*<\/Button>/);
       expect(source).not.toMatch(/useEffect\(/); // a save is NEVER effect-driven
@@ -52,7 +56,11 @@ describe('ROUND 22 — inline edits inside Court Mode (audit-trailed)', () => {
     const endorsement = read('src/components/aloa/court/EndorsementEditor.tsx');
     const nextDate = read('src/components/aloa/court/NextDateEditor.tsx');
     expect(endorsement).toContain('if (saved) setEditing(false)');
-    expect(nextDate).toContain('if (saved) setEditing(false)');
+    // 2026-11-28 (owner direction, Round 25): the NEXT DATE save also reports
+    // the committed date so the diary calendar jumps to it — the editor still
+    // closes ONLY on a successful save.
+    expect(nextDate).toContain('if (saved) {');
+    expect(nextDate).toContain('setEditing(false);');
     const hook = read('src/components/aloa/court/useCourtInlineEdit.ts');
     expect(hook).toContain('return false');
   });

@@ -3,6 +3,12 @@
  * behind the matter endorsement composer (owner brief 2026-11-24). Locks the
  * parsing rules: Nigerian day-first numerics, month-forced flips, plain
  * English dates, relative words, time-of-day, and the title derivation.
+ *
+ * ROUND 25 (ALOA Vox intelligence overhaul, owner bug report 2026-11-28):
+ * SPOKEN ORDINAL WORDS — "the fourth of December 2026", "the twenty-first
+ * of March" — parse exactly like their digit forms, because dictated dates
+ * arrive as words ("The next matter is coming up on the fourth of December
+ * 2026" must surface the date, not be ignored).
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -92,6 +98,40 @@ describe('extractDatedMention', () => {
         const m = extractDatedMention('Old entry 12/03/77.', NOW);
         expect(m).not.toBeNull();
         expect(m!.date.getFullYear()).toBe(2077);
+    });
+
+    // ── ROUND 25: spoken ordinal words ───────────────────────────────
+
+    it('parses "the fourth of December 2026" (the owner\'s exact bug sentence)', () => {
+        const m = extractDatedMention(
+            'The next matter is coming up on the fourth of December 2026.',
+            NOW,
+        );
+        expect(m).not.toBeNull();
+        expect(m!.date.getFullYear()).toBe(2026);
+        expect(m!.date.getMonth()).toBe(11); // December
+        expect(m!.date.getDate()).toBe(4);
+    });
+
+    it('parses "the twenty-first of March 2027"', () => {
+        const m = extractDatedMention('Adjourned to the twenty-first of March 2027.', NOW);
+        expect(m).not.toBeNull();
+        expect(m!.date.getMonth()).toBe(2);
+        expect(m!.date.getDate()).toBe(21);
+        expect(m!.date.getFullYear()).toBe(2027);
+    });
+
+    it('parses an ordinal-word day+month without a year (next future occurrence)', () => {
+        const m = extractDatedMention('Coming up on the second of January.', NOW);
+        expect(m).not.toBeNull();
+        expect(m!.date.getFullYear()).toBe(2027);
+        expect(m!.date.getMonth()).toBe(0);
+        expect(m!.date.getDate()).toBe(2);
+    });
+
+    it('a non-ordinal word before a month is NOT a date', () => {
+        // "hearing of December 2026" — "hearing" is not a day; no date.
+        expect(extractDatedMention('We discussed the hearing of December 2026.', NOW)).toBeNull();
     });
 });
 

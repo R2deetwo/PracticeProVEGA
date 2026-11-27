@@ -4,6 +4,11 @@
  * Survives panel close/reopen and page reload; cleared on save success,
  * explicit discard, and sign-out. Text only — audio is NEVER stored.
  * Keys are matterIds; values are plain JSON-safe objects.
+ *
+ * ROUND 25 (ALOA Vox intelligence overhaul 2026-11-28): `rawTranscript`
+ * keeps the verbatim words the STT produced, set when the LLM cleanup pass
+ * runs — the review workflow shows Raw Transcript → Cleaned Draft, and the
+ * raw stays accessible alongside the endorsement until the draft clears.
  */
 import { OutcomeDraft } from "../courtModeUtils";
 
@@ -12,6 +17,9 @@ export interface StoredCourtDraft {
   noteType: "endorsement" | "user";
   nextDate: OutcomeDraft["nextDate"];
   updatedAt: number;
+  /** ROUND 25: the raw verbatim transcript behind `text` when an LLM cleanup
+   *  pass produced it (kept for review; dropped with the draft on save). */
+  rawTranscript?: string;
 }
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,6 +44,8 @@ const isValidDraft = (value: unknown): value is StoredCourtDraft => {
   if (candidate.noteType !== "endorsement" && candidate.noteType !== "user") return false;
   if (typeof candidate.updatedAt !== "number" || !Number.isFinite(candidate.updatedAt)) return false;
   if (candidate.nextDate !== null && !isValidNextDate(candidate.nextDate)) return false;
+  // ROUND 25: the optional raw transcript — a string when present.
+  if (candidate.rawTranscript !== undefined && typeof candidate.rawTranscript !== "string") return false;
   return true;
 };
 

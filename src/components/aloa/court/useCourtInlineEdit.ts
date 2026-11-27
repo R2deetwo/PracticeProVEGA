@@ -8,8 +8,11 @@
  *   saveNextDate — edits the upcoming matter date. A real diary event is
  *     moved via updateItem('events') (its original duration preserved);
  *     a synthesized next-adjourned date (no event yet) patches the matter
- *     itself; when the matter's nextAdjournedDate pointed at the moved
- *     hearing it is kept in step. Then the audit row.
+ *     itself — and, since ROUND 25 (owner bug report 2026-11-28), an EMPTY
+ *     date on a synthesized hearing RESETS the matter's next date (the
+ *     matter drops back to "Needs a new date" in the diary, cleanly). A
+ *     real diary event always keeps a date (cancel instead). Then the
+ *     audit row.
  *
  * Errors: updateItem already surfaces the server's verbatim rejection and
  * rolls back; the actions return false so the editor STAYS OPEN (nothing is
@@ -96,7 +99,7 @@ export function useCourtInlineEdit() {
       events: CalendarEvent[];
     }): Promise<boolean> => {
       const { matter, hearing, dateISO, timeHHmm, events } = args;
-      if (!dateISO || isSaving) return false;
+      if (isSaving) return false;
       // ROUND 23 (parity): a recurrence EXPANSION INSTANCE is a virtual
       // occurrence, not a stored row — patching it would move the whole
       // series' anchor. The recurring series is edited on the calendar.
@@ -104,12 +107,38 @@ export function useCourtInlineEdit() {
         addToast("That is a recurring diary item — edit the series on the calendar.", { type: "info" });
         return false;
       }
+      // ROUND 25 (owner bug report 2026-11-28): the clean RESET — a
+      // synthesized (matter-level) date saves EMPTY, clearing the matter's
+      // next-adjourned date so it drops back to "Needs a new date". A real
+      // diary event still requires a date (it is a scheduled sitting, not a
+      // flag — moving it to "" would corrupt the diary).
+      const isSynthesized = hearing.id.startsWith(SYNTHESIZED_HEARING_ID_PREFIX);
+      if (!dateISO && !isSynthesized) return false;
       setIsSaving(true);
       try {
-        if (hearing.id.startsWith(SYNTHESIZED_HEARING_ID_PREFIX)) {
-          // No diary event — the date lives on the matter itself.
+        if (isSynthesized) {
+          // No diary event — the date lives on the matter itself. "" clears
+          // it (getCourtHearings drops the synthesized hearing, so the card
+          // renders the "No next date set" empty state and the diary moves
+          // the matter to "Needs a new date" — the reset the owner asked
+          // for, updating the card and diary in one clean write).
           await updateItem("matters", { id: matter.id, nextAdjournedDate: dateISO }, "Matter next date");
+          logActivity(
+            dateISO ? "Updated the next court date" : "Cleared the next court date",
+            "Matter",
+            matter.id,
+            matter.title,
+            matter.id,
+          );
+          addToast(
+            dateISO
+              ? "Next date updated — logged to the firm activity trail."
+              : "Next date cleared — the matter needs a new date.",
+            { type: "success" },
+          );
+          return true;
         } else {
+          if (!dateISO) return false; // unreachable — guarded above
           const event = findEvent(events, hearing.id);
           if (!event) {
             addToast("That diary item is no longer available. Please reopen the matter.", { type: "error" });

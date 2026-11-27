@@ -5,7 +5,10 @@
  * the matter-scoped mini-calendar (Round 22: My diary | Firm diary dots), the
  * saved endorsement at the bottom (Round 22: directly editable inline with an
  * audit trail — EndorsementEditor), accordions, and the sticky Record outcome
- * dock. Empty fields are HIDDEN.
+ * dock. Empty fields are HIDDEN. ROUND 25: the shared strict date resolver
+ * (`safeDayKeyOf`) replaces the local lenient copy, and the mini-calendar
+ * gets a `calendarFocusDayKey` that jumps it to that month/date and selects
+ * it (the diary auto-jump for confirmed dictation dates).
  */
 import React, { useMemo, useState } from "react";
 import { Badge, Button, SectionErrorBoundary } from "../../ui";
@@ -14,7 +17,7 @@ import type { CourtMatter } from "../courtModeUtils";
 import { endorsementOrderMs, isCourtCalendarEvent, SYNTHESIZED_HEARING_ID_PREFIX } from "../courtModeUtils";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useUI } from "../../../contexts/UIContext";
-import { formatDayKeyLong, timeLabelOf } from "./format";
+import { formatDayKeyLong, safeDayKeyOf, timeLabelOf } from "./format";
 import { NextDateEditor } from "./NextDateEditor";
 import { EndorsementEditor } from "./EndorsementEditor";
 import { BriefingAccordions } from "./BriefingAccordions";
@@ -38,15 +41,12 @@ interface MatterBriefingProps {
   onViewAllNotes: () => void;
   onAddCourtDetails: () => void;
   onUseDate: (dateISO: string) => void;
+  /** ROUND 25: the diary calendar jumps to this month/date and selects it
+   *  (set when a dictated date is confirmed or a NEXT DATE edit commits). */
+  calendarFocusDayKey?: string | null;
+  /** ROUND 25: bubble a committed NEXT DATE edit up to the diary focus. */
+  onCalendarFocus?: (dayKey: string) => void;
 }
-
-const dayKeyOf = (dateISO: string): string => {
-  const dateOnly = dateISO.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-  if (dateOnly && !dateISO.includes("T")) return dateOnly;
-  const date = new Date(dateISO);
-  if (Number.isNaN(date.getTime())) return dateISO.slice(0, 10);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-};
 
 export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   matter,
@@ -66,10 +66,12 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   onViewAllNotes,
   onAddCourtDetails,
   onUseDate,
+  calendarFocusDayKey,
+  onCalendarFocus,
 }) => {
   const { addToast } = useUI();
-  // ROUND 23 (owner spec §5): "No next date recorded." opens the SAME inline
-  // editor directly — one press, no round-trip through Record outcome.
+  // ROUND 23: "No next date recorded." opens the SAME inline editor directly
+  // — one press, no round-trip through Record outcome.
   const [settingNextDate, setSettingNextDate] = useState(false);
 
   const handleCopySuit = async (suitNumber: string) => {
@@ -94,12 +96,9 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   const courtLine = [matter.court, matter.judicialDivision, matter.courtRoom].filter(Boolean).join(" · ");
 
   // Round 21 — the mini-calendar's clash surface: every visible court-type
-  // diary event, so a tap reveals what a date collides with. Round 22 adds
-  // attendeeIds so the My diary | Firm diary toggle can filter the dots.
-  // ROUND 23 (parity): THIS matter's own diary items show too (even a
-  // non-court-typed one — a filing deadline on the matter is a real date the
-  // main calendar dots), so the date picker never disagrees with the main
-  // calendar about this matter's own dates.
+  // diary event (Round 22 adds attendeeIds for the My|Firm dot filter).
+  // ROUND 23 (parity): THIS matter's own diary items show too, so the date
+  // picker never disagrees with the main calendar about its own dates.
   const calendarEntries = useMemo(
     () =>
       events
@@ -176,6 +175,7 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
               userNames={userNames}
               today={today}
               captureBusy={captureBusy}
+              onDateSet={onCalendarFocus}
             />
           ) : (
             /* ROUND 23 (owner spec §5): setting the next date is one direct
@@ -201,7 +201,7 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
               </p>
               {courtMatter.upcomingHearings.slice(1).map((hearing) => (
                 <p key={hearing.id} className="flex items-baseline gap-2 text-sm">
-                  <span className="font-semibold">{formatDayKeyLong(dayKeyOf(hearing.date))}</span>
+                  <span className="font-semibold">{formatDayKeyLong(safeDayKeyOf(hearing.date) ?? "")}</span>
                   {timeLabelOf(hearing.date) ? <span className="text-body">{timeLabelOf(hearing.date)}</span> : null}
                 </p>
               ))}
@@ -217,6 +217,7 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
             onUseDate={onUseDate}
             captureBusy={captureBusy}
             viewerId={viewerId}
+            focusDayKey={calendarFocusDayKey}
           />
         </SectionErrorBoundary>
 

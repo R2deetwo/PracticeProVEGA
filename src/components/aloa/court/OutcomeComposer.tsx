@@ -3,18 +3,31 @@
  * type or dictate the endorsement, detect the next date from the text
  * (debounced 500ms; never overwriting a manual date), factual risk chips,
  * the toggles and the single Save press (useOutcomeSave.ts).
- * ROUND 23 (owner spec): the redundant `Endorsement | Note` split toggle is
- * GONE — the drawer records a clean ENDORSEMENT directly (the jacket), with
- * the endorsement text and the adjourned/next date directly editable.
+ * ROUND 23: the `Endorsement | Note` split toggle is GONE — the drawer
+ * records a clean ENDORSEMENT directly (the jacket), with the endorsement
+ * text and the adjourned/next date directly editable.
+ * ROUND 25 (ALOA Vox intelligence overhaul, owner bug report 2026-11-28):
+ * REVIEW WORKFLOW — Raw Transcript → Cleaned Draft (editable) → Save (the
+ * LLM cleanup pass status + the raw transcript render in
+ * DictationReviewPanel; "Clean up with AI" re-runs on demand); ACTIONABLE
+ * EXTRACTION — one-tap items auto-associated with the active matter
+ * (DetectedActionsList + useCourtroomActions), the detected NEXT DATE
+ * surfacing through the one-tap banner (ComposerNextDate); DIARY JUMP — a
+ * confirmed/picked date reports up via `onNextDateFocused` so the Court
+ * Mode diary calendar switches to that month/date and selects it.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { Button, SectionErrorBoundary, Textarea } from "../../ui";
 import type { CalendarEvent, Matter } from "../../../types";
-import { assessNextDate, detectNextDate } from "../courtModeUtils";
 import type { StoredCourtDraft } from "./courtDrafts";
 import { useOutcomeSave } from "./useOutcomeSave";
-import { NextDateSection } from "./NextDateSection";
+import { useCourtroomActions } from "./useCourtroomActions";
+import { ComposerNextDate } from "./ComposerNextDate";
 import { DictationBar } from "./DictationBar";
+import { DictationReviewPanel } from "./DictationReviewPanel";
+import { DetectedActionsList } from "./DetectedActionsList";
+import { extractCourtroomActions } from "../../../services/voice/courtroomExtraction";
+import type { EndorsementCleanupPhase } from "./useCourtDictation";
 
 export interface DictationBarState {
   phase: "idle" | "recording" | "processing" | "queued" | "triage" | "error";
@@ -44,37 +57,28 @@ interface OutcomeComposerProps {
   onStopDictation: () => void;
   onDiscardAndLeave: () => void;
   onUnlockVox: () => void;
+  /** ROUND 25: the LLM cleanup pass status + on-demand re-run. */
+  cleanupPhase: EndorsementCleanupPhase;
+  onRunCleanup: () => void;
+  /** ROUND 25: reports a confirmed/picked next date so the Court Mode diary
+   *  calendar jumps to that month/date and highlights it. */
+  onNextDateFocused: (dayKey: string) => void;
   onSaved: () => void;
   headingRef: React.RefObject<HTMLHeadingElement>;
 }
 
 export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
-  matter,
-  events,
-  matters,
-  viewerId,
-  viewerName,
-  eventTypeNames,
-  userNames,
-  draft,
-  nextHearingDayLabel,
-  onTextChange,
-  onNextDateChange,
-  dictation,
-  canUseVox,
-  captureError,
-  onStartDictation,
-  onStopDictation,
-  onDiscardAndLeave,
-  onUnlockVox,
-  onSaved,
-  headingRef,
+  matter, events, matters, viewerId, viewerName, eventTypeNames, userNames,
+  draft, nextHearingDayLabel, onTextChange, onNextDateChange,
+  dictation, canUseVox, captureError,
+  onStartDictation, onStopDictation, onDiscardAndLeave, onUnlockVox,
+  cleanupPhase, onRunCleanup, onNextDateFocused, onSaved, headingRef,
 }) => {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const [ignoredDetected, setIgnoredDetected] = useState<string | null>(null);
   const [addToDiary, setAddToDiary] = useState(true);
   const [setAsMatterNextDate, setSetAsMatterNextDate] = useState(true);
-  const [detected, setDetected] = useState<ReturnType<typeof detectNextDate>>(null);
+  const [extraction, setExtraction] = useState<ReturnType<typeof extractCourtroomActions> | null>(null);
+  const { createdActions, createAction } = useCourtroomActions({ matter, viewerId });
 
   const text = draft?.text ?? "";
   // ROUND 23: the Endorsement | Note split toggle is gone — this composer
@@ -109,33 +113,18 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
     node.style.height = `${Math.max(node.scrollHeight, 132)}px`;
   }, [text]);
 
-  // Detection, debounced 500ms — never touches a manual date.
+  // Detection, debounced 500ms — never touches a manual date. ROUND 25: the
+  // same debounce runs the actionable structured extraction (tasks /
+  // reminders linked to the active matter); the detected-date scan itself
+  // lives in ComposerNextDate (same 500ms cadence).
   useEffect(() => {
     if (!text.trim()) {
-      setDetected(null);
+      setExtraction(null);
       return;
     }
-    const timer = window.setTimeout(() => setDetected(detectNextDate(text)), 500);
+    const timer = window.setTimeout(() => setExtraction(extractCourtroomActions(text)), 500);
     return () => window.clearTimeout(timer);
   }, [text]);
-
-  // ROUND 21: a draft nextDate may exist with an EMPTY dateISO (a purpose
-  // chosen before the date) — the detected prompt shows until a real date.
-  const showDetected = detected && !nextDate?.dateISO && detected.dateISO !== ignoredDetected;
-
-  const risks = React.useMemo(() => {
-    if (!nextDate?.dateISO) return [];
-    return assessNextDate({
-      dateISO: nextDate.dateISO,
-      timeHHmm: nextDate.timeHHmm,
-      matterId: matter.id,
-      events,
-      matters,
-      attendeeIds: (matter.assignedUsers || []).length > 0 ? matter.assignedUsers : [viewerId],
-      viewerId,
-      userNames,
-    });
-  }, [nextDate?.dateISO, nextDate?.timeHHmm, matter, events, matters, viewerId, userNames]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -167,6 +156,15 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
           {text.trim() || nextDate ? <p className="mt-1 text-xs text-subtle">Draft saved on this device</p> : null}
         </SectionErrorBoundary>
 
+        {/* ROUND 25 — the cleanup-pass status, the on-demand re-run and the
+            raw transcript kept beside the cleaned, editable draft. */}
+        <DictationReviewPanel
+          cleanupPhase={cleanupPhase}
+          rawTranscript={draft?.rawTranscript}
+          onRunCleanup={onRunCleanup}
+          canRunCleanup={Boolean(text.trim()) && cleanupPhase !== "cleaning" && !captureBusy}
+        />
+
         {saveState.partialFailure ? (
           <div className="flex items-center justify-between gap-2 rounded-sm border border-status-warning/40 bg-status-warning/10 px-3 py-2">
             <p className="min-w-0 flex-1 text-xs font-semibold text-status-warning">Note saved. Diary not updated.</p>
@@ -182,30 +180,32 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
           </div>
         ) : null}
 
-        <SectionErrorBoundary sectionName="Next date">
-          <NextDateSection
-            nextDate={nextDate}
-            detected={detected}
-            risks={risks}
-            showDetected={Boolean(showDetected)}
-            addToDiary={addToDiary}
-            setAsMatterNextDate={setAsMatterNextDate}
-            onUseDetected={() => {
-              if (!detected) return;
-              onNextDateChange({
-                dateISO: detected.dateISO,
-                timeHHmm: nextDate?.timeHHmm ?? null,
-                purpose: nextDate?.purpose ?? "Hearing",
-                purposeOther: nextDate?.purposeOther,
-                source: "detected",
-              });
-            }}
-            onIgnoreDetected={() => detected && setIgnoredDetected(detected.dateISO)}
-            onNextDateChange={onNextDateChange}
-            onToggleAddToDiary={() => setAddToDiary((value) => !value)}
-            onToggleSetAsMatterNextDate={() => setSetAsMatterNextDate((value) => !value)}
-          />
-        </SectionErrorBoundary>
+        {/* ROUND 25 — the NEXT DATE container: the one-tap detected-date
+            banner (Set as next date / Dismiss), risk chips, toggles. */}
+        <ComposerNextDate
+          matter={matter}
+          events={events}
+          matters={matters}
+          viewerId={viewerId}
+          userNames={userNames}
+          text={text}
+          nextDate={nextDate}
+          addToDiary={addToDiary}
+          setAsMatterNextDate={setAsMatterNextDate}
+          onToggleAddToDiary={() => setAddToDiary((value) => !value)}
+          onToggleSetAsMatterNextDate={() => setSetAsMatterNextDate((value) => !value)}
+          onNextDateChange={onNextDateChange}
+          onNextDateFocused={onNextDateFocused}
+        />
+
+        {/* ROUND 25 — ACTIONABLE EXTRACTION: separated, one-tap items
+            auto-associated with the active matter. */}
+        <DetectedActionsList
+          tasks={extraction?.tasks ?? []}
+          reminders={extraction?.reminders ?? []}
+          createdActions={createdActions}
+          onCreate={(action) => void createAction(action)}
+        />
       </div>
 
       <div className="flex-shrink-0 space-y-2 border-t border-hairline bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-zinc-800 dark:bg-zinc-950">

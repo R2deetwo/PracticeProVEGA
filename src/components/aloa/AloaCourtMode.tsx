@@ -4,6 +4,13 @@
  * UNCHANGED; drafts in useCourtDrafts; data in useCourtModeData). No LLM
  * anywhere; the single write is the visible Save press. Backdrop click does
  * not close Court Mode (AloaPanel). Terminology: DIARY.
+ *
+ * ROUND 25 (ALOA Vox intelligence overhaul 2026-11-28): the container owns
+ * the diary calendar's FOCUS day (the auto-jump for confirmed dictated
+ * dates and committed NEXT DATE edits) and the Court ↔ Vox cross-surface
+ * link — every dictated-and-saved endorsement's capture row is linked to
+ * its matter, so it appears in Vox → Recent voice notes tagged to that
+ * matter and can be reopened there for further extraction.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -21,6 +28,7 @@ import { useCourtModeData } from "./court/useCourtModeData";
 import { StoredCourtDraft } from "./court/courtDrafts";
 import { useCourtDictation } from "./court/useCourtDictation";
 import { dayKeyOf, dayLabelOf, nonCourtEventsFor, shortTitle } from "./court/format";
+import { linkCapture } from "../../services/voice/voiceCaptureService";
 import { DiaryView } from "./court/DiaryView";
 import { MatterBriefing } from "./court/MatterBriefing";
 import { OutcomeComposer } from "./court/OutcomeComposer";
@@ -57,6 +65,10 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
   const [view, setView] = useState<CourtView>("diary");
   const [selectedMatterId, setSelectedMatterId] = useState<string>("");
   const [query, setQuery] = useState("");
+  // ROUND 25: the diary calendar's focus day — set when a dictated date is
+  // confirmed in the composer or a NEXT DATE edit commits; the briefing's
+  // mini-calendar jumps to that month/date and selects it.
+  const [calendarFocusDayKey, setCalendarFocusDayKey] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const {
@@ -134,6 +146,8 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
       return;
     }
     setSelectedMatterId(matterId);
+    // A fresh matter never inherits the previous matter's calendar focus.
+    setCalendarFocusDayKey(null);
     setView("matter");
   };
 
@@ -153,6 +167,22 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
   const openNewMatterAtCourtSection = () => {
     openModal("newMatter", null, { focusSection: "court" });
     onClose();
+  };
+
+  // ROUND 25 (FEATURE 6 — Court ↔ Vox cross-surface sync): when an
+  // endorsement that was DICTATED in Court Mode saves, the capture row is
+  // linked to its matter — it then appears in Vox → Recent voice notes
+  // tagged to that matter, where the lawyer can reopen it to run further
+  // extraction or draft follow-ups without re-recording. Only the capture
+  // actually recorded on THIS matter is linked (never a stale capture from
+  // another matter). Best-effort: a linking failure never blocks or alarms
+  // the save itself.
+  const linkCaptureToMatter = (matterId: string) => {
+    const clientLocalId = dictation.capture.clientLocalId;
+    if (!clientLocalId || dictation.dictatedMatterId !== matterId) return; // typed, or dictated elsewhere
+    linkCapture({ clientLocalId, matterId }).catch((error: unknown) => {
+      console.warn("[AloaCourtMode] Could not link the voice capture to the matter:", error);
+    });
   };
 
   const renderDiary = () => (
@@ -223,6 +253,8 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
             today={todayDayKey()}
             captureBusy={dictation.captureBusy}
             headingRef={headingRef}
+            calendarFocusDayKey={calendarFocusDayKey}
+            onCalendarFocus={setCalendarFocusDayKey}
             onOpenCompose={() => setView("compose")}
             onOpenDocument={(documentId) => {
               navigateTo("documentDetail", documentId);
@@ -249,6 +281,8 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
                   source: "manual",
                 },
               });
+              // ROUND 25: the picked date becomes the calendar focus too.
+              setCalendarFocusDayKey(dateISO);
               setView("compose");
             }}
           />
@@ -287,7 +321,15 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMa
             onStopDictation={() => void dictation.stopDictation()}
             onDiscardAndLeave={() => void dictation.discardDictation(() => setView("matter"))}
             onUnlockVox={() => dictation.setShowVoxUpsell(true)}
-            onSaved={() => setView("matter")}
+            cleanupPhase={dictation.cleanupPhase}
+            onRunCleanup={() => void dictation.runCleanup({ manual: true })}
+            onNextDateFocused={setCalendarFocusDayKey}
+            onSaved={() => {
+              // ROUND 25 (FEATURE 6): link the dictated capture to the matter
+              // so it appears in Vox → Recent voice notes, tagged.
+              linkCaptureToMatter(selectedMatter.id);
+              setView("matter");
+            }}
             headingRef={headingRef}
           />
         </SectionErrorBoundary>

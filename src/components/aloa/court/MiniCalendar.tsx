@@ -1,21 +1,13 @@
 /**
- * Round 21 — the matter-scoped mini-calendar inside Court Mode.
- *
- * Appears ONLY inside the active matter view (MatterBriefing), styled in
- * the same calm light register as the main dashboard calendar (Mon-first
- * week rows, muted weekday headers, soft grid), sized to fit the panel.
- *
- * Interactions (owner spec):
- *   - DOTS mark dates that already carry diary items — the selected
- *     matter's own dates get the primary dot, other matters' dates a
- *     neutral dot (so a clash with another matter is visible at a glance).
- *   - Tapping a date SMOOTHLY REVEALS that day's agenda card (one row per
- *     item: time, matter title, suit number, court, purpose) — the
- *     flip-to-inspect view for spotting clashes before locking an
- *     adjournment.
- *   - "Use as next date" pipes the picked date straight into the matter's
- *     Record outcome flow (the composer's Next Date field).
- *
+ * Round 21 — the matter-scoped mini-calendar inside Court Mode (appears ONLY
+ * inside MatterBriefing; Mon-first week rows, muted weekday headers, soft
+ * grid). DOTS mark dates that already carry diary items (the matter's own
+ * dates get the primary dot, other matters' a neutral dot); tapping a date
+ * SMOOTHLY REVEALS that day's agenda card (spot clashes before locking an
+ * adjournment); "Use as next date" pipes the picked date into the Record
+ * outcome flow. ROUND 25: a `focusDayKey` JUMPS the calendar to that
+ * month/date and selects it (confirmed dictated dates / committed NEXT DATE
+ * edits) so the lawyer immediately verifies what is on the diary that day.
  * Pure presentation — all data arrives via props; nothing here writes.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -39,7 +31,7 @@ export interface MiniCalendarEntry {
 }
 
 interface MiniCalendarProps {
-  /** All court-type diary events visible to the viewer (this is the clash surface). */
+  /** All court-type diary events visible to the viewer (the clash surface). */
   entries: MiniCalendarEntry[];
   /** The open matter — its own dates get the primary dot. */
   matterId: string;
@@ -51,6 +43,8 @@ interface MiniCalendarProps {
   onUseDate: (dateISO: string) => void;
   /** Disabled while dictation is busy (the preserved rule). */
   captureBusy: boolean;
+  /** ROUND 25: jump to this month/date and select/highlight it. */
+  focusDayKey?: string | null;
 }
 
 /** My diary | Firm diary — the calendar's visibility toggle (Round 22).
@@ -67,20 +61,25 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
   viewerId,
   onUseDate,
   captureBusy,
+  focusDayKey,
 }) => {
   const todayDate = useMemo(() => new Date(`${today}T00:00:00`), [today]);
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
-  // ROUND 23 (owner spec §5): the revealed day agenda SCROLLS INTO VIEW the
-  // moment a date is picked — even while scrolled down on a matter marked
-  // "Needs a new date" / "No next date recorded".
-  const agendaRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (selected) agendaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [selected]);
   // ROUND 22: My diary (the default, like the diary view) | Firm diary — the
   // visibility toggle over the dots. Local state — a matter-scoped view.
   const [diaryScope, setDiaryScope] = useState<CalendarDiaryScope>("mine");
+
+  // ROUND 25: the diary AUTO-JUMP — switch the calendar to the focused
+  // month and select/highlight the day. Runs once per new focus value;
+  // navigating away afterwards is free.
+  useEffect(() => {
+    if (!focusDayKey) return;
+    const [year, month] = focusDayKey.split("-").map(Number);
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return;
+    setMonthOffset((year - todayDate.getFullYear()) * 12 + (month - 1 - todayDate.getMonth()));
+    setSelected(focusDayKey);
+  }, [focusDayKey, todayDate]);
 
   // ROUND 22: the scope filter — this matter's dates always show; other
   // matters' dots only in Firm diary, or in My diary when the viewer attends.
@@ -94,8 +93,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
     [entries, diaryScope, matterId, viewerId],
   );
 
-  // dayKey → visible entries (the dots + the flip-to-inspect agenda follow
-  // the same scope — one rule, one source).
+  // dayKey → visible entries (the dots + the agenda follow the same scope).
   const byDay = useMemo(() => {
     const map = new Map<string, MiniCalendarEntry[]>();
     for (const entry of visibleEntries) {
@@ -106,6 +104,13 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
     }
     return map;
   }, [visibleEntries]);
+
+  // The revealed day agenda scrolls into view the moment a date is picked
+  // (Round 23) — including after a ROUND 25 focus jump.
+  const agendaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) agendaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selected]);
 
   const grid = useMemo(() => {
     const anchor = new Date(todayDate.getFullYear(), todayDate.getMonth() + monthOffset, 1);
@@ -194,8 +199,8 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
         })}
       </div>
 
-      {/* The flip-to-inspect day agenda — smoothly reveals under the grid,
-          and scrolls into view (ROUND 23) the moment a date is picked. */}
+      {/* The flip-to-inspect day agenda — smoothly reveals under the grid
+          and scrolls into view (Round 23) once picked (incl. a focus jump). */}
       {selected ? (
         <div ref={agendaRef} tabIndex={-1} className="mt-3 animate-in fade-in slide-in-from-top-1 duration-300 rounded-md border border-hairline bg-surface-2 p-3 dark:border-zinc-800">
           <div className="flex items-center justify-between gap-2">
@@ -226,11 +231,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
             <p className="mt-2 text-xs text-body">Nothing on the diary for this date.</p>
           )}
           <Button
-            variant="secondary"
-            size="sm"
-            type="button"
-            fullWidth
-            minTouchTarget
+            variant="secondary" size="sm" type="button" fullWidth minTouchTarget
             disabled={captureBusy}
             onClick={() => onUseDate(selected)}
             className="mt-2.5"

@@ -1,7 +1,7 @@
 /**
  * Round 21 — the composer's NEXT DATE section: the detected-date prompt
- * (Use / Ignore — never overwriting a manual date), the date / time /
- * purpose inputs, the factual risk chips (never blocking), and the
+ * (Set as next date / Dismiss — never overwriting a manual date), the date /
+ * time / purpose inputs, the factual risk chips (never blocking), and the
  * add-to-diary + set-as-next-date toggles. Pure presentation — state
  * lives in the composer.
  *
@@ -11,6 +11,11 @@
  * empty dateISO until a date is chosen. (2) "Other" revealed nothing — it
  * now shows a custom text input that rides along on the save plan.
  * The full Nigerian courtroom purpose list ships here.
+ *
+ * ROUND 25 (owner bug report 2026-11-28): the explicit one-tap confirmation
+ * banner — `Detected next date: 4 December 2026 — [Set as next date]
+ * [Dismiss]` — long-form date so the lawyer verifies the parsed value at a
+ * glance.
  */
 import React from "react";
 import { Check } from "lucide-react";
@@ -18,6 +23,7 @@ import { Button, Input, Select } from "../../ui";
 import { DateRisk, detectNextDate, HEARING_PURPOSES, HearingPurpose } from "../courtModeUtils";
 import type { StoredCourtDraft } from "./courtDrafts";
 import { DateRiskChips } from "./DateRiskChips";
+import { formatDayKeyFull, timeLabelOf } from "./format";
 
 type NextDateValue = NonNullable<StoredCourtDraft["nextDate"]>;
 
@@ -60,13 +66,21 @@ export const NextDateSection: React.FC<NextDateSectionProps> = ({
     <div className="space-y-2">
       <p className="text-2xs font-black uppercase tracking-widest text-subtle">Next date (optional)</p>
       {showDetected && detected ? (
+        /* ROUND 25 (owner bug report 2026-11-28): the explicit one-tap
+         * confirmation — long-form date so the parsed value is verified at
+         * a glance: "Detected next date: 4 December 2026". */
         <div className="flex flex-wrap items-center gap-2 rounded-sm bg-surface-2 px-3 py-2">
-          <p className="min-w-0 flex-1 text-xs font-medium text-body">Detected: {detected.label}</p>
+          <p className="min-w-0 flex-1 text-xs font-medium text-body">
+            Detected next date: <span className="font-bold text-strong">{formatDayKeyFull(detected.dateISO)}</span>
+            {detected.timeHHmm ? (
+              <span className="font-bold text-strong"> · {timeLabelOf(`${detected.dateISO}T${detected.timeHHmm}:00`) ?? detected.timeHHmm}</span>
+            ) : null}
+          </p>
           <Button variant="secondary" size="sm" type="button" onClick={onUseDetected}>
-            Use
+            Set as next date
           </Button>
           <Button variant="ghost" size="sm" type="button" onClick={onIgnoreDetected}>
-            Ignore
+            Dismiss
           </Button>
         </div>
       ) : null}
