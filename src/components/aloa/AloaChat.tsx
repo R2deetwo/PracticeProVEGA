@@ -18,7 +18,7 @@ import * as aiService from '../../services/aiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
-import { Button } from '../ui';
+import { Button, Badge } from '../ui';
 import { buildAccountContext as buildAccountContextPure } from '../../utils/aloaAccountContext';
 import { runAriaFinancialQuery, describeAriaFinancialQuery, isAriaFinancialReport } from '../../utils/ariaFinancials';
 import { requiresQuickActionConfirmation, describeQuickAction, confirmButtonLabel } from '../../utils/quickActionPolicy';
@@ -111,30 +111,77 @@ const SendIcon = () => (
     </svg>
 );
 
-const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, onClick }) => (
-    <button
-        onClick={onClick}
-        title={
-            model === 'auto' ? 'Auto — AI chooses the best mode for each query' :
-            model === 'flash' ? 'Flash — fast responses for quick questions' :
-            model === 'pro' ? 'Pro — deeper analysis with the most capable model' :
-            model === 'research' ? 'Research — multi-step reasoning, citations, and jurisdiction detection' :
-            'Select AI mode'
-        }
-        className={`px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight transition-all border shadow-sm flex items-center gap-1 ${
-            model === 'pro'
-                ? 'bg-zinc-900 text-zinc-100 border-zinc-800 dark:bg-zinc-700/80 dark:text-zinc-200 dark:border-zinc-600'
-                : model === 'flash'
-                ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
-                : model === 'research'
-                ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800'
-                : 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800'
-        }`}
-    >
-        <SparklesIcon className="w-2.5 h-2.5" />
-        {model}
-    </button>
-);
+// §2.1 (Round 24): the model choice is an explicit LABELLED menu — the old
+// ModelBadge silently CYCLED through modes on every click (a hidden
+// control). The current model is shown; every option is listed with its
+// description. Pure presentational, built on the ui/Button primitive.
+const MODEL_OPTIONS: { value: 'auto' | 'flash' | 'pro' | 'research'; label: string; description: string }[] = [
+    { value: 'auto', label: 'Auto', description: 'AI chooses the best mode for each query' },
+    { value: 'flash', label: 'Flash', description: 'Fast responses for quick questions' },
+    { value: 'pro', label: 'Pro', description: 'Deeper analysis with the most capable model' },
+    { value: 'research', label: 'Research', description: 'Multi-step reasoning, citations, and jurisdiction detection' },
+];
+
+const ModelMenu: React.FC<{
+    model: string;
+    onSelect: (value: 'auto' | 'flash' | 'pro' | 'research') => void;
+}> = ({ model, onSelect }) => {
+    const [open, setOpen] = React.useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey, true);
+        return () => {
+            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('keydown', onKey, true);
+        };
+    }, [open]);
+    const active = MODEL_OPTIONS.find((option) => option.value === model);
+    return (
+        <div ref={menuRef} className="relative">
+            <button
+                onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={`AI mode: ${active?.label ?? model} — choose mode`}
+                title={`AI mode: ${active?.label ?? model}`}
+                className="touch-target px-2 py-1 rounded-full text-2xs font-black uppercase tracking-tight transition-all border shadow-sm flex items-center gap-1 bg-surface-2 dark:bg-zinc-800 text-strong dark:text-zinc-100 border-hairline hover:border-primary-400 dark:hover:border-primary-600"
+            >
+                <SparklesIcon className="w-2.5 h-2.5" />
+                {active?.label ?? model}
+            </button>
+            {open ? (
+                <div
+                    role="menu"
+                    aria-label="AI mode"
+                    className={`absolute right-0 top-full mt-2 w-64 rounded-lg border border-hairline bg-surface dark:bg-zinc-900 shadow-lg p-1.5 ${Z_CLASS.panelMenu}`}
+                >
+                    {MODEL_OPTIONS.map((option) => (
+                        <button
+                            key={option.value}
+                            role="menuitemradio"
+                            aria-checked={option.value === model}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(option.value);
+                                setOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md transition-colors ${option.value === model ? 'bg-primary-50 dark:bg-primary-900/30' : 'hover:bg-surface dark:hover:bg-zinc-800'}`}
+                        >
+                            <span className="block text-xs font-bold text-strong dark:text-zinc-100">{option.label}{option.value === model ? ' ✓' : ''}</span>
+                            <span className="block text-2xs text-muted mt-0.5 leading-snug">{option.description}</span>
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </div>
+    );
+};
 
 export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void; onOpenCourt?: () => void; onClosePanel?: () => void }> = ({ onDraftStream, isMobile, onOpenCapture, onOpenCourt, onClosePanel }) => {
     // ROUND 24 (§1.1/§1.4): the panel's top row owns Close — the old
@@ -641,8 +688,34 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
         // when the input briefly flickers empty during a render.
         if (textInput || draftByConversationRef.current[key]) {
             draftByConversationRef.current[key] = textInput;
+            // §2.5 (Round 24): the draft also survives panel close/reopen and
+            // segment switches — mirrored to sessionStorage under the same
+            // per-conversation key, cleared the moment the composer empties
+            // (i.e. on send).
+            try {
+                if (textInput) sessionStorage.setItem(`aloa:composer-draft:${key}`, textInput);
+                else sessionStorage.removeItem(`aloa:composer-draft:${key}`);
+            } catch { /* private mode / quota */ }
         }
     }, [textInput, activeConversationId]);
+
+    // §2.5: on a FRESH mount (panel reopen / segment switch back), the
+    // sessionStorage draft restores into the composer — in-memory drafts
+    // win when they exist (same-session conversation switches).
+    useEffect(() => {
+        const key = draftKeyFor(activeConversationId);
+        if (draftByConversationRef.current[key]) return;
+        try {
+            const stored = sessionStorage.getItem(`aloa:composer-draft:${key}`);
+            if (stored) {
+                isRestoringDraftRef.current = true;
+                setTextInput(stored);
+                setTimeout(() => { isRestoringDraftRef.current = false; }, 0);
+            }
+        } catch { /* private mode */ }
+        // mount-only: the active conversation at mount time
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const mapToolToModal = (toolName: string, args: any): { modalType: ModalType, mappedArgs: any } | null => {
         const normalizedName = toolName.toLowerCase();
@@ -2853,8 +2926,14 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                         errorMessage = "Model Configuration Error: The requested AI model is unavailable.";
                         helpText = "The AI model may have been deprecated. Please contact support or check for app updates.";
                     }
+                    // §2.3 (Round 24): errors never render raw backend text —
+                    // each class gets a specific message + a single next step.
+                    else if (error.message.includes('Unauthorized') || error.message.includes('401') || error.message.toLowerCase().includes('session')) {
+                        errorMessage = "Your session needs refreshing.";
+                        helpText = "Sign out and sign back in — your conversation is saved in History.";
+                    }
                     else {
-                        errorMessage = `System Error: ${error.message}`;
+                        errorMessage = "I couldn't complete that request.";
                         helpText = "If this persists, please contact support.";
                     }
                 }
@@ -2932,10 +3011,26 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
         openModal('saveToNote', null, { content });
     };
 
-    const cycleModel = () => {
-        const order: typeof preferredModel[] = ['auto', 'flash', 'pro', 'research'];
-        const nextIndex = (order.indexOf(preferredModel) + 1) % order.length;
-        setPreferredModel(order[nextIndex]);
+    // §2.1 (Round 24): the old blind model CYCLE (one tap = silently hop to
+    // the next mode) is gone — the ModelMenu above lists every mode with its
+    // description and sets the choice explicitly.
+
+    // §2.6 (Round 24): delete confirmation for conversations — the same
+    // ConfirmDialog the notes use; the raw onDelete no longer fires blind.
+    const handleDeleteConversation = async (id: string) => {
+        const ok = await confirm({
+            title: 'Delete chat?',
+            message: 'This conversation will be permanently removed from History.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        await deleteConversationMutation({ conversationId: id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
+        if (activeConversationId === id) {
+            setActiveConversationId(null);
+            setMessages([]);
+        }
     };
 
     const handleCopyMessage = (id: string, content: string) => {
@@ -3596,7 +3691,7 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                             <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none truncate">
                                 {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : getAssistantName(isProperty)}
                             </h2>
-                            {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
+                            {activeView === 'chat' && <ModelMenu model={preferredModel} onSelect={(value) => setPreferredModel(value)} />}
                         </div>
                         {activeView === 'chat' && getAssistantFullName(isProperty) && (
                             <p className="text-2xs text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
@@ -3678,7 +3773,9 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">History</h3>
                                 <button
                                     onClick={() => setShowHistory(false)}
-                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    aria-label="Close history"
+                                    title="Close history"
+                                    className="touch-target p-2 -mr-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                                 >
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -3687,10 +3784,11 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                             </div>
                             <button
                                 onClick={() => {
-                                    // "New Search" — clears the current conversation
-                                    // and starts fresh. The previous conversation
-                                    // is NOT deleted — it remains in the History list
-                                    // and can be reopened at any time.
+                                    // "New chat" (§2.6, Round 24 — was "New Search") —
+                                    // clears the current conversation and starts
+                                    // fresh. The previous conversation is NOT
+                                    // deleted — it remains in the History list and
+                                    // can be reopened at any time.
                                     setActiveConversationId(null);
                                     setMessages([]);
                                     setShowHistory(false);
@@ -3699,7 +3797,7 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                                 className="w-full py-2.5 px-4 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
                             >
                                 <PlusIcon className="w-4 h-4" />
-                                New Search
+                                New chat
                             </button>
                             {/* DEFERRED(quick-note-removal): the in-drawer "New Note"
                                 entry is gone with the quick-notes pencil mode —
@@ -3708,7 +3806,7 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
                             <section>
-                                <h3 className="text-2xs font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Recent Searches</h3>
+                                <h3 className="text-2xs font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Recent chats</h3>
                                 <ConversationList
                                     activeId={activeConversationId}
                                     onSelect={(id) => {
@@ -3716,13 +3814,7 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                                         setActiveView('chat');
                                         setShowHistory(false);
                                     }}
-                                    onDelete={async (id) => {
-                                        await deleteConversationMutation({ conversationId: id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
-                                        if (activeConversationId === id) {
-                                            setActiveConversationId(null);
-                                            setMessages([]);
-                                        }
-                                    }}
+                                    onDelete={(id) => void handleDeleteConversation(id)}
                                 />
                             </section>
 
@@ -3833,19 +3925,15 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                     className={`flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar bg-white dark:bg-zinc-950 transition-all min-w-0`}
                 >
                     {messages.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-5 bg-primary-600">
-                                <AloaIcon className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
-                                {getAssistantName(isProperty)}
+                        <div className="flex flex-col items-center justify-center h-full text-center p-6 sm:p-8">
+                            {/* §2.2 (Round 24): the empty state is a greeting +
+                                one-sentence capability line — the stacked icon,
+                                name and subtitle are gone (the panel top row
+                                already names ALOA). */}
+                            <h3 className="text-lg font-extrabold text-strong dark:text-white mb-1">
+                                How can I help{currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : ''}?
                             </h3>
-                            {getAssistantFullName(isProperty) && (
-                                <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
-                                    {getAssistantFullName(isProperty)}
-                                </p>
-                            )}
-                            <p className="text-sm text-slate-500 dark:text-zinc-500 max-w-[260px] leading-relaxed">
+                            <p className="text-sm text-muted max-w-[300px] leading-relaxed mb-2">
                                 {isAtrium
                                     ? 'I can help manage your property portfolio, track revenue, handle tenant communications, and monitor defaulters.'
                                     : 'I can help draft legal documents, manage cases, research Nigerian law, and streamline your practice operations.'}
@@ -3853,7 +3941,9 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
 
                             {/* ─── Proactive Insight Badges ──────────────────
                                 These show system-generated alerts (deadline reminders,
-                                anomaly detections, morning briefings).
+                                anomaly detections, morning briefings). Same logic as
+                                before — restyled on the Badge primitive's semantic
+                                tones (danger / warning / info).
 
                                 When clicked, they open an INSIGHT DETAIL PANEL
                                 (not just injecting text into the chat). The panel
@@ -3863,68 +3953,102 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                                 - "Go to Matter" / "Go to Task" action button
                                 - "Dismiss" button to clear the insight */}
                             {proactiveInsights && proactiveInsights.length > 0 && (
-                                <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-[300px]">
+                                <div className="mt-3 mb-1 flex flex-wrap gap-2 justify-center max-w-[320px]">
                                     {proactiveInsights.filter(i => i.severity === 'critical').length > 0 && (
-                                        <button
+                                        <Badge
+                                            tone="danger"
+                                            size="sm"
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`${proactiveInsights.filter(i => i.severity === 'critical').length} urgent insights — view`}
+                                            className="cursor-pointer touch-target rounded-full"
                                             onClick={() => setShowInsightPanel('critical')}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowInsightPanel('critical'); } }}
                                         >
-                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="w-1.5 h-1.5 rounded-full bg-current motion-safe:animate-pulse mr-1" />
                                             {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent — View
-                                        </button>
+                                        </Badge>
                                     )}
                                     {proactiveInsights.filter(i => i.severity === 'warning').length > 0 && (
-                                        <button
+                                        <Badge
+                                            tone="warning"
+                                            size="sm"
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`${proactiveInsights.filter(i => i.severity === 'warning').length} items needing attention — view`}
+                                            className="cursor-pointer touch-target rounded-full"
                                             onClick={() => setShowInsightPanel('warning')}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowInsightPanel('warning'); } }}
                                         >
-                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Attention{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? '' : ''} — View
-                                        </button>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-current mr-1" />
+                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Attention — View
+                                        </Badge>
                                     )}
                                     {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
-                                        <button
+                                        <Badge
+                                            tone="info"
+                                            size="sm"
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label="Morning briefing ready — ask for it"
+                                            className="cursor-pointer touch-target rounded-full"
                                             onClick={() => setTextInput("Show me today's morning briefing")}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTextInput("Show me today's morning briefing"); } }}
                                         >
-                                            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                                <circle cx="12" cy="12" r="4" />
-                                                <path strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M19.07 4.93l1.41 1.41" />
-                                            </svg>
                                             Briefing Ready
-                                        </button>
+                                        </Badge>
                                     )}
                                 </div>
                             )}
 
-                            <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-[300px]">
-                                {/* R32: per-product capability suggestions — each chip maps to a real tool
-                                    surface (revenue queries, lease alerts, drafting, court-rule
-                                    computation, research) so the first tap demonstrates what the
-                                    assistant can actually DO for THIS product's user. */}
+                            {/* §2.2: at most four prompt chips, a 2-column grid of
+                                full-width left-aligned cards — no truncation, text
+                                wraps to two lines. Vega set (final, this round):
+                                the four below; Atrium set: the first four of the
+                                existing Atrium list. Chips only fill the composer
+                                — they never send. */}
+                            <div className="mt-4 grid grid-cols-2 gap-2 w-full max-w-[360px]">
                                 {(isAtrium ? [
                                     'Who are my defaulters this month?',
                                     'Summarise my portfolio collections',
                                     'Which leases expire in the next 90 days?',
                                     'Draft a rent demand notice',
-                                    'What units are vacant?',
-                                    'Draft a tenancy agreement for a Lagos property',
                                 ] : [
                                     'What are my court dates this week?',
                                     'Compute filing deadlines for a Lagos High Court matter',
                                     'Draft a Motion on Notice',
                                     'Summarize my active cases',
-                                    'Create a new matter',
-                                    'Research recent Nigerian case law',
                                 ]).map(suggestion => (
                                     <button
                                         key={suggestion}
                                         onClick={() => setTextInput(suggestion)}
-                                        className="px-3 py-1.5 text-2xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-all duration-150 active:scale-[0.98] border border-slate-200 dark:border-zinc-700"
+                                        className="text-left text-2xs font-semibold bg-surface dark:bg-zinc-800/70 text-strong dark:text-zinc-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-700 dark:hover:text-primary-300 transition-all duration-150 active:scale-[0.98] border border-hairline px-3 py-2.5 min-h-[44px] flex items-center"
+                                        aria-label={`Fill the composer: ${suggestion}`}
                                     >
-                                        {suggestion}
+                                        <span className="line-clamp-2 leading-snug">{suggestion}</span>
                                     </button>
                                 ))}
+                            </div>
+
+                            {/* §2.2: the other two panes are discoverable from the
+                                empty state — quiet text links, one line. */}
+                            <div className="mt-4 flex items-center justify-center gap-4 text-2xs font-semibold">
+                                {onOpenCapture ? (
+                                    <button
+                                        onClick={onOpenCapture}
+                                        className="text-primary-600 dark:text-primary-400 hover:underline transition-colors touch-target"
+                                    >
+                                        Dictate with Vox
+                                    </button>
+                                ) : null}
+                                {onOpenCourt ? (
+                                    <button
+                                        onClick={onOpenCourt}
+                                        className="text-muted hover:text-strong hover:underline transition-colors touch-target"
+                                    >
+                                        Open Court Mode
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     )}
@@ -4604,6 +4728,14 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
             </div>
 
             <footer className="flex-shrink-0 p-4 sm:p-6 chat-input-dock bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+                {/* §2.5 (Round 24): offline = inline banner, composer stays
+                    usable for drafting — the send button disables with the
+                    visible reason right here. */}
+                {!isOnline && (
+                    <div role="status" className="mb-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-2xs font-semibold text-amber-700 dark:text-amber-400">
+                        You're offline — keep typing, your message stays as a draft and sends when you're back online.
+                    </div>
+                )}
                 {/* Pending attachment chips */}
                 {pendingAttachments.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2 px-1">
@@ -4670,7 +4802,9 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
                             onChange={setTextInput}
                             onSend={handleSend}
                             placeholder={isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`}
-                            sendDisabled={!textInput.trim() && pendingAttachments.length === 0}
+                            sendDisabled={(!textInput.trim() && pendingAttachments.length === 0) || !isOnline}
+                            maxLines={6}
+                            sendOnEnter={!isMobile}
                             sendIcon={<SendIcon />}
                             sendAriaLabel="Send to ALOA"
                             containerClassName="flex-1"
