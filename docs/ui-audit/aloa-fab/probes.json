@@ -1,0 +1,103 @@
+{
+  "startedAt": "2026-11-27T14:38:28.737Z",
+  "runtime": {
+    "backdropTake": {
+      "recordingStarted": true,
+      "panelClosedByBackdropDuringRecording": true,
+      "takeSurvived": {
+        "recentRows": 0,
+        "queuedStrip": false
+      }
+    },
+    "dragHandle": {
+      "handlePresent": true,
+      "swiped": true,
+      "panelStillOpenAfterSwipe": true,
+      "handleGestureHandlers": {
+        "pointerdown": false,
+        "touchstart": false
+      }
+    },
+    "pointerDownClose": {
+      "closedBeforeTouchEnd": true,
+      "closedAfter": true,
+      "gesture": "touchStart on Close then touchMove +320px (scroll intent)"
+    },
+    "chromeBudget": {
+      "390x844": {
+        "viewport": {
+          "w": 390,
+          "h": 844
+        },
+        "dragHandleRow": 0,
+        "panelSwitcherRow": 34,
+        "voxHeader": 64,
+        "bottomModeBar": 63,
+        "chromeAboveContent": 98
+      },
+      "1440x900": {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "dragHandleRow": 0,
+        "panelSwitcherRow": 34,
+        "voxHeader": 64,
+        "bottomModeBar": 63,
+        "chromeAboveContent": 98
+      }
+    },
+    "fabA11y": {
+      "390x844-light": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null,
+        "fabBox": {
+          "x": 310,
+          "y": 708,
+          "width": 56,
+          "height": 56
+        }
+      },
+      "390x844-dark": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null,
+        "fabBox": {
+          "x": 310,
+          "y": 708,
+          "width": 56,
+          "height": 56
+        }
+      },
+      "768x1024-light": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null
+      },
+      "768x1024-dark": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null
+      },
+      "1440x900-light": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null
+      },
+      "1440x900-dark": {
+        "ariaLabel": "Open AI Assistant ALOA",
+        "tooltipTitle": null,
+        "tooltipText": null
+      }
+    },
+    "queuedStates": {
+      "390x844-light": "docs/ui-audit/aloa-fab/before/vox-speak-queued-390x844-light.png",
+      "390x844-dark": "docs/ui-audit/aloa-fab/before/vox-speak-queued-390x844-dark.png",
+      "768x1024-light": "docs/ui-audit/aloa-fab/before/vox-speak-queued-768x1024-light.png",
+      "768x1024-dark": "docs/ui-audit/aloa-fab/before/vox-speak-queued-768x1024-dark.png",
+      "1440x900-light": "docs/ui-audit/aloa-fab/before/vox-speak-queued-1440x900-light.png",
+      "1440x900-dark": "docs/ui-audit/aloa-fab/before/vox-speak-queued-1440x900-dark.png"
+    }
+  }
+}

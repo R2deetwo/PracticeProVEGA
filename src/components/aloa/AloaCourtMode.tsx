@@ -6,7 +6,7 @@
  * not close Court Mode (AloaPanel). Terminology: DIARY.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useCoreState } from "../../contexts/CoreContext";
 import { useDocumentState } from "../../contexts/DocumentContext";
 import { useExecutionState } from "../../contexts/ExecutionContext";
@@ -28,15 +28,21 @@ import { OutcomeComposer } from "./court/OutcomeComposer";
 type CourtView = "diary" | "matter" | "compose";
 
 interface AloaCourtModeProps {
-  onBackToChat: () => void;
+  /** ROUND 24 (§1.1): the mode-level back prop is gone — the panel's Ask |
+   *  Vox | Court segmented row owns pane navigation; the inner Back below
+   *  only moves WITHIN the Court pane (compose → matter → diary). */
   onClose: () => void;
   initialMatterId?: string;
   /** ROUND 22: reports dictation busyness up to the panel so the Vox
    *  switcher can lock its other segment mid-take (the leave-guard rule). */
   onCaptureBusyChange?: (busy: boolean) => void;
+  /** ROUND 24 (§1.2 no accidental loss): the panel's busy-guard Close calls
+   *  this to stop a live dictation while KEEPING the transcript — the court
+   *  draft store keeps the text, so nothing is lost on close. */
+  registerStopAndKeep?: (fn: (() => Promise<unknown> | void) | null) => void;
 }
 
-export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onClose, initialMatterId, onCaptureBusyChange }) => {
+export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onClose, initialMatterId, onCaptureBusyChange, registerStopAndKeep }) => {
   const { matterState } = useMatterState();
   const { executionState } = useExecutionState();
   const { documentState } = useDocumentState();
@@ -83,6 +89,13 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
     onCaptureBusyChange?.(dictation.captureBusy);
   }, [dictation.captureBusy, onCaptureBusyChange]);
 
+  // ROUND 24 (§1.2): stop-and-keep is only meaningful mid-dictation — once
+  // the transcript is processing/queued the draft store already holds the
+  // text, so closing the panel loses nothing.
+  useEffect(() => {
+    registerStopAndKeep?.(dictation.recording ? () => dictation.stopDictation() : null);
+  }, [dictation.recording, dictation.stopDictation, registerStopAndKeep]);
+
   // Landing: a deep-linked matter opens its briefing (only when visible).
   useEffect(() => {
     if (!initialMatterId) return;
@@ -125,10 +138,11 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
   };
 
   // Matter switching stays disabled while dictation is busy (preserved rule).
+  // ROUND 24 (§1.1): the diary is the pane root — no inner Back there; the
+  // panel's segmented row owns leaving the Court pane.
   const goBack = () => {
     if (view === "compose") return dictation.leaveGuard(() => setView("matter"));
     if (view === "matter") return dictation.leaveGuard(() => setView("diary"));
-    dictation.leaveGuard(onBackToChat);
   };
 
   // Round 21 — the deep-linked New Matter modal: the empty diary's "Add a
@@ -165,28 +179,29 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
   return (
     <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-surface text-strong dark:bg-zinc-950 dark:text-zinc-100">
       <header className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-hairline bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-950 sm:px-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          type="button"
-          icon={ArrowLeft}
-          onClick={goBack}
-          aria-label="Back"
-          className="min-w-0 flex-shrink-0"
-        >
-          <span className="hidden truncate sm:inline">Back</span>
-        </Button>
+        {/* INNER Back — composes within the Court pane only (compose →
+            matter → diary). Hidden at the diary root: the panel's Ask | Vox |
+            Court segmented row is the one navigation model (§1.1). */}
+        {view !== "diary" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            icon={ArrowLeft}
+            onClick={goBack}
+            aria-label="Back"
+            className="min-w-0 flex-shrink-0"
+          >
+            <span className="hidden truncate sm:inline">Back</span>
+          </Button>
+        ) : (
+          <span className="min-w-0 flex-shrink-0 w-[72px]" aria-hidden="true" />
+        )}
         <h1 className="min-w-0 flex-1 truncate text-center text-sm font-extrabold sm:text-base">{headerTitle}</h1>
-        <Button
-          variant="ghost"
-          size="md"
-          iconOnly
-          icon={X}
-          type="button"
-          onClick={() => dictation.leaveGuard(onClose)}
-          aria-label="Close Court Mode"
-          className="flex-shrink-0"
-        />
+        {/* ROUND 24 (§1.4): Close lives in the panel's top row (busy-guarded);
+            the Court header keeps no X of its own. Spacer keeps the title
+            centered. */}
+        <span className="min-w-0 flex-shrink-0 w-[72px]" aria-hidden="true" />
       </header>
 
       {view === "diary" || !selectedMatter ? (

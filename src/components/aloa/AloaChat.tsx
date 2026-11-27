@@ -136,18 +136,12 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
     </button>
 );
 
-export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture }) => {
-    // ─── Bulletproof close handler ──────────────────────────────────
-    // Uses onPointerDown (NOT onClick) because pointerdown is the
-    // VERY FIRST event in the browser's pointer event chain. It fires
-    // before mousedown, touchstart, click, and any drag-start handlers.
-    // This means NO parent element's drag/touch handler can intercept
-    // or suppress the close action. The panel WILL close.
-    const handleClose = React.useCallback((e: React.PointerEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClose();
-    }, [onClose]);
+export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void; onOpenCourt?: () => void; onClosePanel?: () => void }> = ({ onDraftStream, isMobile, onOpenCapture, onOpenCourt, onClosePanel }) => {
+    // ROUND 24 (§1.1/§1.4): the panel's top row owns Close — the old
+    // "bulletproof" onPointerDown close handler is gone with the button (a
+    // touch that started on it closed the panel even when the user was
+    // scrolling away — Phase 0 probe #4). The panel Close uses onClick and
+    // is busy-guarded.
     const {
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
@@ -394,6 +388,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
     const openModalRef = useRef(openModal);
+    // ROUND 24: the chat pane still needs to close the panel itself for
+    // stored actions that navigate away (close-then-open-modal). The panel
+    // owns the Close button; this is the pane-side escape hatch.
+    const onClosePanelRef = useRef(onClosePanel);
     const navigateToRef = useRef(navigateTo);
     const openEditorRef = useRef(openEditor);
 
@@ -524,9 +522,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     useEffect(() => {
         openModalRef.current = openModal;
+        onClosePanelRef.current = onClosePanel;
         navigateToRef.current = navigateTo;
         openEditorRef.current = openEditor;
-    }, [openModal, navigateTo, openEditor]);
+    }, [openModal, navigateTo, openEditor, onClosePanel]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -3371,10 +3370,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     const executeStoredAction = (action: any) => {
         if (action.type === 'modal') {
-            onClose(); // Close ALOA panel first so the modal isn't blurred behind it
+            onClosePanelRef.current?.(); // Close ALOA panel first so the modal isn't blurred behind it
             openModalRef.current(action.modalType, null, action.context);
         } else if (action.type === 'navigate') {
-            onClose(); // Close ALOA panel first so the target page is visible and not blurred
+            onClosePanelRef.current?.(); // Close ALOA panel first so the target page is visible and not blurred
             navigateToRef.current(action.target, null, action.context);
         } else if (action.type === 'draft') {
             // ─── Open existing draft in a NEW TAB ────────────────────────
@@ -3574,6 +3573,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             <header className="flex-shrink-0 px-3 sm:px-4 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/50 relative z-10">
                 {/* Left: icon + title */}
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    {/* DEFERRED(quick-note-removal): the form/details back
+                        chevron + the mark button's view-reset belong to the
+                        Quick Note surfaces (activeView 'form' | 'details')
+                        that are being removed — leave as is until then. */}
                     {(activeView === 'form' || activeView === 'details') && (
                         <button
                             onClick={() => { setActiveView('chat'); setActiveNoteId(null); }}
@@ -3605,54 +3608,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                 {/* Right: action buttons — ALL wrapped in a container with
                     stopPropagation so the parent panel's onClick doesn't
-                    interfere. Each button also has its own stopPropagation. */}
+                    interfere. Each button also has its own stopPropagation.
+                    ROUND 24 (§1.1): the chat header keeps ONLY pane-specific
+                    actions — History + the model choice. The Close button
+                    (panel top row owns it) and the Vox mic (redundant with
+                    the Vox segment) are gone. */}
                 <div
                     className="flex items-center gap-0.5 sm:gap-1 ml-1 sm:ml-2 flex-shrink-0 relative z-20"
                     onClick={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                 >
-                    {onOpenCapture ? (
-                        <Button
-                            variant="bare"
-                            size="md"
-                            iconOnly
-                            icon={MicrophoneIcon}
-                            title="Vox — dictate a note by voice"
-                            aria-label="Open Vox mode"
-                            className="touch-target p-2 rounded-lg transition-all bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400 dark:hover:bg-primary-900/50"
-                            onClick={(e) => { e.stopPropagation(); onOpenCapture(); }}
-                        />
-                    ) : null}
-                    {/* ROUND 22 (owner spec): the standalone Scales Court Mode
-                        entry is GONE — Court Mode lives inside ALOA Vox now
-                        (the mic above opens Vox; Court Mode is one segment
-                        away). Deep links from matters/events still land in
-                        Court Mode directly. */}
-                    {/* ROUND 23 (owner spec §1): the quick-notes PENCIL button
-                        and its quickNote mode are GONE too — Aloa Vox (the
-                        Consultation / Note pane) handles voice capture and
-                        notes. Chat answers keep their Save-to-Note affordance
-                        (the modal). */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowHistory(!showHistory); }}
                         className={`touch-target p-2 rounded-lg transition-all ${showHistory ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         title="Conversation History"
+                        aria-label="Conversation History"
                     >
                         <HistoryIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                        onPointerDown={handleClose}
-                        className="touch-target p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors duration-150 bg-slate-100 dark:bg-zinc-800 rounded-lg active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0 relative z-30"
-                        title="Close"
-                        aria-label="Close panel"
-                    >
-                        <XMarkIcon className="w-5 h-5" />
-                        <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Close</span>
                     </button>
                 </div>
             </header>
 
+            {/* DEFERRED(quick-note-removal): the Quick Note detail/form views
+                (activeView 'details' | 'form', NoteDetails + SaveToNoteForm)
+                are being removed — leave functionally and visually as is. */}
             {activeView === 'details' ? (
                 <NoteDetails 
                     note={documentState.notePages.find(n => n.id === activeNoteId)}
@@ -3721,7 +3701,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 <PlusIcon className="w-4 h-4" />
                                 New Search
                             </button>
-                            {/* ROUND 23 (owner spec §1): the in-drawer "New Note"
+                            {/* DEFERRED(quick-note-removal): the in-drawer "New Note"
                                 entry is gone with the quick-notes pencil mode —
                                 Aloa Vox (the Consultation / Note pane) owns
                                 voice capture and notes. */}
@@ -3746,6 +3726,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 />
                             </section>
 
+                            {/* DEFERRED(quick-note-removal): the "Archived Notes"
+                                section belongs to the Quick Note surfaces being
+                                removed — leave functionally and visually as is
+                                (two-tap trash confirm included). */}
                             <section>
                                 <h3 className="text-2xs font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Archived Notes</h3>
                                 <div className="space-y-1">

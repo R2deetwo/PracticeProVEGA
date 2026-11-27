@@ -18,8 +18,11 @@ describe('ROUND 23 §1 — the redundant quick-notes pencil mode and the Endorse
     expect(chat).not.toContain("'quickNote'");
     expect(chat).not.toContain('Quick Note mode');
     expect(chat).not.toContain('>New Note<');
-    // The chat mic (the Vox hand-off) stays.
-    expect(chat).toContain('icon={MicrophoneIcon}');
+    // ROUND 24 (§2.1): the chat mic is gone too — redundant with the panel's
+    // Vox segment. The segment owns the voice entry now.
+    expect(chat).not.toContain('icon={MicrophoneIcon}');
+    const panel = read('src/components/aloa/AloaPanel.tsx');
+    expect(panel).toContain("{ value: 'capture', label: 'Vox' }");
   });
 
   it('the provider drops the quickNote view and its content state entirely', () => {

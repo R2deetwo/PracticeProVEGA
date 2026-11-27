@@ -5,9 +5,12 @@ import Tooltip from '../Tooltip';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { AloaIcon, LockClosedIcon, MicrophoneIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
 import { getAssistantName } from '../../utils/assistantIdentity';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 
 import { Z_CLASS } from '../../overlays/constants';
 const AloaFAB: React.FC = () => {
@@ -16,10 +19,28 @@ const AloaFAB: React.FC = () => {
     const { modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
     const { isProperty } = useProduct();
     const { canUseAI } = useFeatures();
+    const { currentUser, bearerToken } = useAuth();
     const assistantName = getAssistantName(isProperty);
 
     const aiFeaturesEnabled = coreState.firmDetails.aiSettings?.enableAllAiFeatures ?? true;
     const isAiActive = canUseAI && aiFeaturesEnabled;
+
+    // ── §1.5(b) critical-insight dot ─────────────────────────────────────
+    // The same deterministic insight data the chat empty state uses (same
+    // query, same args — no new endpoints). Only CRITICAL items raise the
+    // red dot; hidden when there are none.
+    const showAiSuggestions = (currentUser as any).showAiSuggestions !== false;
+    const firmId = currentUser?.firmId || coreState?.firmDetails?.id;
+    const proactiveInsights = useQuery(
+        api.proactive.getInsights,
+        showAiSuggestions && firmId && bearerToken
+            ? { firmId, dismissed: false, limit: 10, sessionToken: bearerToken ?? undefined, userEmail: currentUser?.email ?? undefined }
+            : 'skip'
+    );
+    const criticalCount = React.useMemo(
+        () => (proactiveInsights ?? []).filter((i: any) => i.severity === 'critical').length,
+        [proactiveInsights]
+    );
 
     // HIDE FAB IF ANY MODAL OR SEARCH IS OPEN
     if (modal || dockedModalType || isMobileSearchOpen) return null;
@@ -38,7 +59,7 @@ const AloaFAB: React.FC = () => {
             // Growth+) — the exact audience the free-first wizard default
             // now funnels in. Route the click to the upgrade modal instead
             // so the button always explains itself.
-            openModal('upgradePlan', null, { featureName: `${assistantName}® AI Copilot` });
+            openModal('upgradePlan', null, { featureName: `${assistantName} AI Copilot` });
             return;
         }
 
@@ -57,15 +78,25 @@ const AloaFAB: React.FC = () => {
     if (isPanelOpen) return null;
 
     const isListening = aloaState === 'listening';
-    const isSpeaking = aloaState === 'speaking';
-    const isThinking = aloaState === 'thinking' || aloaState === 'connecting';
+    const isSpeaking = aloaState === 'thinking' || aloaState === 'connecting';
 
     let bgClass = isAiActive ? 'bg-primary-600 hover:bg-primary-700' : 'bg-slate-700 hover:bg-slate-600';
-    if (isListening) bgClass = 'bg-red-600 hover:bg-red-700 shadow-red-500/50';
+    if (isListening) bgClass = 'bg-red-600 hover:bg-red-700';
 
+    // ── §1.5(c) recording state: keep the red pulse, but honour
+    // prefers-reduced-motion — a STATIC ring carries the same signal
+    // (motion-safe:animate-pulse simply doesn't animate under reduce).
     let animationClass = '';
-    if (isListening) animationClass = 'animate-pulse ring-4 ring-red-400/50';
-    else if (isSpeaking || isThinking) animationClass = 'animate-pulse';
+    if (isListening) animationClass = 'ring-4 ring-red-400/50 motion-safe:animate-pulse';
+    else if (isSpeaking) animationClass = 'motion-safe:animate-pulse';
+
+    // ── §1.5(a) ONE accessible name per state — tooltip and aria-label
+    // always agree (no registered-trademark mark; assistantIdentity.ts
+    // mandates none).
+    let accessibleName = `Open ${assistantName}`;
+    if (!isAiActive) accessibleName = `Unlock ${assistantName}`;
+    else if (isListening) accessibleName = `Open ${assistantName} — recording in progress`;
+    else if (criticalCount > 0) accessibleName = `${assistantName}, ${criticalCount} alert${criticalCount === 1 ? '' : 's'}`;
 
     // Apply visibility transition — 200ms so the FAB settles with the
     // sheet reveal, not a slow float (Kowalski: snappier in, never sluggish).
@@ -75,10 +106,11 @@ const AloaFAB: React.FC = () => {
 
     return (
         <div className={`fixed bottom-20 md:bottom-8 right-6 ${Z_CLASS.bottomNavVeil} transition-all duration-200 ease-out ${visibilityClass}`}>
-            <Tooltip text={isAiActive ? `Open ${assistantName}®` : `Unlock ${assistantName}® AI`}>
+            <Tooltip text={accessibleName}>
                 <button
                     onClick={handleClick}
                     data-tour-id="aloa-fab"
+                    aria-label={accessibleName}
                     className={`
                         relative w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center
                         transition-all duration-150 active:scale-[0.98] focus:outline-none
@@ -86,7 +118,6 @@ const AloaFAB: React.FC = () => {
                         ${bgClass}
                         ${animationClass}
                     `}
-                    aria-label={`Open AI Assistant ${assistantName}`}
                 >
                     <div className="relative z-10">
                         {isListening ? (
@@ -96,10 +127,23 @@ const AloaFAB: React.FC = () => {
                         )}
                     </div>
 
+                    {/* §1.5(b): the amber lock badge (locked state) stays. */}
                     {!isAiActive && (
                         <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-1 shadow-sm border border-white z-20">
                             <LockClosedIcon className="w-3 h-3" />
                         </div>
+                    )}
+
+                    {/* §1.5(b): critical-insight count dot — red only for
+                        critical items, hidden when 0. Sits opposite the lock
+                        badge so the two never collide. */}
+                    {isAiActive && criticalCount > 0 && (
+                        <span
+                            aria-hidden="true"
+                            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 border-2 border-white text-white text-2xs font-black leading-[14px] text-center z-20"
+                        >
+                            {criticalCount}
+                        </span>
                     )}
                 </button>
             </Tooltip>

@@ -49,22 +49,33 @@ describe('ALOA Court Mode — panel deep-link plumbing', () => {
     expect(panel).toContain('initialMatterId={panelInitialMatterId ?? undefined}');
     expect(panel).toContain("if (!isPanelOpen && wasOpenRef.current) {");
     expect(panel).toContain("setMode('chat')");
-    // Preserved: the backdrop never closes Court Mode.
-    expect(panel).toContain("onClick={mode === 'court' ? undefined : handleClose}");
+    // ROUND 24 (§1.2): the backdrop never DISCARDS a live take — every mode
+    // routes through requestClose, which opens the ConfirmDialog while a
+    // take is live and only then stops-and-keeps + closes.
+    expect(panel).toContain('onClick={() => void requestClose()}');
+    expect(panel).toContain("Stop and keep what you've recorded?");
+    expect(panel).toContain('registerStopAndKeep');
   });
 
-  it('ROUND 22: the panel hosts the Vox switcher (Consultation / Note | Court Mode) with the busy guards', () => {
+  it('ROUND 24: the panel owns ONE top row — Ask | Vox | Court — with the busy guards', () => {
     const panel = read('src/components/aloa/AloaPanel.tsx');
-    expect(panel).toContain("label: 'Consultation / Note'");
-    expect(panel).toContain("label: 'Court Mode'");
-    expect(panel).toContain('switchVoxPane');
-    expect(panel).toContain("stampVoxUsedAt()");
-    // Court Mode backs into the Vox consultation home, not the chat.
-    expect(panel).toContain("onBackToChat={() => setMode('capture')}");
-    // Both panes report a live take; the other segment locks mid-take.
+    expect(panel).toContain("{ value: 'chat', label: 'Ask' }");
+    expect(panel).toContain("{ value: 'capture', label: 'Vox' }");
+    expect(panel).toContain("{ value: 'court', label: 'Court' }");
+    expect(panel).toContain('label="ALOA pane"');
+    expect(panel).toContain('stampVoxUsedAt()');
+    // Court Mode is reached via its own segment — no mode-level back wiring.
+    expect(panel).not.toContain('onBackToChat');
+    // Both panes report a live take; the other segments lock mid-take.
     expect(panel).toContain('onCaptureBusyChange={setCourtBusy}');
     expect(panel).toContain('onCaptureBusyChange={setCaptureBusy}');
     expect(panel).toContain('disabledReason="Finish or discard the dictation first."');
+    // §1.3: the visual-only drag handle is GONE.
+    expect(panel).not.toContain('w-10 h-1');
+    // §1.4: dialog semantics + Tab trap live in the panel.
+    expect(panel).toContain('role="dialog"');
+    expect(panel).toContain('useFocusTrap');
+    expect(panel).not.toContain('onPointerDown={handleClose}');
   });
 
   it('ROUND 22: both Vox panes report capture busyness (a live take is never silently dropped)', () => {
@@ -75,20 +86,31 @@ describe('ALOA Court Mode — panel deep-link plumbing', () => {
     expect(qcv).toContain('onCaptureBusyChange?: (busy: boolean) => void');
   });
 
-  it('ROUND 22: the standalone Scales entry in AloaChat is GONE (Court Mode lives inside ALOA Vox)', () => {
+  it('ROUND 22 → ROUND 24: the chat mic is GONE too — the panel Vox segment owns the voice entry', () => {
     const chat = read('src/components/aloa/AloaChat.tsx');
     expect(chat).not.toContain('onOpenCourtMode');
     expect(chat).not.toContain('Open ALOA Court Mode');
     expect(chat).not.toContain('ScalesIcon');
-    // The chat mic (the Vox hand-off) stays.
-    expect(chat).toContain('icon={MicrophoneIcon}');
+    // §2.1: the mic was redundant with the new Vox segment — removed.
+    expect(chat).not.toContain('icon={MicrophoneIcon}');
+    expect(chat).not.toContain('aria-label="Open Vox mode"');
+    // The panel top row owns the voice entry:
+    const panel = read('src/components/aloa/AloaPanel.tsx');
+    expect(panel).toContain("{ value: 'capture', label: 'Vox' }");
   });
 
-  it('AloaCourtMode keeps its props (only the optional initialMatterId was added)', () => {
+  it('AloaCourtMode keeps its props (ROUND 24: no mode-level back — inner Back only)', () => {
     const courtMode = read('src/components/aloa/AloaCourtMode.tsx');
-    expect(courtMode).toContain('onBackToChat: () => void;');
+    expect(courtMode).not.toContain('onBackToChat');
     expect(courtMode).toContain('onClose: () => void;');
     expect(courtMode).toContain('initialMatterId?: string;');
+    // §1.2: the pane registers stop-and-keep for the busy-guard Close.
+    expect(courtMode).toContain('registerStopAndKeep?: (fn: (() => Promise<unknown> | void) | null) => void;');
+    expect(courtMode).toContain('registerStopAndKeep?.(dictation.recording ? () => dictation.stopDictation() : null)');
+    // §1.1: the inner Back navigates within the pane; hidden at the diary root.
+    expect(courtMode).toContain('{view !== "diary" ? (');
+    // §1.4: the Court header carries no X of its own (panel owns Close).
+    expect(courtMode).not.toContain('Close Court Mode');
   });
 
   it('the Scales entry button in AloaChat is removed — Court Mode nests inside ALOA Vox (Round 22)', () => {

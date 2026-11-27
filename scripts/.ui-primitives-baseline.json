@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-27T13:31:24.485Z",
+  "generatedAt": "2026-11-27T15:02:31.627Z",
   "totals": {
-    "button": 1602,
+    "button": 1601,
     "input": 403,
     "select": 139,
     "textarea": 58
   },
-  "total": 2202,
+  "total": 2201,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -246,7 +246,7 @@
       "button": 3
     },
     "src/components/aloa/AloaChat.tsx": {
-      "button": 33,
+      "button": 32,
       "input": 1
     },
     "src/components/aloa/AloaFAB.tsx": {

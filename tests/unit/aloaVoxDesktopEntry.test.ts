@@ -47,12 +47,13 @@ describe('ALOA Vox — the desktop recording place (Task 92 → Round 21 removal
     expect(header).toContain('ALOA Vox — start recording');
   });
 
-  it('the in-panel chat mic wiring (voice → send through to Aloa) stays intact', () => {
+  it('the in-panel voice entry is the panel Vox segment (ROUND 24 §2.1: the chat mic is redundant)', () => {
     const panel = read('src/components/aloa/AloaPanel.tsx');
     const chat = read('src/components/aloa/AloaChat.tsx');
     expect(panel).toContain('onOpenCapture={openCaptureMode}');
     expect(chat).toContain('onOpenCapture?: () => void');
-    expect(chat).toContain('icon={MicrophoneIcon}');
+    expect(panel).toContain("{ value: 'capture', label: 'Vox' }");
+    expect(chat).not.toContain('icon={MicrophoneIcon}');
   });
 });
 

@@ -191,14 +191,20 @@ function useIsPhoneLike(): boolean {
 export interface QuickCaptureViewProps {
   /** Render inside the ALOA side panel instead of as a full-screen view. */
   embedded?: boolean;
-  /** Embedded only: return to the ALOA chat interface. */
+  /** Embedded only: return to the ALOA chat interface. (ROUND 24: the panel's
+   *  Ask | Vox | Court segmented row owns pane navigation now — the `< ALOA`
+   *  back button is standalone-only, so the panel no longer passes this.) */
   onBackToChat?: () => void;
   /** Embedded only: leave the panel for the full office (parent closes it). */
   onExitEmbedded?: () => void;
   /** ROUND 22: report whether a capture take is live, so the panel's Vox
-   *  switcher (Consultation / Note | Court Mode) can lock the other segment
-   *  mid-take instead of unmounting a recording. */
+   *  switcher can lock the other segment mid-take instead of unmounting a
+   *  recording. */
   onCaptureBusyChange?: (busy: boolean) => void;
+  /** ROUND 24 (§1.2 no accidental loss): the panel's busy-guard Close calls
+   *  this to stop a live recording while KEEPING it — Vox flushes its audio
+   *  segments to the on-device queue, so the take survives the close. */
+  registerStopAndKeep?: (fn: (() => Promise<unknown> | void) | null) => void;
 }
 
 export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
@@ -206,6 +212,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   onBackToChat,
   onExitEmbedded,
   onCaptureBusyChange,
+  registerStopAndKeep,
 }) => {
   const { navigateTo, addToast, setMobileSearchOpen } = useUI();
   const { currentUser } = useAuth();
@@ -388,6 +395,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       qc.phase === "recording" || qc.phase === "processing" || qc.phase === "queued"
     );
   }, [qc.phase, onCaptureBusyChange]);
+
+  // ROUND 24 (§1.2): stop-and-keep is only meaningful mid-recording — once
+  // the take is processing/queued its audio is already on this device, so
+  // closing the panel loses nothing.
+  useEffect(() => {
+    registerStopAndKeep?.(qc.phase === "recording" ? () => qc.stopRecording() : null);
+  }, [qc.phase, qc.stopRecording, registerStopAndKeep]);
 
   const toggleWhisperMode = useCallback(() => {
     setWhisperMode((prev) => {
@@ -764,21 +778,19 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   //    4. Standalone phones get a real `< ALOA` back affordance that opens
   //       the ALOA assistant over the office (previously a bare spacer).
   const compactHeader = embedded || isPhoneLike;
-  const desktopPane = embedded && !isPhoneLike;
   const { openPanel: openAloaPanel } = useAloa();
 
+  // ROUND 24 (§1.1): the `< ALOA` back is STANDALONE-ONLY — inside the ALOA
+  // panel the Ask | Vox | Court segmented row owns pane navigation, so the
+  // embedded pane renders no mode-back button at all.
   const handleBackToAloa = useCallback(() => {
     light();
-    if (embedded && onBackToChat) {
-      onBackToChat();
-      return;
-    }
     // Standalone (mobile APK): Vox is the full surface here — the ALOA
     // panel is unmounted in this view. Go to the office and open ALOA on
     // top of it, so `< ALOA` lands the user back with their assistant.
     navigateTo("dashboard");
     openAloaPanel("chat");
-  }, [light, embedded, onBackToChat, navigateTo, openAloaPanel]);
+  }, [light, navigateTo, openAloaPanel]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -807,12 +819,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           shell inset + calc(0.75rem + env(...)) + inner pt-3 — the giant
           white gap under the status bar. Inner row padding is the compact
           py-2.5. */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]">
+      {/* SAFE AREAS (ROUND 24 §1.3): ONE place inside the panel — AloaPanel
+          owns the top/bottom insets for every pane. Standalone keeps its
+          own (the full-screen shell has no panel above it). */}
+      <header className={`bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 ${embedded ? "" : "pt-[max(env(safe-area-inset-top,0px),var(--native-safe-top,0px))]"}`}>
         <div className="relative flex items-center justify-between gap-2 px-4 py-2.5">
-          {/* LEFT SLOT — the single back affordance: `< ALOA`. Embedded
-              panes return to the chat; standalone phones open ALOA over the
-              office. One line, never truncated, no badge stacking. */}
-          {compactHeader ? (
+          {/* LEFT SLOT — `< ALOA` is the STANDALONE back affordance (mobile
+              APK full-screen). Embedded panes carry no back button: the
+              panel's segmented row is the one navigation model (§1.1). */}
+          {!embedded && compactHeader ? (
             <Button
               variant="ghost"
               size="sm"
@@ -822,7 +837,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             >
               ALOA
             </Button>
-          ) : (
+          ) : !compactHeader ? (
             <div className="min-w-0">
               {/* ALOA Vox naming (owner task 2026-11-22): the wide header
                   carries the full feature name with the stylized Vox mark. */}
@@ -834,7 +849,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
               </p>
             </div>
-          )}
+          ) : null}
 
           {/* CENTER SLOT — the ALOA VOX box (owner task 2026-11-22):
               absolutely centered on the bar (left-1/2 -translate-x-1/2) so
@@ -985,7 +1000,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 </Button>
               </>
             ) : null}
-            {!desktopPane && (
+            {/* Dashboard exit — STANDALONE-ONLY (§1.1: inside the panel,
+                the segmented row + Close own navigation; an exit button
+                that duplicates them is noise). */}
+            {!embedded && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -1570,7 +1588,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           used to break onto two lines on narrow phones. */}
       {mode === "speak" ? (
         <nav
-          className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5 flex gap-2 pb-[max(calc(0.5rem+env(safe-area-inset-bottom,0px)),var(--native-safe-bottom,0px))]"
+          className={`border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2.5 flex gap-2 ${embedded ? "" : "pb-[max(calc(0.5rem+env(safe-area-inset-bottom,0px)),var(--native-safe-bottom,0px))]"}`}
           aria-label="Capture mode"
         >
           <Button
