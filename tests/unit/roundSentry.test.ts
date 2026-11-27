@@ -156,7 +156,10 @@ function baseTables(): Record<string, Row[]> {
         // purchased add-on for every plan — the old Komplete tier bypass is
         // reversed. This fixture firm carries an ACTIVE add-on subscription,
         // the new honest path (plan alone no longer opens the gate).
-        subscriptionAddons: { vms: { status: 'active' } } },
+        subscriptionAddons: { vms: { status: 'active' } },
+        // 2026-11-27 entitlement layer: fixture firm is ALSO founder-approved
+        // (firms.vmsEnabled) — the capability gate sits ABOVE the billing gate.
+        vmsEnabled: true, vmsRequestStatus: 'approved' },
     ],
     users: [
       { _id: RESIDENT_ID, id: RESIDENT_ID, name: 'Ada Resident', email: 'ada@res.ng', role: 'Tenant', firmId: 'firm-1', phone: '+2348010000001' },
@@ -403,6 +406,10 @@ describe('roundSentry §4/§7.9 — permission enforcement (acceptance 9)', () =
     tables.firms.push({
       _id: 'firm_starter', id: 'firm-starter', name: 'Starter Estates', email: 'starter@eg.ng',
       subscriptionPlan: 'Starter', subscriptionAddons: {},
+      // 2026-11-27 entitlement layer: the firm IS founder-approved (capability
+      // granted) but carries NO add-on subscription — this test pins that the
+      // BILLING layer still refuses it on its own.
+      vmsEnabled: true, vmsRequestStatus: 'approved',
     });
     tables.users.push({
       _id: 'users_10_starter', id: 'users_10_starter', name: 'Starter Admin', email: 'starter@eg.ng',

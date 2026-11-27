@@ -103,9 +103,15 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   // shipped in the CRO audit with ZERO UI — add-on requests piled up in
   // pending_review forever (and before the D2 paid-path fix, even PAID
   // purchases landed there). This tab is their surface.
-  const [viewTab, setViewTab] = useState<'plans' | 'addons'>('plans');
+  const [viewTab, setViewTab] = useState<'plans' | 'addons' | 'vms'>('plans');
   const [addonStatusFilter, setAddonStatusFilter] = useState<'pending_review' | 'active' | 'cancelled' | 'all'>('pending_review');
   const [addonRequests, setAddonRequests] = useState<any[] | undefined>(undefined);
+
+  // ─── 2026-11-27: VMS ACCESS REQUESTS (founder-approval entitlement flow) ─
+  // Workspaces requesting VMS (SentryPass) activation. Approve → firms.vmsEnabled = true
+  // + the firm's admins are notified; Decline → vmsRequestStatus 'declined'.
+  const [vmsStatusFilter, setVmsStatusFilter] = useState<'pending' | 'approved' | 'declined' | 'all'>('pending');
+  const [vmsRequests, setVmsRequests] = useState<any[] | undefined>(undefined);
 
   // Data — DEFENSIVE PATTERN.
   // The new founderMetrics mutations (getSubscriptionRequestStats,
@@ -172,6 +178,8 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   // D2: the add-on approval pair — previously orphaned (zero UI).
   const approveAddonMutation = useMutation(api.founderMetrics.approveAddonRequestAsFounder);
   const rejectAddonMutation  = useMutation(api.founderMetrics.rejectAddonRequestAsFounder);
+  // 2026-11-27: the VMS access approval pair (capability flags on the firm).
+  const decideVmsMutation = useMutation(api.myFunctions.decideVmsAccessRequest);
 
   // Filtered requests (search by firm name, user email, reference)
   const filtered = useMemo(() => {
@@ -297,10 +305,32 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     }
   };
 
+  // ─── 2026-11-27: VMS access requests fetch (same defensive pattern) ──
+  useEffect(() => {
+    if (!bearerToken || !convex || viewTab !== 'vms') return;
+    let cancelled = false;
+    const fetchVms = async () => {
+      try {
+        const r = await convex.query(api.myFunctions.getVmsAccessRequests, {
+          sessionToken: bearerToken ?? undefined,
+          status: vmsStatusFilter,
+        });
+        if (!cancelled) setVmsRequests(r || []);
+      } catch (e: any) {
+        console.warn('[SubscriptionRequestsCenter] getVmsAccessRequests failed:', e?.message || e);
+        if (!cancelled) setVmsRequests([]);
+      }
+    };
+    fetchVms();
+    const interval = setInterval(fetchVms, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [bearerToken, convex, vmsStatusFilter, viewTab]);
+
   // ─── Loading state ────────────────────────────────────────────────
   const plansLoading = requests === undefined || stats === undefined;
   const addonsLoading = viewTab === 'addons' && addonRequests === undefined;
-  if (plansLoading || addonsLoading) {
+  const vmsLoading = viewTab === 'vms' && vmsRequests === undefined;
+  if (plansLoading || addonsLoading || vmsLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
@@ -349,6 +379,18 @@ export const SubscriptionRequestsCenter: React.FC = () => {
             }`}
           >
             Add-ons
+          </button>
+          {/* 2026-11-27: VMS (SentryPass) access requests — founder approval
+              unlocks firms.vmsEnabled for the requesting workspace. */}
+          <button
+            onClick={() => setViewTab('vms')}
+            className={`px-4 py-1.5 rounded-md text-2xs font-bold transition-colors ${
+              viewTab === 'vms'
+                ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            VMS Access
           </button>
         </div>
       </div>
@@ -574,6 +616,201 @@ export const SubscriptionRequestsCenter: React.FC = () => {
             })}
           </div>
         </div>
+      ) : viewTab === 'vms' ? (
+      /* ═══ 2026-11-27: VMS ACCESS APPROVAL QUEUE ═══
+         VMS (SentryPass) is a paid + founder-approved add-on. Approving a
+         request unlocks firms.vmsEnabled for the workspace and notifies its
+         admins (in-app + push); declining marks the request declined. The
+         add-on BILLING (annual, per estate tier) is arranged separately
+         with the firm — activateVmsAddon remains the billing lever. */
+      <div className="px-4 space-y-4">
+        {/* Stats strip */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className={CARD}>
+            <p className={LABEL}>Pending VMS Requests</p>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+              {(vmsRequests || []).filter((r: any) => (r.vmsRequestStatus || 'none') === 'pending').length}
+            </p>
+          </div>
+          <div className={CARD}>
+            <p className={LABEL}>Enabled Workspaces</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+              {(vmsRequests || []).filter((r: any) => r.vmsEnabled).length}
+            </p>
+          </div>
+          <div className={CARD}>
+            <p className={LABEL}>In View</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(vmsRequests || []).length}</p>
+          </div>
+        </div>
+
+        {/* Filters + explainer */}
+        <div className={CARD}>
+          <p className={SECTION_TITLE}>VMS (SentryPass) Access Requests</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+            Workspaces requesting the VMS (SentryPass) estate-operations add-on. Approve unlocks the
+            capability (firms.vmsEnabled) and notifies the workspace's admins; annual per-estate pricing
+            is arranged separately with the firm.
+          </p>
+          <div className="flex gap-1 overflow-x-auto no-scrollbar">
+            {([
+              { id: 'pending', label: 'Pending', color: 'bg-amber-500' },
+              { id: 'approved', label: 'Approved', color: 'bg-emerald-500' },
+              { id: 'declined', label: 'Declined', color: 'bg-red-500' },
+              { id: 'all', label: 'All', color: 'bg-primary-600' },
+            ] as const).map(f => (
+              <button
+                key={f.id}
+                onClick={() => setVmsStatusFilter(f.id)}
+                className={`px-3 py-1.5 rounded-md text-2xs font-bold transition-colors whitespace-nowrap flex-shrink-0 ${
+                  vmsStatusFilter === f.id
+                    ? `${f.color} text-white shadow-sm`
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Empty state */}
+        {(vmsRequests || []).length === 0 && (
+          <div className={CARD + ' text-center py-12'}>
+            <h3 className="text-sm font-bold text-slate-700 dark:zinc-300">No VMS access requests</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {vmsStatusFilter === 'pending'
+                ? 'No workspaces are waiting on VMS approval right now.'
+                : `No ${vmsStatusFilter} VMS requests.`}
+            </p>
+          </div>
+        )}
+
+        {/* Request cards */}
+        <div className="space-y-3">
+          {(vmsRequests || []).map((r: any) => {
+            const req = r.vmsRequest || {};
+            const pendingNow = (r.vmsRequestStatus || 'none') === 'pending';
+            return (
+              <div key={r.firmId} className={CARD}>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">{r.firmName}</h3>
+                      <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${PRODUCT_COLOR[r.product] || PRODUCT_COLOR.unified}`}>
+                        {PRODUCT_LABEL[r.product] || r.product || '—'}
+                      </span>
+                      {r.subscriptionPlan && (
+                        <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${PLAN_COLOR[r.subscriptionPlan] || PLAN_COLOR.Core}`}>
+                          {r.subscriptionPlan}
+                        </span>
+                      )}
+                      <span className={`text-2xs font-bold px-2 py-0.5 rounded-full ${
+                        r.vmsEnabled
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : pendingNow
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {r.vmsEnabled ? 'Enabled' : (r.vmsRequestStatus || 'none')}
+                      </span>
+                    </div>
+                    <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1">
+                      {req.estateName || '—'} · {req.unitCount || '—'} units/gates
+                      {req.requestedAt ? ` · requested ${timeAgo(new Date(req.requestedAt).toISOString())}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Estate details */}
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700/60 space-y-2">
+                  <div>
+                    <p className={LABEL}>Requested by</p>
+                    <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 mt-0.5">
+                      {req.requestedBy || '—'}{req.requestedByEmail ? ` (${req.requestedByEmail})` : ''}
+                    </p>
+                  </div>
+                  <div>
+                    <p className={LABEL}>Use case</p>
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">{req.useCase || '—'}</p>
+                  </div>
+                  {req.decidedAt && (
+                    <div>
+                      <p className={LABEL}>Decision</p>
+                      <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 mt-0.5">
+                        {req.decidedBy || 'founder'} · {timeAgo(new Date(req.decidedAt).toISOString())}
+                        {req.decisionNote ? ` — “${req.decisionNote}”` : ''}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {pendingNow && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700/60 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Optional note to the workspace (shown with the decision)"
+                      value={adminNotes['vms_' + r.firmId] || ''}
+                      onChange={e => setAdminNotes(prev => ({ ...prev, ['vms_' + r.firmId]: e.target.value }))}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          setIsProcessing(prev => ({ ...prev, ['vms_' + r.firmId]: true }));
+                          try {
+                            await decideVmsMutation({
+                              firmId: r.firmId,
+                              sessionToken: bearerToken ?? undefined,
+                              decision: 'approve',
+                              note: adminNotes['vms_' + r.firmId] || undefined,
+                            });
+                            addToast('VMS access approved. Workspace admins notified.', { type: 'success' });
+                            setAdminNotes(prev => { const n = { ...prev }; delete n['vms_' + r.firmId]; return n; });
+                          } catch (e: any) {
+                            addToast(e?.message || 'Failed to approve.', { type: 'error' });
+                          } finally {
+                            setIsProcessing(prev => ({ ...prev, ['vms_' + r.firmId]: false }));
+                          }
+                        }}
+                        disabled={isProcessing['vms_' + r.firmId]}
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all active:scale-95"
+                      >
+                        {isProcessing['vms_' + r.firmId] ? 'Approving…' : 'Approve & Enable'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setIsProcessing(prev => ({ ...prev, ['vms_' + r.firmId]: true }));
+                          try {
+                            await decideVmsMutation({
+                              firmId: r.firmId,
+                              sessionToken: bearerToken ?? undefined,
+                              decision: 'decline',
+                              note: adminNotes['vms_' + r.firmId] || undefined,
+                            });
+                            addToast('VMS request declined. Workspace admins notified.', { type: 'success' });
+                            setAdminNotes(prev => { const n = { ...prev }; delete n['vms_' + r.firmId]; return n; });
+                          } catch (e: any) {
+                            addToast(e?.message || 'Failed to decline.', { type: 'error' });
+                          } finally {
+                            setIsProcessing(prev => ({ ...prev, ['vms_' + r.firmId]: false }));
+                          }
+                        }}
+                        disabled={isProcessing['vms_' + r.firmId]}
+                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all active:scale-95"
+                      >
+                        {isProcessing['vms_' + r.firmId] ? 'Working…' : 'Decline'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
       ) : (
       <div className="px-4 space-y-4">
         {/* ─── Stats Strip ─────────────────────────────────────────── */}

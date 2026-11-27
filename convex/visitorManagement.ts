@@ -91,10 +91,27 @@ async function requireGatehouseAccess(
 }
 
 // ─── TASK 94: the canonical VMS add-on billing gate ──────────────────────
-// (Same rules as generateVisitorToken's inline gate — every firm, including
-// Komplete/Enterprise, must hold the VMS add-on or be the founder firm.
-// Extracted so issueStaffPass goes through the identical check.)
-export async function assertVmsEntitlement(ctx: any, firmId: string): Promise<void> {
+// ─── 2026-11-27 RESTRUCTURE: capability + billing, enforced on EVERY VMS
+// query/mutation in this module (the owner's entitlement-gating brief).
+//
+// The gate is TWO layers, both server-side — never a plan-name check in a
+// UI component:
+//   1. PRODUCT SCOPE — Vega (legal-only) workspaces can never hold VMS.
+//   2. CAPABILITY — firms.vmsEnabled === true, granted ONLY by founder
+//      approval (decideVmsAccessRequest in myFunctions.ts) or by the
+//      one-off entitlement backfill (migrations.backfillVmsEntitlementFlags)
+//      that grandfathered firms already holding an active/trial add-on
+//      at cutover. Absent flag = not enabled. The platform founder's own
+//      firm keeps its historic bypass (dogfooding/testing path).
+//   3. BILLING — the separately-purchased add-on
+//      (firm.subscriptionAddons.vms) per the owner rule 2026-11-22: every
+//      plan, Komplete and Enterprise included. (Same rules as the former
+//      inline gate in generateVisitorToken — TASK 94 extracted it, this
+//      restructure adds the capability layer above it.)
+
+/** Resolves a firm by its custom `id` field, falling back to a raw Convex
+ *  _id (the established two-form lookup across this module's callers). */
+export async function resolveVmsFirm(ctx: any, firmId: string): Promise<any | null> {
   let firm: any = await ctx.db
     .query("firms")
     .filter((q: any) => q.eq(q.field("id"), firmId))
@@ -102,20 +119,96 @@ export async function assertVmsEntitlement(ctx: any, firmId: string): Promise<vo
   if (!firm) {
     try { firm = await ctx.db.get(firmId as any); } catch { /* not a valid Convex id */ }
   }
-  if (!firm) return;
+  return firm || null;
+}
+
+/** The platform founder's own firm — pre-dates the capability flags
+ *  (testing + dogfooding path); deliberately preserved. */
+function isFounderFirm(firm: any): boolean {
+  const founderEmail = (firm.email || '').toLowerCase();
+  return founderEmail.endsWith('@practicepro.ng')
+    || founderEmail === 'practiceprosystems@gmail.com'
+    || firm.id === 'practicepro'
+    || (firm.name || '').toLowerCase().includes('practicepro');
+}
+
+/** VEGA WORKSPACES — VMS is not applicable to legal-only products. */
+function isLegalOnlyProduct(firm: any): boolean {
+  const product = String(firm.product || '').toLowerCase();
+  return product === 'legal' || product === 'vega';
+}
+
+/** Core entitlement check. `allowWrites` MUST be false from Convex QUERIES
+ *  (queries cannot patch the trial-expiry transition; the mutation paths
+ *  perform it). Throwing surfaces the code to the client, which maps each
+ *  prefix to its tailored UI screen (VMS_NOT_AVAILABLE / VMS_NOT_ENABLED /
+ *  VMS_ADDON_REQUIRED / VMS_TRIAL_EXPIRED). */
+async function assertVmsEntitlementCore(
+  ctx: any,
+  firmId: string,
+  allowWrites: boolean,
+): Promise<void> {
+  const firm = await resolveVmsFirm(ctx, firmId);
+  if (!firm) return; // no firm record to enforce against — caller-level auth still applies
+
+  // 1. PRODUCT SCOPE — Vega never holds VMS (Forbidden, not paywall).
+  if (isLegalOnlyProduct(firm)) {
+    throw new Error(
+      "VMS_NOT_AVAILABLE: VMS (SentryPass) is not available on Vega legal workspaces. It is an Atrium estate-operations add-on."
+    );
+  }
+
+  // 2. CAPABILITY GATE — founder approval flag on the workspace record.
+  if (firm.vmsEnabled !== true && !isFounderFirm(firm)) {
+    throw new Error(
+      "VMS_NOT_ENABLED: VMS (SentryPass) is not enabled for this workspace. A firm admin can request access under Settings → Security & Access — the founder reviews each estate."
+    );
+  }
+
+  // ─── ADD-ON GATE (owner rule, 2026-11-22) ────────────────────────
+  // Sentry Pass (VMS) is ALWAYS a separately-purchased add-on for every
+  // plan — Komplete and Enterprise included. The Aug 2026 tier-based
+  // bypass ("included at no extra cost on Komplete") is REVERSED by the
+  // owner: "the sentry pass should always be an add-on that can be
+  // gotten by anybody if they want… it shouldn't come automatically
+  // with complete." Every firm passes the same add-on status check.
   const vmsAddon = (firm.subscriptionAddons as any)?.vms;
   if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
-    const founderEmail = (firm.email || '').toLowerCase();
-    const isFounderFirm = founderEmail.endsWith('@practicepro.ng')
-      || founderEmail === 'practiceprosystems@gmail.com'
-      || firm.id === 'practicepro'
-      || (firm.name || '').toLowerCase().includes('practicepro');
-    if (!isFounderFirm) {
+    if (!isFounderFirm(firm)) {
       throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
     }
   } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
+    // Trial has expired — auto-mark as expired (mutations only)
+    if (allowWrites) {
+      vmsAddon.status = 'expired';
+      await ctx.db.patch(firm._id, {
+        subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
+      });
+    }
     throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
   }
+}
+
+/** Mutation-safe entitlement gate (performs the trial-expiry transition). */
+export async function assertVmsEntitlement(ctx: any, firmId: string): Promise<void> {
+  await assertVmsEntitlementCore(ctx, firmId, true);
+}
+
+/** Query-safe entitlement gate (no writes — Convex queries cannot patch). */
+export async function assertVmsEntitlementReadOnly(ctx: any, firmId: string): Promise<void> {
+  await assertVmsEntitlementCore(ctx, firmId, false);
+}
+
+/** Property-scoped variant for the gatehouse endpoints: resolves the
+ *  property row → its firm, then runs the SAME entitlement core. */
+async function assertVmsEntitlementForProperty(
+  ctx: any,
+  propertyId: string,
+  allowWrites: boolean,
+): Promise<void> {
+  const property: any = await ctx.db.get(propertyId as any).catch(() => null);
+  if (!property?.firmId) return; // unknown property — the token lookups below fail safely
+  await assertVmsEntitlementCore(ctx, String(property.firmId), allowWrites);
 }
 
 // ─── Token Code Generation ───────────────────────────────────────────────
@@ -228,48 +321,12 @@ export const generateVisitorToken = mutation({
       throw new Error("Not authorized: firm mismatch.");
     }
 
-    // ─── VMS ADD-ON BILLING GATE ──────────────────────────────────────
-    // VMS is a paid add-on. Before generating a token, verify the firm has
-    // an active or trial VMS add-on subscription. If the trial has expired
-    // or no subscription exists, block token generation with a clear
-    // upgrade prompt.
-    let firm: any = await ctx.db
-      .query("firms")
-      .filter((q: any) => q.eq(q.field("id"), args.firmId))
-      .first();
-    if (!firm) {
-      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
-    }
-    if (firm) {
-      // ─── ADD-ON GATE (owner rule, 2026-11-22) ────────────────────────
-      // Sentry Pass (VMS) is ALWAYS a separately-purchased add-on for every
-      // plan — Komplete and Enterprise included. The Aug 2026 tier-based
-      // bypass ("included at no extra cost on Komplete") is REVERSED by the
-      // owner: "the sentry pass should always be an add-on that can be
-      // gotten by anybody if they want… it shouldn't come automatically
-      // with complete." Every firm now passes the same add-on status check.
-      const vmsAddon = (firm.subscriptionAddons as any)?.vms;
-      if (!vmsAddon || vmsAddon.status === 'none' || vmsAddon.status === 'expired' || vmsAddon.status === 'suspended') {
-        // Allow if founder firm (practicepro.ng) for testing
-        // 2026-11-24: the owner's real inbox (practiceprosystems@gmail.com)
-        // also clears the founder-firm check.
-        const founderEmail = (firm.email || '').toLowerCase();
-        const isFounderFirm = founderEmail.endsWith('@practicepro.ng')
-          || founderEmail === 'practiceprosystems@gmail.com'
-          || firm.id === 'practicepro'
-          || (firm.name || '').toLowerCase().includes('practicepro');
-        if (!isFounderFirm) {
-          throw new Error("VMS_ADDON_REQUIRED: Your firm does not have an active Visitor Management System add-on. Please ask your firm admin to subscribe in Settings → Subscription → Add-ons.");
-        }
-      } else if (vmsAddon.status === 'trial' && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
-        // Trial has expired — auto-mark as expired
-        vmsAddon.status = 'expired';
-        await ctx.db.patch(firm._id, {
-          subscriptionAddons: { ...(firm.subscriptionAddons as any || {}), vms: vmsAddon },
-        });
-        throw new Error("VMS_TRIAL_EXPIRED: Your 30-day VMS trial has ended. Please subscribe to the VMS add-on in Settings → Subscription → Add-ons to continue generating visitor codes.");
-      }
-    }
+    // ─── VMS ENTITLEMENT GATE (canonical, 2026-11-27) ──────────────
+    // Product scope (Vega forbidden) + capability (firms.vmsEnabled,
+    // founder approval) + add-on billing (owner rule 2026-11-22) — ONE
+    // shared gate for every VMS mutation/query in this module. The old
+    // inline copy lives on verbatim inside assertVmsEntitlementCore.
+    await assertVmsEntitlement(ctx, args.firmId);
 
     // ─── TASK 94: canonical Nigerian phone normalisation at INSERT time ─
     // "0801…", "+234801…", "234801…", the double-prefix shapes — all land
@@ -523,6 +580,12 @@ export const verifyToken = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    // ─── VMS ENTITLEMENT GATE (2026-11-27): the estate's firm must hold
+    //    the capability + add-on — an unapproved estate's terminal shows
+    //    the gate error instead of verifying codes. Runs before the
+    //    station lock so an unapproved estate never reaches token data.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
+
     // ── TASK 94: gatehouse station lock. Thrown inside a query surfaces as
     //    the terminal's error banner; the terminal UI in station mode
     //    always carries the token so legitimate guards never see this.
@@ -684,6 +747,9 @@ export const checkInVisitor = mutation({
     if (!allowed) {
       throw new Error("Too many check-in attempts. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — capability + add-on, before
+    //    the station lock: an unapproved estate cannot check visitors in.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
     // ── TASK 94: gatehouse station lock (throws when locked + no session).
     await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
     const ref = args.passRef?.trim().toUpperCase() || undefined;
@@ -753,6 +819,8 @@ export const checkOutVisitor = mutation({
     if (!allowed) {
       throw new Error("Too many check-out attempts. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — capability + add-on.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
     // ── TASK 94: gatehouse station lock.
     await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
     const ref = args.passRef?.trim().toUpperCase() || undefined;
@@ -806,6 +874,10 @@ export const revokeVisitorToken = mutation({
 
     const token: any = await ctx.db.get(args.tokenId);
     if (!token) throw new Error("Token not found");
+
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — the token's firm must still
+    //    hold the capability + add-on (revocation is a VMS write).
+    await assertVmsEntitlement(ctx, String(token.firmId));
 
     // Only the resident who created it can revoke
     if (token.residentId !== args.residentId) {
@@ -865,6 +937,11 @@ export const getResidentTokens = query({
       throw new Error(`Account suspended: ${suspension.reason || "Contact support."}`);
     }
 
+    // ─── VMS ENTITLEMENT GATE (2026-11-27, query-safe read variant) — the
+    //    firm must hold the capability; the resident portal maps the error
+    //    to its disabled state.
+    await assertVmsEntitlementReadOnly(ctx, args.firmId);
+
     let q = ctx.db
       .query("visitor_tokens")
       .withIndex("by_firm_resident", (q: any) => q.eq("firmId", args.firmId).eq("residentId", args.residentId));
@@ -902,6 +979,8 @@ export const getGatehouseLogs = mutation({
     if (!allowed) {
       throw new Error("Too many requests. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — capability + add-on.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
     // ── TASK 94: gatehouse station lock.
     await gatehouseAccessState(ctx, args.propertyId, args.stationToken);
     const targetDate = args.date || new Date().toISOString().split("T")[0];
@@ -957,6 +1036,9 @@ export const getGatekeeperProperties = mutation({
     if (!allowed) {
       throw new Error("Too many requests. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — the gatehouse estate picker is
+    //    a VMS surface: capability + add-on required.
+    await assertVmsEntitlement(ctx, args.firmId);
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
@@ -1030,6 +1112,8 @@ export const recordDeniedEntry = mutation({
     if (!allowed) {
       throw new Error("Too many requests. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — capability + add-on.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
     // ── TASK 94: gatehouse station lock.
     await requireGatehouseAccess(ctx, args.propertyId, args.stationToken);
 
@@ -1092,6 +1176,8 @@ export const searchExpectedVisitors = mutation({
     if (!allowed) {
       throw new Error("Too many searches. Please wait a moment and try again.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — capability + add-on.
+    await assertVmsEntitlementForProperty(ctx, args.propertyId, true);
     // ── TASK 94: gatehouse station lock.
     await gatehouseAccessState(ctx, args.propertyId, args.stationToken);
     const term = args.term.trim();
@@ -1192,6 +1278,8 @@ export const getSentryDailyReport = mutation({
   },
   handler: async (ctx, args) => {
     const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — reports are VMS surfaces.
+    await assertVmsEntitlement(ctx, String(user.firmId || ''));
     await reportAudit(ctx, user, "daily", { propertyId: args.propertyId ?? "all", date: args.date });
 
     let rows: any[] = await ctx.db
@@ -1227,6 +1315,8 @@ export const getSentryOnSite = mutation({
   },
   handler: async (ctx, args) => {
     const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — reports are VMS surfaces.
+    await assertVmsEntitlement(ctx, String(user.firmId || ''));
     await reportAudit(ctx, user, "on_site", { propertyId: args.propertyId ?? "all" });
 
     const rows: any[] = await ctx.db
@@ -1252,6 +1342,8 @@ export const getSentryHistorical = mutation({
   },
   handler: async (ctx, args) => {
     const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — reports are VMS surfaces.
+    await assertVmsEntitlement(ctx, String(user.firmId || ''));
     const cap = Math.min(Math.max(args.limit ?? 200, 1), 500);
     await reportAudit(ctx, user, "historical", { from: args.from, to: args.to, propertyId: args.propertyId ?? "all", limit: cap });
 
@@ -1289,6 +1381,8 @@ export const getSentrySecurityReport = mutation({
   },
   handler: async (ctx, args) => {
     const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — reports are VMS surfaces.
+    await assertVmsEntitlement(ctx, String(user.firmId || ''));
     await reportAudit(ctx, user, "security", { from: args.from, to: args.to, propertyId: args.propertyId ?? "all" });
 
     const events: any[] = await ctx.db
@@ -1496,6 +1590,8 @@ export const getStaffAttendance = mutation({
     if (user.firmId && user.firmId !== args.firmId) {
       throw new Error("Not authorized: firm mismatch.");
     }
+    // ─── VMS ENTITLEMENT GATE (2026-11-27) — attendance is a VMS surface.
+    await assertVmsEntitlement(ctx, args.firmId);
     try {
       await ctx.db.insert("audit_logs", {
         firmId: args.firmId,

@@ -271,7 +271,9 @@ const SidebarContents: React.FC<{
             icon: <ShieldCheckIcon className="text-primary-500" />, domId: 'portal-access', section: 'practice',
             children: [
                 { id: 'portal', label: 'Portal', visible: canManageConfig },
-                { id: 'securityAccess', label: 'Security & Access', visible: canManageConfig },
+                // VMS ENTITLEMENT (2026-11-27): Security & Access is the VMS
+                // (SentryPass) surface — hidden on legal-only (Vega) products.
+                { id: 'securityAccess', label: 'Security & Access', visible: canManageConfig && (isProperty || isUnified) },
             ],
         },
         {

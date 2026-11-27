@@ -143,10 +143,11 @@ const TenantPortal: React.FC = () => {
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" />, badge: unreadNoticesCount || undefined },
     // VISITORS TAB — always visible. Sentry Pass is AND-gated:
-    //   1. Firm-level: portalSettings.vmsEnabled
-    //   2. Property-level: tenantInfo.primaryPropertyVmsEnabled (defaults true)
-    // When either is off, the tab shows a "Feature Not Yet Active" message.
-    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled || !(tenantInfo?.primaryPropertyVmsEnabled ?? true) },
+    //   1. Firm-level capability: portalSettings.vmsCapability (founder approval, 2026-11-27)
+    //   2. Firm-level operational toggle: portalSettings.vmsEnabled
+    //   3. Property-level: tenantInfo.primaryPropertyVmsEnabled (defaults true)
+    // When any is off, the tab shows a "Feature Not Yet Active" message.
+    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" />, disabled: !portalSettings?.vmsEnabled || !(portalSettings?.vmsCapability ?? false) || !(tenantInfo?.primaryPropertyVmsEnabled ?? true) },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" />, badge: openMaintenanceCount || undefined },
@@ -204,7 +205,11 @@ const TenantPortal: React.FC = () => {
             {activeTab === 'payments' && <TabErrorBoundary tabName="Payments"><PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'documents' && <TabErrorBoundary tabName="Documents"><DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'visitors' && <TabErrorBoundary tabName="Visitors">
-              {(portalSettings?.vmsEnabled && (tenantInfo?.primaryPropertyVmsEnabled ?? true)) ? (
+              {/* VMS ENTITLEMENT (2026-11-27): the firm-level capability
+                  (portalSettings.vmsCapability — founder approval) is
+                  AND-gated with the operational toggle
+                  (portalSettings.vmsEnabled) and the property-level switch. */}
+              {(portalSettings?.vmsEnabled && (portalSettings?.vmsCapability ?? false) && (tenantInfo?.primaryPropertyVmsEnabled ?? true)) ? (
                 <VisitorPortal firmId={effectiveFirmId} propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''} propertyName={tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name} propertyAddress={tenantInfo?.primaryPropertyAddress || tenantInfo?.properties?.[0]?.address} unitId={tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id} unitName={tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name} residentName={tenantInfo?.tenantName} />
               ) : (
                 <VisitorDisabledState onRequestEnable={handleRequestVmsEnable} isRequesting={isRequestingVms} />

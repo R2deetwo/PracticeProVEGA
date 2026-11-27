@@ -357,3 +357,88 @@ export const backfillInvoiceMatterIds = internalMutation({
     };
   },
 });
+
+// ─── VMS ENTITLEMENT FLAGS BACKFILL (2026-11-27) ──────────────────────────
+//
+// The VMS restructure moved the access gate to capability flags on the firm
+// record (firms.vmsEnabled / firms.vmsRequestStatus — see convex/schema.ts
+// and assertVmsEntitlement in convex/visitorManagement.ts). Firms that ALREADY
+// hold an active/trial VMS add-on subscription (paying customers) plus the
+// platform founder's own firm must be grandfathered to vmsEnabled = true so
+// the strict gate never locks out a paying workspace at cutover.
+//
+// STRICTLY ADDITIVE + IDEMPOTENT:
+//   • firms already carrying vmsEnabled === true are never touched;
+//   • firms with product 'legal'/'vega' are never touched (VMS not applicable);
+//   • safe to re-run any number of times (subsequent runs report 0).
+// Internal execution paths: the Convex dashboard function runner (admin) or
+// `npx convex run migrations:backfillVmsEntitlementFlags "{\"dryRun\":true}"`
+// (the CLI authenticates with the deploy key). Wired into CI dispatch via
+// .github/workflows/convex-backfill-vms-entitlement.yml.
+export const backfillVmsEntitlementFlags = internalMutation({
+  args: { dryRun: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db.query("firms").take(2000);
+
+    let alreadyEnabled = 0;
+    let skippedLegalOnly = 0;
+    let grandfathered = 0;
+    const sample: any[] = [];
+
+    for (const firm of rows as any[]) {
+      if (firm.vmsEnabled === true) {
+        alreadyEnabled++;
+        continue;
+      }
+      const product = String(firm.product || "").toLowerCase();
+      if (product === "legal" || product === "vega") {
+        skippedLegalOnly++;
+        continue; // Vega never holds VMS
+      }
+      // Grandfather basis: an active/trial VMS add-on subscription (a
+      // paying or trialing workspace) OR the platform founder's own firm.
+      const vmsAddon = (firm.subscriptionAddons as any)?.vms;
+      const hasAddon = vmsAddon && (vmsAddon.status === "active" || vmsAddon.status === "trial");
+      const founderEmail = String(firm.email || "").toLowerCase();
+      const isFounderFirm = founderEmail.endsWith("@practicepro.ng")
+        || founderEmail === "practiceprosystems@gmail.com"
+        || firm.id === "practicepro"
+        || String(firm.name || "").toLowerCase().includes("practicepro");
+      if (!hasAddon && !isFounderFirm) continue;
+
+      if (args.dryRun !== false) {
+        sample.push({ firmId: firm.id || String(firm._id), name: firm.name, basis: hasAddon ? "addon" : "founder_firm" });
+        grandfathered++;
+      } else {
+        await ctx.db.patch(firm._id, {
+          vmsEnabled: true,
+          vmsRequestStatus: "approved",
+          vmsRequest: {
+            ...(firm.vmsRequest || {}),
+            estateName: (firm.vmsRequest as any)?.estateName || firm.name || "Grandfathered workspace",
+            unitCount: (firm.vmsRequest as any)?.unitCount || "n/a (grandfathered)",
+            useCase: "Pre-existing VMS add-on subscription at entitlement cutover (2026-11-27).",
+            requestedBy: "migration",
+            requestedAt: (firm.vmsRequest as any)?.requestedAt || Date.now(),
+            decidedBy: "backfillVmsEntitlementFlags",
+            decidedAt: Date.now(),
+          },
+          updatedAt: new Date().toISOString(),
+        });
+        grandfathered++;
+        if (sample.length < 50) {
+          sample.push({ firmId: firm.id || String(firm._id), name: firm.name, basis: hasAddon ? "addon" : "founder_firm" });
+        }
+      }
+    }
+
+    return {
+      dryRun: args.dryRun !== false,
+      totalFirms: rows.length,
+      alreadyEnabled,
+      skippedLegalOnly,
+      grandfathered,
+      sample,
+    };
+  },
+});

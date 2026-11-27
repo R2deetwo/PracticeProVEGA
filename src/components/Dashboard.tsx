@@ -34,6 +34,7 @@ import ErrorBoundary from './ErrorBoundary';
 import TrialNudgeBanner from './TrialNudgeBanner';
 import { useAloa } from '../contexts/AloaProvider';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
+import { useIsMobile } from '../hooks/use-mobile';
 import { Button } from './ui/Button';
 // 7-day Vox-card rule (owner brief 2026-11-24): the Overview card can be
 // dismissed; it only re-surfaces after 7 days AND 7 days without Vox use.
@@ -65,7 +66,10 @@ const FirstRunWelcome: React.FC<{
     // R13 mobile audit: compact paddings/text on <sm, larger dismiss touch
     // target, relaxed list leading — the banner was designed desktop-first
     // and looked cramped/unbalanced on 360-414px phones.
-    <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 animate-fade-in shadow-lg shadow-primary-500/5">
+    // SPACING (2026-11-27): mb-4 sm:mb-6 removed — the dashboard content
+    // container is a space-y-* flex column, which already spaces every
+    // banner; the local mb stacked on top of it and doubled the gap.
+    <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 border-2 border-primary-200 dark:border-primary-800 rounded-2xl p-4 sm:p-6 animate-fade-in shadow-lg shadow-primary-500/5">
       <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
@@ -122,7 +126,9 @@ const FirstRunWelcome: React.FC<{
 
 
 const TierAccessBanner: React.FC<{ plan: SubscriptionPlan, onUpgrade: () => void }> = ({ plan, onUpgrade }) => (
-    <div className="bg-slate-100 dark:bg-zinc-800 border-l-4 border-slate-500 rounded-r-lg p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fade-in">
+    // SPACING (2026-11-27): mb-4 sm:mb-6 removed — space-y-* on the content
+    // container already provides the inter-child rhythm; a local mb doubled it.
+    <div className="bg-slate-100 dark:bg-zinc-800 border-l-4 border-slate-500 rounded-r-lg p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fade-in">
         <div className="flex gap-3 min-w-0">
             <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-full h-fit mt-0 sm:mt-1 flex-shrink-0">
                 <LockClosedIcon className="w-5 h-5 text-slate-500 dark:text-zinc-400" />
@@ -158,6 +164,11 @@ const Dashboard: React.FC = () => {
     // panel directly in Quick Capture mode — record in 1 tap from home.
     const { openPanel: openAloaPanel } = useAloa();
     const { light: hapticLight } = useHapticFeedback();
+    // SPACING (2026-11-27): the quick-capture card is phone-only, so it must
+    // also be ABSENT from the desktop DOM — a display:none sibling still
+    // counts for the container's space-y `* + *` selector, which pushed the
+    // stats row 1.5rem down the page as dead vertical space on desktop.
+    const isMobile = useIsMobile();
     const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
     // Dismissible Vox card (owner brief 2026-11-24): hidden after dismissal;
@@ -387,28 +398,30 @@ const Dashboard: React.FC = () => {
                     it for good — the top header mic control and the
                     bottom-right FAB are untouched and always available. The
                     card re-surfaces only if it has been hidden ≥7 days AND
-                    Aloa Vox hasn't been used for ≥7 days. */}
-                <div className="md:hidden">
-                    {voxCardVisible && (
-                        <div
-                            role="button"
-                            tabIndex={0}
-                            aria-label="ALOA Vox — dictate a note, task or question, 1 tap to record"
-                            className="relative flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 pr-12 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6 cursor-pointer"
-                            onClick={() => {
+                    Aloa Vox hasn't been used for ≥7 days.
+                    SPACING (2026-11-27): rendered ONLY on phones (and only
+                    while not dismissed) so it contributes zero DOM on
+                    desktop; its mb was removed — space-y owns the rhythm. */}
+                {isMobile && voxCardVisible && (
+                    <div
+                        role="button"
+                        tabIndex={0}
+                        aria-label="ALOA Vox — dictate a note, task or question, 1 tap to record"
+                        className="relative flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 pr-12 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left cursor-pointer"
+                        onClick={() => {
+                            hapticLight();
+                            stampVoxUsedAt();
+                            openAloaCapture();
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
                                 hapticLight();
                                 stampVoxUsedAt();
                                 openAloaCapture();
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    hapticLight();
-                                    stampVoxUsedAt();
-                                    openAloaCapture();
-                                }
-                            }}
-                        >
+                            }
+                        }}
+                    >
                             <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-md shrink-0">
                                 <MicrophoneIcon className="w-6 h-6" />
                             </span>
@@ -442,20 +455,27 @@ const Dashboard: React.FC = () => {
                                 </svg>
                             </Button>
                         </div>
-                    )}
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 gap-4 sm:gap-8">
-                    {isLoading ? (
-                        <div className="w-full max-w-xl mx-auto">
-                            <Skeleton height={32} width="100%" className="rounded-full" />
-                        </div>
-                    ) : aiEnabled && (
-                        <div className="w-full max-w-2xl mx-auto">
-                            <DailyFocusView currentUser={currentUser} />
-                        </div>
-                    )}
-                </div>
+                {/* DailyFocus strip — rendered ONLY when it has content
+                    (loading skeleton or an AI-enabled focus card). The old
+                    unconditional wrapper put a zero-height empty grid into
+                    every desktop layout, which (a) added its own space-y
+                    margin and (b) made the stats row a later sibling, so
+                    the header→cards gap doubled. SPACING (2026-11-27). */}
+                {(isLoading || aiEnabled) && (
+                    <div className="grid grid-cols-1 gap-4 sm:gap-8">
+                        {isLoading ? (
+                            <div className="w-full max-w-xl mx-auto">
+                                <Skeleton height={32} width="100%" className="rounded-full" />
+                            </div>
+                        ) : (
+                            <div className="w-full max-w-2xl mx-auto">
+                                <DailyFocusView currentUser={currentUser} />
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Stats Row */}
                 <div className="flex-shrink-0">

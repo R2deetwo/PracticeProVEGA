@@ -5,6 +5,7 @@ import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
 import { ShieldCheckIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { Button } from '../ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -1054,12 +1055,24 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             </AddOnsErrorBoundary>
 
             {/* ─── VMS ADD-ON PANEL ─────────────────────────────────────────
-                Visitor Management System billing card. Shows trial countdown,
-                active status, or upgrade prompt. Only shown for Atrium firms
-                (VMS is property-management specific). */}
+                Visitor Management System billing card. PRICING SURFACE
+                (2026-11-27): positioned under Atrium as an Approval-Required
+                Paid Add-On (annual billing, per-estate tier / custom quote
+                for large estates); never listed as an included feature. */}
             {resolveProductMode(firmDetails.product) === 'property' && (
                 <AddOnsErrorBoundary>
                     <VmsAddonPanel firmDetails={firmDetails} />
+                </AddOnsErrorBoundary>
+            )}
+
+            {/* Komplete variant (2026-11-27): VMS is EXCLUDED from Komplete
+                by default — never an included feature — but may be requested
+                as an external Estate Operations add-on (founder review).
+                Rendered as a compact, clearly-marked external add-on card
+                with the request path; Vega firms see nothing. */}
+            {resolveProductMode(firmDetails.product) === 'unified' && (
+                <AddOnsErrorBoundary>
+                    <VmsKompleteAddonCard firmDetails={firmDetails} />
                 </AddOnsErrorBoundary>
             )}
 
@@ -1501,10 +1514,14 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     // confirm froze the UI thread and looked foreign next to the app's own
     // dialog system.
     const { confirm, ConfirmDialog: Confirm } = useConfirm();
-    const { addToast } = useUI();
+    const { addToast, navigateTo } = useUI();
     const { currentUser, bearerToken } = useAuth();
     const vmsStatus = useQuery(api.myFunctions.getVmsAddonStatus,
         firmDetails?.id ? { firmId: firmDetails.id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
+    // VMS ENTITLEMENT (2026-11-27): the founder-approval capability state —
+    // drives the approval-required positioning + request path in this panel.
+    const vmsAccess = useQuery(api.myFunctions.getVmsAccessState,
+        firmDetails?.id && currentUser?.email ? { firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) } : 'skip') as any;
     const startTrial = useMutation(api.myFunctions.startVmsAddonTrial);
     const cancelVms = useMutation(api.myFunctions.cancelVmsAddon);
     const [busy, setBusy] = useState(false);
@@ -1515,6 +1532,12 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     const trialEndsAt = (vmsStatus as any)?.trialEndsAt;
     const activatedAt = (vmsStatus as any)?.activatedAt;
     const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000))) : 0;
+    // Entitlement layer: capability (founder approval) — distinct from the
+    // billing layer (add-on status) below.
+    const capabilityGranted = vmsAccess?.vmsEnabled === true;
+    const requestStatus: string = vmsAccess?.vmsRequestStatus || 'none';
+    const capabilityPending = requestStatus === 'pending';
+    const capabilityDeclined = requestStatus === 'declined';
 
     const handleStartTrial = async () => {
         if (!currentUser?.email) return;
@@ -1533,6 +1556,13 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
         } finally {
             setBusy(false);
         }
+    };
+
+    // VMS ENTITLEMENT (2026-11-27): routes to the Request Access screen
+    // (SecurityAccessView) — the lightweight qualification form + founder
+    // review flow.
+    const handleRequestAccess = () => {
+        navigateTo('securityAccess');
     };
 
     const handleCancel = async () => {
@@ -1560,11 +1590,19 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2 flex-wrap">
                         Visitor Management System
                         {/* OWNER RULE (2026-11-22): the "Included in Plan" badge is
                             deleted — Sentry Pass is always a standalone add-on for
                             every plan (Komplete included), never bundled. */}
+                        {/* PRICING SURFACE (2026-11-27): approval-required
+                            positioning — founder approval gates activation. */}
+                        {!capabilityGranted && (
+                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Approval Required</span>
+                        )}
+                        {capabilityGranted && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Approved</span>
+                        )}
                         {status === 'active' && (
                             <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Active</span>
                         )}
@@ -1583,17 +1621,44 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                     {/* OWNER RULE (2026-11-22): the status==='included' "No add-on
                         fee" header is deleted — every plan sees the add-on price. */}
                     <>
-                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Add-on</p>
+                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Annual Add-On</p>
                         {/* PRICING AUDIT (Aug 2026): Reduced from ₦15,000 to ₦7,500/mo.
                             Original price was ~3× overpriced vs. competitor benchmarks
                             (₦5K-8K) and delivered only ~₦500/mo marginal cost. New price
                             maintains ~85% margin while aligning with market expectations
                             and driving higher adoption. Existing subscribers grandfathered
-                            at ₦15K for 6 months via backend migration logic. */}
-                        <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />7,500<span className="text-xs font-normal text-slate-500">/mo</span></p>
+                            at ₦15K for 6 months via backend migration logic.
+                            2026-11-27: surfaced as ANNUAL billing (₦90,000/yr — the
+                            ₦7,500/mo list price × 12), per-estate tier; large/multi-estate
+                            portfolios are custom-quoted by the founder. */}
+                        <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />90,000<span className="text-xs font-normal text-slate-500">/yr</span></p>
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">₦7,500/mo equiv · up to 50 units</p>
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500">Larger estates: custom quote</p>
                     </>
                 </div>
             </div>
+
+            {/* VMS ENTITLEMENT (2026-11-27): the capability layer above billing —
+                a pending/declined request status, or the request CTA when the
+                founder hasn't approved this workspace yet. */}
+            {!capabilityGranted && (
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <p className="text-sm text-slate-600 dark:text-zinc-400">
+                        {capabilityPending
+                            ? 'Your activation request is with the founder for review — you\u2019ll be notified once it\u2019s decided.'
+                            : capabilityDeclined
+                                ? 'Your previous activation request was not approved. You can submit a new request if your estate operations change.'
+                                : 'Approval required before activation: request VMS access and the founder will review your estate details.'}
+                    </p>
+                    <Button
+                        variant="dark"
+                        size="md"
+                        onClick={handleRequestAccess}
+                    >
+                        {capabilityPending ? 'View Request' : 'Request Activation'}
+                    </Button>
+                </div>
+            )}
 
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                 {status === 'none' && (
@@ -1682,6 +1747,65 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
         </div>
         {Confirm}
         </>
+    );
+};
+
+// ─── VMS ADD-ON PANEL — KOMPLETE VARIANT (2026-11-27) ───────────────────
+// VMS (SentryPass) is EXCLUDED from Komplete by default — never an included
+// feature — but a Komplete firm that directly manages physical estate
+// security can request it as an EXTERNAL Estate Operations add-on (founder
+// review). Clearly-marked compact card (no included-pricing ambiguity),
+// with the request path routed to the SecurityAccessView flow.
+const VmsKompleteAddonCard: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { currentUser, bearerToken } = useAuth();
+    const { navigateTo } = useUI();
+    const vmsAccess = useQuery(api.myFunctions.getVmsAccessState,
+        firmDetails?.id && currentUser?.email ? { firmId: firmDetails.id, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) } : 'skip') as any;
+
+    if (!firmDetails?.id) return null;
+
+    const granted = vmsAccess?.vmsEnabled === true;
+    const pending = vmsAccess?.vmsRequestStatus === 'pending';
+    const declined = vmsAccess?.vmsRequestStatus === 'declined';
+    const request = vmsAccess?.vmsRequest;
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-dashed border-slate-300 dark:border-zinc-600 rounded-lg shadow-sm p-5 mt-6">
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2 flex-wrap">
+                        VMS (SentryPass)
+                        <span className="text-2xs font-bold bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 px-1.5 py-0.5 rounded uppercase tracking-wider">External Estate Operations Add-On</span>
+                        {granted && (
+                            <span className="text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Approved</span>
+                        )}
+                        {pending && (
+                            <span className="text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Under review</span>
+                        )}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                        Visitor access codes, gatehouse verification, and estate security reports — sold
+                        separately from Komplete. Excluded from this plan by default; available on
+                        request for firms that directly manage physical estate security.
+                    </p>
+                    {granted && request?.estateName ? (
+                        <p className="text-xs text-slate-500 dark:text-zinc-500 mt-2">Enabled for {request.estateName}.</p>
+                    ) : null}
+                </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-sm text-slate-600 dark:text-zinc-400">
+                    {pending
+                        ? 'Your request is with the founder for review — you\u2019ll be notified once it\u2019s decided.'
+                        : declined
+                            ? 'Your previous request was not approved. You can submit a new one if your estate operations change.'
+                            : 'Founder approval required — pricing is arranged per estate after review.'}
+                </p>
+                <Button variant="outline" size="md" onClick={() => navigateTo('securityAccess')} className="flex-shrink-0">
+                    {pending ? 'View Request' : declined ? 'Request Again' : 'Request Access'}
+                </Button>
+            </div>
+        </div>
     );
 };
 

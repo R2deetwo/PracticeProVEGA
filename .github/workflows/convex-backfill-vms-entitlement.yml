@@ -1,0 +1,55 @@
+# Runs the VMS entitlement-flags backfill (2026-11-27) on the Convex
+# production deployment.
+#
+# WHY: the VMS restructure moved the access gate to capability flags on the
+# firm record (firms.vmsEnabled / firms.vmsRequestStatus) enforced by
+# assertVmsEntitlement in convex/visitorManagement.ts. Firms that already
+# hold an active/trial VMS add-on subscription (paying customers) and the
+# platform founder's own firm must be grandfathered to vmsEnabled = true so
+# the strict gate never locks out a paying workspace at cutover.
+#
+# Modelled on convex-backfill.yml (same CONVEX_DEPLOY_KEY secret path).
+# Safe to re-run: the mutation is idempotent (firms already carrying
+# vmsEnabled === true are never touched; Vega firms are never touched).
+
+name: Convex Backfill — VMS Entitlement Flags
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report what would change, write nothing)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: convex-backfill-vms-entitlement
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backfillVmsEntitlementFlags mutation
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "Running backfill (dryRun=${DRY_RUN}) against the production deployment"
+          npx convex run migrations:backfillVmsEntitlementFlags "{\"dryRun\":${DRY_RUN}}"

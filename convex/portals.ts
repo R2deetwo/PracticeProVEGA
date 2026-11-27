@@ -6630,6 +6630,22 @@ export const getFirmPortalSettings = query({
       .query("portal_settings")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .first();
+    // ── VMS CAPABILITY (2026-11-27): additive field — the founder-approved
+    //    entitlement flag from the FIRM record (distinct from the operational
+    //    portal_settings.vmsEnabled toggle below). The resident portal
+    //    AND-gates the Visitors tab on it; the admin Portal Access section
+    //    swaps its operational toggles for the request-access card when it
+    //    is false. Backend enforcement lives in assertVmsEntitlement.
+    //    Two-form firm lookup (custom id field, then raw Convex _id) — the
+    //    same convention as the VMS entitlement family.
+    let vmsFirm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!vmsFirm) {
+      try { vmsFirm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    const vmsCapability = vmsFirm ? vmsFirm.vmsEnabled === true : false;
     // Default settings if none exist — the SAME defaults the upsert path
     // writes for a brand-new row (Round QA §1: the two return shapes now
     // agree, so the client sees one honest type instead of a 3-field
@@ -6644,9 +6660,10 @@ export const getFirmPortalSettings = query({
         vmsResidentNotifications: false,
         vmsGracePeriodMinutes: 30,
         vmsDefaultExpiryHours: 6,
+        vmsCapability,
       };
     }
-    return settings;
+    return { ...settings, vmsCapability };
   },
 });
 

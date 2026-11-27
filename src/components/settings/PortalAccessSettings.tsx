@@ -29,6 +29,7 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
 import { whatsappShareUrl } from '../../utils/whatsappShare';
 import { portalInviteUrl, portalSetupPasswordBase } from '../../utils/portalOrigins';
+import { Button } from '../ui';
 import { ServiceRequestTypesConfig } from './ServiceRequestTypesConfig';
 import { InviteForm } from './InviteForm';
 import { Z_CLASS } from '../../overlays/constants';
@@ -464,6 +465,52 @@ const PortalSection: React.FC<{
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────
+// ─── VMS (SentryPass) — the not-enabled card ──────────────────────────
+// VMS ENTITLEMENT (2026-11-27): shown in Portal Access when the workspace
+// has no founder-approved capability (vmsCapability false) — the operational
+// toggles only render once the founder approves the workspace's request.
+const VmsNotEnabledCard: React.FC<{
+  requestStatus: string;
+  isAtrium: boolean;
+  onRequestAccess: () => void;
+}> = ({ requestStatus, isAtrium, onRequestAccess }) => {
+  const pending = requestStatus === 'pending';
+  const declined = requestStatus === 'declined';
+  return (
+    <div className="bg-slate-50 dark:bg-zinc-800/60 rounded-2xl border border-slate-200 dark:border-zinc-700/60 p-4 sm:p-6">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-lg">
+          <VisitorIcon className="w-5 h-5 text-slate-500 dark:text-zinc-400" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-bold text-slate-900 dark:text-white text-sm">Visitor Management System</h3>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">Estate operations add-on — approval required</p>
+        </div>
+        {pending && (
+          <span className="ml-auto text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full flex-shrink-0">Under review</span>
+        )}
+        {declined && (
+          <span className="ml-auto text-2xs font-bold bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full flex-shrink-0">Not approved</span>
+        )}
+      </div>
+      <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 leading-relaxed mb-4">
+        {pending
+          ? 'Your VMS (SentryPass) access request is with the founder for review — you\u2019ll be notified in-app and by email once it\u2019s decided.'
+          : isAtrium
+            ? 'VMS (SentryPass) is an approval-required paid add-on for Atrium workspaces: resident visitor codes, gatehouse verification, and estate security reports. Request activation — the founder reviews each estate.'
+            : 'VMS (SentryPass) is an estate-operations add-on, excluded from Komplete by default. If your firm directly manages physical estate security, you can request it — the founder reviews each case.'}
+      </p>
+      <Button
+        variant="primary"
+        size="md"
+        onClick={onRequestAccess}
+      >
+        {pending ? 'View request status' : declined ? 'Request again' : 'Request Access'}
+      </Button>
+    </div>
+  );
+};
+
 export const PortalAccessSettings: React.FC = () => {
   const { currentUser, loginAsUser, bearerToken } = useAuth();
   const { addToast, navigateTo } = useUI();
@@ -490,6 +537,13 @@ export const PortalAccessSettings: React.FC = () => {
   const portalSettings = useQuery(
     api.portals.getFirmPortalSettings,
     firmId ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
+  );
+
+  // VMS ENTITLEMENT (2026-11-27): the workspace's request/approval state —
+  // drives the not-enabled card (request status) until vmsCapability lands.
+  const vmsAccessState = useQuery(
+    api.myFunctions.getVmsAccessState,
+    firmId && currentUser?.email ? { firmId, userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
   );
 
   const updateSettings = useMutation(api.portals.updateFirmPortalSettings);
@@ -843,6 +897,7 @@ export const PortalAccessSettings: React.FC = () => {
 
         {/* ─── Visitor Management System (VMS) Settings ─────────────────── */}
         {showResidentPortal && (
+          portalSettings?.vmsCapability ? (
           <div className="bg-emerald-50/30 dark:bg-emerald-900/5 rounded-2xl border border-emerald-100 dark:border-emerald-900/20 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
@@ -932,6 +987,17 @@ export const PortalAccessSettings: React.FC = () => {
               </p>
             </div>
           </div>
+          ) : (
+          /* VMS ENTITLEMENT (2026-11-27): the founder-approved capability is
+             absent — the operational toggles are meaningless until the
+             workspace is approved, so this section shows the add-on state
+             and routes the admin to the Request Access screen instead. */
+          <VmsNotEnabledCard
+            requestStatus={(vmsAccessState as any)?.vmsRequestStatus || 'none'}
+            isAtrium={isProperty || (!isUnified && !showClientPortal)}
+            onRequestAccess={() => navigateTo('securityAccess')}
+          />
+          )
         )}
 
         {/* Client Portal Section — primary for Komplete/lawyers */}

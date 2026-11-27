@@ -70,6 +70,22 @@ export default defineSchema({
     // their Professional Standards record (practicing fee, NBA status, CPD
     // hours, Stamp & Seal slot), visible to the team for verification.
     complianceTrackingEnabled: v.optional(v.boolean()),
+    // ─── VMS (SENTRYPASS) ENTITLEMENT GATING (2026-11-27) ──────────────
+    // Restructure: VMS access is a paid + founder-approved add-on, NOT a
+    // plan-name check scattered across UI components. The capability lives
+    // on the workspace (firm) record and every VMS Convex query/mutation
+    // enforces it (assertVmsEntitlement in visitorManagement.ts).
+    //   • Vega (product 'legal'/'vega') workspaces: never applicable.
+    //   • Komplete ('unified'/'komplete'): excluded by default; founder
+    //     approval on a case-by-case basis (request flow).
+    //   • Atrium ('property'/'atrium'): founder approval + the separately
+    //     billed add-on (firm.subscriptionAddons.vms).
+    // NOTE: this is the CAPABILITY (founder approval) — distinct from
+    // portal_settings.vmsEnabled, which stays the firm admin's own
+    // operational on/off switch for visitor codes.
+    vmsEnabled: v.optional(v.boolean()),        // true only after founder approval
+    vmsRequestStatus: v.optional(v.string()),   // 'none' | 'pending' | 'approved' | 'declined'
+    vmsRequest: v.optional(v.any()),           // { estateName, unitCount, useCase, requestedBy, requestedAt, decidedBy, decidedAt }
     // ─── TRIAL SYSTEM (CRO Audit Track B) ───────────────────────────────
     // When trialStartsAt is set, the firm is on a 30-day trial of `trialPlan`.
     // On expiry (cron), trialPlan is cleared and subscriptionPlan reverts to 'Core'.

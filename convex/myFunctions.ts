@@ -10286,6 +10286,387 @@ export const cancelVmsAddon = mutation({
   },
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// VMS ACCESS REQUESTS — founder-approval entitlement flow (2026-11-27)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Restructure per the owner's entitlement-gating brief: VMS (SentryPass) is
+// a paid + founder-approved add-on. The capability lives on the FIRM record
+// (firms.vmsEnabled / firms.vmsRequestStatus — see convex/schema.ts) and is
+// enforced server-side by assertVmsEntitlement in convex/visitorManagement.ts
+// on EVERY VMS query/mutation. This section is the request/approval flow:
+//
+//   1. getVmsAccessState        — the workspace's entitlement state (drives
+//                                 the paywall / request / enabled screens).
+//   2. submitVmsAccessRequest   — the lightweight qualification form
+//                                 (estate name, units/gates, use case) →
+//                                 vmsRequestStatus 'pending' + founder alert
+//                                 (in-app + push + email).
+//   3. getVmsAccessRequests     — founder-only queue of requesting firms.
+//   4. decideVmsAccessRequest   — founder Approve (vmsEnabled = true +
+//                                 notify the firm) / Decline.
+//   5. sendVmsRequestFounderEmail — the email half of the founder alert.
+//
+// Product scoping (the matrix the brief asks for):
+//   • Vega   (product 'legal'/'vega')          → NOT APPLICABLE, hard reject.
+//   • Komplete ('unified'/'komplete')          → excluded by default; the
+//     request screen carries the tailored facilities/estate-ops copy.
+//   • Atrium ('property'/'atrium')             → approval-required PAID
+//     add-on: founder approval (vmsEnabled) AND the separately-billed
+//     add-on (subscriptionAddons.vms, owner rule 2026-11-22).
+
+/** Resolves the firm's product bucket for VMS scoping purposes. */
+function vmsProductMode(product?: string | null): "legal" | "property" | "unified" {
+  const p = String(product || "").toLowerCase();
+  if (p === "property" || p === "atrium") return "property";
+  if (p === "unified" || p === "komplete") return "unified";
+  return "legal";
+}
+
+const VMS_PRODUCT_LABEL: Record<string, string> = {
+  legal: "Vega",
+  property: "Atrium",
+  unified: "Komplete",
+};
+
+/**
+ * query: getVmsAccessState — the workspace's VMS entitlement state.
+ * Drives every gated surface: the paywall + Request Access screen
+ * (SecurityAccessView), the Portal Access operational section, and the
+ * Billing/Add-Ons card. Firm-scoped read (platform founders exempt).
+ */
+export const getVmsAccessState = query({
+  args: {
+    firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (!isPlatformFounder(auth.user)) {
+      assertSameFirm(auth.user, args.firmId);
+    }
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) {
+      return { productMode: "legal", vmsEnabled: false, vmsRequestStatus: "none", vmsRequest: null, addonStatus: "none" };
+    }
+    const vmsAddon = (firm.subscriptionAddons as any)?.vms;
+    // Trial auto-expiry mirrors getVmsAddonStatus (read-only view of billing).
+    let addonStatus = vmsAddon?.status || "none";
+    if (addonStatus === "trial" && vmsAddon.trialEndsAt && vmsAddon.trialEndsAt < Date.now()) {
+      addonStatus = "expired";
+    }
+    return {
+      productMode: vmsProductMode(firm.product),
+      vmsEnabled: firm.vmsEnabled === true,
+      vmsRequestStatus: firm.vmsRequestStatus || "none",
+      vmsRequest: firm.vmsRequest || null,
+      addonStatus,
+    };
+  },
+});
+
+/**
+ * mutation: submitVmsAccessRequest — the lightweight qualification form.
+ * 2–3 quick questions (estate name, approximate units/gates, brief use
+ * case) → vmsRequestStatus 'pending' + immediate founder notification
+ * (in-app alert + FCM push + email with workspace/plan/estate context).
+ */
+export const submitVmsAccessRequest = mutation({
+  args: {
+    firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.string(),
+    estateName: v.string(),      // Property/Estate Name
+    unitCount: v.string(),       // Approximate number of units/gates (free text)
+    useCase: v.string(),         // Brief use case
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const requester = auth.user;
+    if (!requester) throw new Error("User not found");
+
+    // Firm admins (or a session-proven platform founder) submit for the
+    // workspace — the request flips firm-level capability, not a personal one.
+    if (!isPlatformFounder(requester) && !isFirmAdminRole(requester)) {
+      throw new Error("Only firm administrators can request VMS access for the workspace");
+    }
+    if (!isPlatformFounder(requester)) {
+      assertSameFirm(requester, args.firmId);
+    }
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+
+    // PRODUCT SCOPE — Vega never holds VMS (Forbidden, not a paywall).
+    const mode = vmsProductMode(firm.product);
+    if (mode === "legal") {
+      throw new Error(
+        "VMS_NOT_AVAILABLE: VMS (SentryPass) is not available on Vega legal workspaces — it is an Atrium estate-operations add-on."
+      );
+    }
+
+    // Idempotency guards.
+    if (firm.vmsEnabled === true) {
+      throw new Error("VMS access is already enabled for this workspace.");
+    }
+    if (firm.vmsRequestStatus === "pending") {
+      throw new Error("A VMS access request is already pending for this workspace — the founder will follow up shortly.");
+    }
+
+    const estateName = args.estateName.trim().slice(0, 120);
+    const unitCount = args.unitCount.trim().slice(0, 60);
+    const useCase = args.useCase.trim().slice(0, 600);
+    if (!estateName) throw new Error("Property/Estate Name is required.");
+    if (!unitCount) throw new Error("Approximate number of units/gates is required.");
+    if (!useCase) throw new Error("A brief use case is required.");
+
+    const now = Date.now();
+    const planLabel = VMS_PRODUCT_LABEL[mode];
+    const vmsRequest = {
+      estateName,
+      unitCount,
+      useCase,
+      requestedBy: requester.name || requester.email || "",
+      requestedByEmail: requester.email || args.userEmail,
+      requestedAt: now,
+      planLabel,
+      decidedBy: null as string | null,
+      decidedAt: null as number | null,
+      decisionNote: null as string | null,
+    };
+
+    await ctx.db.patch(firm._id, {
+      vmsRequestStatus: "pending",
+      vmsRequest,
+      updatedAt: new Date().toISOString(),
+    });
+
+    // ── Founder notification: in-app + FCM push (unified helper) ─────────
+    await notifyFounders(ctx, {
+      title: "VMS Access Request",
+      message: `${firm.name || "A workspace"} (${planLabel}${firm.subscriptionPlan ? `, ${firm.subscriptionPlan}` : ""}) requested VMS (SentryPass): ${estateName} — ${unitCount} units/gates.`,
+      type: "vms_access_request",
+      link: { view: "subscriptions", id: String(firm._id), context: { firmId: args.firmId, tab: "vms" } },
+    });
+
+    // ── Founder notification: email (fire-and-forget via scheduler) ──────
+    try {
+      await ctx.scheduler.runAfter(0, internal.myFunctions.sendVmsRequestFounderEmail, {
+        firmName: firm.name || "A workspace",
+        planLabel: planLabel + (firm.subscriptionPlan ? ` (${firm.subscriptionPlan})` : ""),
+        estateName,
+        unitCount,
+        useCase,
+        requestedBy: requester.name || requester.email || args.userEmail,
+        requestedByEmail: requester.email || args.userEmail,
+      });
+    } catch { /* email must never fail the request — in-app already landed */ }
+
+    return { success: true, vmsRequestStatus: "pending" as const };
+  },
+});
+
+/**
+ * internalAction: sendVmsRequestFounderEmail — the email half of the founder
+ * alert (Brevo via the shared sendBrevoEmail helper). Fire-and-forget from
+ * submitVmsAccessRequest through the scheduler.
+ */
+export const sendVmsRequestFounderEmail = internalAction({
+  args: {
+    firmName: v.string(),
+    planLabel: v.string(),      // "Atrium (Growth)" / "Komplete (…)"
+    estateName: v.string(),
+    unitCount: v.string(),
+    useCase: v.string(),
+    requestedBy: v.string(),
+    requestedByEmail: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const bodyHtml = `
+      <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">New VMS (SentryPass) access request</p>
+      <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 24px 0;">
+        A workspace has submitted a VMS access request and is waiting for founder review.
+      </p>
+      <div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 6px 0;"><strong style="color:#1a202c;">Workspace:</strong> <span style="color:#4a5568;">${args.firmName}</span></p>
+        <p style="margin:0 0 6px 0;"><strong style="color:#1a202c;">Current plan:</strong> <span style="color:#4a5568;">${args.planLabel}</span></p>
+        <p style="margin:0 0 6px 0;"><strong style="color:#1a202c;">Property/Estate:</strong> <span style="color:#4a5568;">${args.estateName}</span></p>
+        <p style="margin:0 0 6px 0;"><strong style="color:#1a202c;">Approx. units/gates:</strong> <span style="color:#4a5568;">${args.unitCount}</span></p>
+        <p style="margin:0 0 6px 0;"><strong style="color:#1a202c;">Use case:</strong></p>
+        <p style="color:#4a5568;margin:0 0 12px 0;line-height:1.6;">${args.useCase}</p>
+        <p style="margin:0;"><strong style="color:#1a202c;">Requested by:</strong> <span style="color:#4a5568;">${args.requestedBy} (${args.requestedByEmail})</span></p>
+      </div>
+      <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
+        Review and Approve/Decline in the founder admin app → Subscriptions → VMS Access.
+        Approving unlocks <code>vmsEnabled</code> for the workspace; the VMS add-on billing
+        (annual, per estate tier) is arranged separately with the firm.
+      </p>`;
+    const html = brandedEmailWrapper({
+      productName: "Systems",
+      productColor: "#16A34A",
+      tagline: "Practice Management OS",
+      bodyHtml,
+    });
+    await sendBrevoEmail({
+      to: "practiceprosystems@gmail.com",
+      subject: `VMS Access Request — ${args.firmName} (${args.planLabel})`,
+      html,
+      productName: "Systems",
+    });
+  },
+});
+
+/**
+ * query: getVmsAccessRequests — founder-only queue of workspaces with VMS
+ * requests. Default listing: pending; 'all' includes approved/declined.
+ */
+export const getVmsAccessRequests = query({
+  args: {
+    sessionToken: v.optional(v.string()),
+    status: v.optional(v.string()), // 'pending' (default) | 'all'
+  },
+  handler: async (ctx, args) => {
+    await requirePlatformFounder(ctx, args.sessionToken);
+
+    // Bounded scan (query bounding policy — whole-table lookup, no index on
+    // vmsRequestStatus): firms are a small table; filter in code.
+    const firms: any[] = await ctx.db.query("firms").take(2000);
+    const wanted = args.status === "all" ? null : (args.status || "pending");
+    const rows = firms
+      .filter((f: any) => !!f.vmsRequest)
+      .filter((f: any) => !wanted || (f.vmsRequestStatus || "none") === wanted)
+      .sort((a: any, b: any) => (b.vmsRequest?.requestedAt || 0) - (a.vmsRequest?.requestedAt || 0));
+    return rows.map((f: any) => ({
+      firmId: f.id || String(f._id),
+      firmName: f.name || "A workspace",
+      firmEmail: f.email || "",
+      product: f.product || "",
+      subscriptionPlan: f.subscriptionPlan || "",
+      vmsEnabled: f.vmsEnabled === true,
+      vmsRequestStatus: f.vmsRequestStatus || "none",
+      vmsRequest: f.vmsRequest || null,
+    }));
+  },
+});
+
+/** Notifies a firm's admins (in-app row + FCM push) — the approve/decline
+ *  counterpart of founderNotifications.notifyFounders. */
+async function notifyFirmAdmins(
+  ctx: any,
+  firmId: string,
+  payload: { title: string; message: string; type: string },
+): Promise<void> {
+  const admins: any[] = await ctx.db
+    .query("users")
+    .filter((q: any) => q.eq(q.field("firmId"), firmId))
+    .take(200);
+  const targets = admins.filter((u: any) => u.role === "Admin" || u.role === "Founder");
+  const userIds = targets.map((u: any) => String(u._id));
+  for (const u of targets) {
+    await ctx.db.insert("notifications", {
+      firmId,
+      userId: String(u._id),
+      title: payload.title,
+      message: payload.message,
+      type: payload.type,
+      link: { view: "securityAccess", id: null, context: {} },
+      timestamp: Date.now(),
+      isRead: false,
+    } as any);
+  }
+  if (userIds.length > 0) {
+    try {
+      await (ctx as any).runMutation(internal.pushNotifications.dispatchPushToUsers, {
+        userIds,
+        title: payload.title,
+        body: payload.message,
+        data: { type: payload.type, view: "securityAccess" },
+      });
+    } catch (pushErr: any) {
+      console.warn("[notifyFirmAdmins] Push failed:", pushErr?.message || pushErr);
+    }
+  }
+}
+
+/**
+ * mutation: decideVmsAccessRequest — founder-only Approve/Decline.
+ *   Approve → firms.vmsEnabled = true + vmsRequestStatus 'approved' + the
+ *   workspace's admins are notified (in-app + push).
+ *   Decline → vmsRequestStatus 'declined' (vmsEnabled untouched = false) +
+ *   the admins are notified.
+ */
+export const decideVmsAccessRequest = mutation({
+  args: {
+    firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    decision: v.union(v.literal("approve"), v.literal("decline")),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const founder = await requirePlatformFounder(ctx, args.sessionToken);
+
+    let firm: any = await ctx.db
+      .query("firms")
+      .filter((q: any) => q.eq(q.field("id"), args.firmId))
+      .first();
+    if (!firm) {
+      try { firm = await ctx.db.get(args.firmId as any); } catch { /* not a valid Convex id */ }
+    }
+    if (!firm) throw new Error("Firm not found");
+    if (!firm.vmsRequest && firm.vmsRequestStatus !== "pending") {
+      throw new Error("No pending VMS access request for this workspace.");
+    }
+
+    const now = Date.now();
+    const decidedRequest = {
+      ...(firm.vmsRequest || {}),
+      decidedBy: founder.email || "founder",
+      decidedAt: now,
+      decisionNote: args.note?.trim().slice(0, 400) || null,
+    };
+
+    if (args.decision === "approve") {
+      await ctx.db.patch(firm._id, {
+        vmsEnabled: true,
+        vmsRequestStatus: "approved",
+        vmsRequest: decidedRequest,
+        updatedAt: new Date().toISOString(),
+      });
+      await notifyFirmAdmins(ctx, args.firmId, {
+        title: "VMS (SentryPass) Enabled",
+        message: `Your VMS (SentryPass) access request has been approved. Visitor codes, the gatehouse terminal, and Sentry reports are now available under Settings → Security & Access.`,
+        type: "vms_access_approved",
+      });
+    } else {
+      await ctx.db.patch(firm._id, {
+        vmsRequestStatus: "declined",
+        vmsRequest: decidedRequest,
+        updatedAt: new Date().toISOString(),
+      });
+      await notifyFirmAdmins(ctx, args.firmId, {
+        title: "VMS (SentryPass) Request Declined",
+        message: `Your VMS (SentryPass) access request was not approved at this time.${args.note ? ` Note: ${args.note.trim().slice(0, 200)}` : ""}`,
+        type: "vms_access_declined",
+      });
+    }
+
+    return { success: true, decision: args.decision };
+  },
+});
+
 // ─── ESTATE COMMUNITY ADD-ON (mirrors VMS pattern) ──────────────────────
 // Pricing: ₦5,000/month, included free for Pro+.
 // Trial: 30 days free, once per firm.

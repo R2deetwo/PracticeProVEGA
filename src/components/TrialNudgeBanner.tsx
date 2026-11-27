@@ -143,8 +143,11 @@ const TrialNudgeBanner: React.FC = () => {
     critical: 'bg-red-600 hover:bg-red-700 text-white',
   };
 
+  // SPACING (2026-11-27): mb-4 removed — the banner renders inside the
+  // dashboard's space-y-* column, which already owns the inter-child
+  // rhythm; the local mb stacked on top of it and doubled the gap.
   return (
-    <div className={`${urgencyClasses[milestone.urgency]} border rounded-lg p-3 sm:p-4 mb-4 flex items-start gap-3 animate-fade-in`}>
+    <div className={`${urgencyClasses[milestone.urgency]} border rounded-lg p-3 sm:p-4 flex items-start gap-3 animate-fade-in`}>
       <div className="flex-1 min-w-0">
         <h4 className="font-bold text-sm">{milestone.title}</h4>
         <p className="text-xs mt-1 opacity-90">{milestone.body}</p>

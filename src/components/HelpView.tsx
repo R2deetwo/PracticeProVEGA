@@ -275,7 +275,11 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                     </button>
                 </div>
 
-                {/* Security & Access Architecture — quick link to the dedicated page */}
+                {/* Security & Access Architecture — quick link to the dedicated page.
+                    VMS ENTITLEMENT (2026-11-27): hidden on legal-only (Vega)
+                    workspaces — VMS is an Atrium/Komplete estate-operations
+                    add-on and the dedicated page hard-rejects Vega. */}
+                {hasPropertyFeatures && (
                 <div className="mb-12">
                     <button
                         onClick={() => navigateTo('securityAccess')}
@@ -296,6 +300,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                         </svg>
                     </button>
                 </div>
+                )}
 
                 <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>

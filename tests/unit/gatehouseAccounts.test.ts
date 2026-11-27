@@ -121,7 +121,10 @@ const SESSION_PLAIN_ADMIN = 'sess-admin-3333';
 function baseTables(): Record<string, Row[]> {
   return {
     firms: [
-      { _id: 'firm_1', id: 'firm-1', name: 'Atrium Estates', email: 'admin@atrium.ng', subscriptionPlan: 'Komplete', subscriptionAddons: { vms: { status: 'active' } } },
+      { _id: 'firm_1', id: 'firm-1', name: 'Atrium Estates', email: 'admin@atrium.ng', subscriptionPlan: 'Komplete', subscriptionAddons: { vms: { status: 'active' } },
+        // 2026-11-27 entitlement layer: fixture firm is ALSO founder-approved
+        // (firms.vmsEnabled) — the capability gate sits ABOVE the billing gate.
+        vmsEnabled: true, vmsRequestStatus: 'approved' },
     ],
     users: [
       { _id: ADMIN_ID, id: ADMIN_ID, name: 'Estate Admin', email: 'admin@atrium.ng', role: 'Administrator', firmId: 'firm-1' },

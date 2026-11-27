@@ -20167,3 +20167,70 @@ Stage Summary:
 - The FAB -> panel -> chat -> Vox -> Court Mode path now runs on ONE navigation model with a busy-guarded close, an honest mobile frame, named FAB states, a clean chat surface, and Vox vocabulary clean of retired names.
 - Pin conflicts (reported, moved forward not weakened): aloaCourtModeEntry.test.ts, aloaVoxDesktopEntry.test.ts, endorsementRound23.test.ts pinned the old two-segment switcher / onBackToChat / chat mic that the new spec removes; they now pin the new one-row contract. The Court backdrop rule changed deliberately: it closes in every mode now, but never discards a live take (ConfirmDialog guard preserves the original no-accidental-loss intent).
 - Known follow-ups (Phase 3 items beyond this round's landed scope, for the next round): the pending-queue strip could gain per-item Retry/Delete affordances once a queued take can be re-processed in this environment (the demo transcription 401s — evidence: before/vox-triage-unreachable-*); Session's 4-step progress indicator and the Triage section-order restyle remain as designed follow-ups; the stuck-"Transcribing..." dead end (no cancel affordance) found in Phase 0 is documented in FINDINGS.md and wants a cancel path.
+
+---
+
+## Round 27 — Overview desktop spacing + VMS (SentryPass) entitlement gating (2026-11-27)
+
+**Task A — Overview desktop spacing (owner feedback: oversized header→cards gap).**
+The desktop Overview page carried ~80px of dead vertical space between the
+`Good day, …` header and the four metric cards (vs 32px horizontal padding at
+lg). Three causes, all removed:
+1. The quick-capture Vox card's wrapper was ALWAYS in the DOM (`md:hidden`
+   hides it visually, but a display:none sibling still counts for the
+   container's `space-y * + *` selector, which pushed the stats row down).
+   It now renders only on phones (useIsMobile) and only while not dismissed.
+2. The DailyFocus wrapper grid rendered unconditionally — a zero-height
+   empty grid plus its own space-y margin on every desktop layout. It now
+   renders only when it has content (loading skeleton or AI focus card).
+3. Banners carried their own `mb-4 sm:mb-6` on top of the container's
+   `space-y-4 sm:space-y-6` — TierAccessBanner, FirstRunWelcome, the Vox
+   card and TrialNudgeBanner all lost the local mb (space-y owns the rhythm).
+Result: the header→cards gap is now the container's top padding
+(p-3/sm:p-6/lg:p-8 = 12/24/32px) — exactly the left/right margins at every
+breakpoint; every banner slot collapses to zero DOM when inactive.
+
+**Task B — VMS (SentryPass) founder-approval entitlement gating.**
+VMS access is now a paid + founder-approved add-on, enforced server-side on
+capability flags on the workspace record — never a plan-name check in a UI
+component:
+- `firms.vmsEnabled` / `firms.vmsRequestStatus` ('none'|'pending'|'approved'|
+  'declined') / `firms.vmsRequest` (schema + backfill).
+- `assertVmsEntitlement` (visitorManagement.ts) is the ONE canonical gate —
+  product scope (Vega → VMS_NOT_AVAILABLE, Forbidden) → capability
+  (vmsEnabled !== true → VMS_NOT_ENABLED) → add-on billing (owner rule
+  2026-11-22, unchanged: VMS_ADDON_REQUIRED / VMS_TRIAL_EXPIRED) — applied to
+  ALL 16 public VMS queries/mutations (generate/verify/checkIn/checkOut/
+  revoke/getResidentTokens/getGatehouseLogs/getGatekeeperProperties/
+  recordDeniedEntry/searchExpectedVisitors/4× Sentry reports/issueStaffPass/
+  getStaffAttendance), with a query-safe read variant for Convex queries.
+- Request flow: SecurityAccessView is now the gated VMS hub — Vega gets the
+  Forbidden screen (route + nav + API all reject); Komplete gets the tailored
+  request screen (facilities/estate-ops copy, still requestable); Atrium
+  gets the approval-required paywall (₦90,000/yr = the ₦7,500/mo list × 12,
+  up to 50 units; custom quote for large estates) + the 3-question
+  qualification form (estate name, units/gates, use case) with the tailored
+  confirmation copy per product.
+- Founder alert: submitVmsAccessRequest → notifyFounders (in-app + FCM push)
+  + scheduled Brevo email (workspace name, plan, estate details). Founder
+  decides in the admin app → Subscriptions → VMS Access (new tab): Approve
+  (vmsEnabled=true + firm admins notified) / Decline.
+- Grandfathering: `migrations.backfillVmsEntitlementFlags` (idempotent,
+  dryRun-supported) sets vmsEnabled=true/approved for firms holding an
+  active/trial add-on or the founder firm — dispatched via the new
+  `convex-backfill-vms-entitlement.yml` workflow so no paying workspace
+  locks out at cutover.
+- Surface alignment: Portal Access shows the operational VMS toggles only
+  when the capability is granted (else the request-access card with live
+  request status); Billing shows the annual approval-required add-on under
+  Atrium and a clearly-marked EXTERNAL Estate Operations add-on card under
+  Komplete (never an included feature); the resident portal Visitors tab
+  AND-gates on the new `vmsCapability` field from getFirmPortalSettings.
+
+**Verification (all green):** `npx vitest run` 4273 passed / 1 skipped
+(incl. the new tests/unit/vmsAccessRequests.test.ts — 14 behavioural +
+source-contract pins — and the updated vmsEntitlement / roundSentry /
+staffPasses / gatehouseAccounts fixtures for the entitlement layer);
+`npx tsc --noEmit` clean; `npx tsc --noEmit -p convex` clean; `npm run
+lint` 0 errors with BOTH ratchets held (raw-element total 2201 == baseline
+— every new button uses the ui/ primitive); `npm run build` green (29.8s).

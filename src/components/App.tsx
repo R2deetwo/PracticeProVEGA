@@ -606,7 +606,13 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             // scope, so an authed user opening /vega/resources would have hit
             // a ReferenceError. Authed users now get the same public
             // ResourcesPage via the intercept in App's render flow.
-            case 'securityAccess': return <React.Suspense fallback={<GenericSkeleton />}><SecurityAccessView onBack={goBack} /></React.Suspense>;
+            // VMS ENTITLEMENT (2026-11-27): Vega (legal-only) workspaces
+            // cannot hold VMS — SecurityAccessView itself renders the
+            // Forbidden screen, and the direct route short-circuits the
+            // same way so no VMS UI mounts at all on legal products.
+            case 'securityAccess': return product === 'vega'
+                ? <NotFoundView />
+                : <React.Suspense fallback={<GenericSkeleton />}><SecurityAccessView onBack={goBack} /></React.Suspense>;
             default: return <NotFoundView />;
         }
     };
