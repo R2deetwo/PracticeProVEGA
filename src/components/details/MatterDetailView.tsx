@@ -623,10 +623,10 @@ const MatterDetailViewContent: React.FC = () => {
                         The 'Brief' tab was removed per user request — it was non-functional
                         (MatterBrief component rendered mostly-empty widgets that duplicated
                         info already shown in Endorsements and Tasks). */}
-                    {/* SIMPLIFY FIX: "Endorsements" is legal jargon most Nigerian
-                        small-firm lawyers don't use for matter notes — renamed to "Notes".
-                        The code already called this tab 'notes'. */}
-                    <TabButton label="Notes" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
+                    {/* ROUND 23 (owner vocabulary): the tab is ENDORSEMENTS —
+                        never "Notes", never "Court endorsements". Plain notes
+                        stay listed distinctly inside (TeamDiscussionTab). */}
+                    <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
                     {/* DEEP AUDIT FIX: Renamed "Tasks" to "Tasks & Events" so users know
                         court dates (which are events) live here. The checklist hint
                         previously said "Schedule tab" which didn't exist. */}
@@ -641,17 +641,20 @@ const MatterDetailViewContent: React.FC = () => {
 
                     {activeTab === 'notes' ? (
                         <div className="space-y-4">
-                            <div>
-                                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200 dark:border-zinc-700">
-                                    <div className="w-1 h-5 bg-primary-500 rounded-full" />
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Notes</h3>
-                                </div>
-                                <TeamDiscussionTab
+                            {/* ROUND 23 (owner spec §2): the Endorsements tab —
+                                the entry box is hidden by default and opens on
+                                demand from the NEW Endorsement trigger in
+                                TeamDiscussionTab's own header (which replaced
+                                this view's old blue-bar heading). The tab
+                                label follows the owner's vocabulary: never
+                                "Court endorsements", and endorsements stay
+                                distinct from plain notes inside. */}
+                            <TeamDiscussionTab
                                     matterId={matterData.id}
                                     notes={notePages}
                                     users={users}
                                     currentUser={currentUser || {} as User}
-                                    onAddNote={(matterId, title, content, type) => documentActions.handleAddMatterNote(matterId, title, content)}
+                                    onAddNote={(matterId, title, content, type) => documentActions.handleAddMatterNote(matterId, title, content, type)}
                                     onUpdateNote={(note) => documentActions.handleUpdatePageContent(note.id, note.title, note.content)}
                                     onDeleteNote={(id, title) => documentActions.onDeletePage(id)}
                                     openModal={openModal}
@@ -659,12 +662,6 @@ const MatterDetailViewContent: React.FC = () => {
                                     filterType="all"
                                 />
                             </div>
-                            {/* Bidirectional backlinks — notes that mention this matter via [[Matter Title]].
-                                Uses real-time content-based matching: scans all notes for [[...]] patterns
-                                that match this matter's title. No schema migration needed. */}
-                            {/* CRO AUDIT FIX — BacklinksPanel render removed (non-functional, no persistence layer).
-                                Will be re-enabled when the backlinks persistence layer is implemented. */}
-                        </div>
                     ) : activeTab === 'schedule_tasks' ? (
                         <div className="space-y-3">
                             {/* UX-03: a time-entry affordance visible to ALL staff on

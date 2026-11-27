@@ -2,7 +2,7 @@
  * ROUND 22 — inline edits inside Court Mode, with the institutional audit
  * trail. Two actions, both behind ONE visible Save press (no silent writes):
  *
- *   saveEndorsement — edits the saved endorsement (the LAST ORDER note)
+ *   saveEndorsement — edits the saved endorsement (the LAST ENDORSEMENT note)
  *     via updateItem('notePages'), then writes a firmActivity row naming
  *     the editor, the matter and the moment.
  *   saveNextDate — edits the upcoming matter date. A real diary event is
@@ -19,7 +19,8 @@ import { useCallback, useState } from "react";
 import type { CalendarEvent, Matter, NotePage } from "../../../types";
 import { useDataActions } from "../../../contexts/DataContext";
 import { useUI } from "../../../contexts/UIContext";
-import { SYNTHESIZED_HEARING_ID_PREFIX } from "../courtModeUtils";
+import { useEndorsementNotify } from "../../../hooks/useEndorsementNotify";
+import { endorsementBodyOf, isRecurringInstanceId, SYNTHESIZED_HEARING_ID_PREFIX } from "../courtModeUtils";
 import { dayKeyOf } from "./format";
 
 /** The exact event object to patch, matched the way updateItem does (id/_id —
@@ -42,6 +43,7 @@ const composeEventDate = (dateISO: string, timeHHmm: string | null): string => {
 export function useCourtInlineEdit() {
   const { updateItem, logActivity } = useDataActions();
   const { addToast } = useUI();
+  const notifyEndorsement = useEndorsementNotify();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveEndorsement = useCallback(
@@ -57,11 +59,21 @@ export function useCourtInlineEdit() {
         await updateItem(
           "notePages",
           { id: note.id, content: trimmed, updatedAt: new Date().toISOString() },
-          "Court endorsement",
+          // ROUND 23 (owner vocabulary): "Endorsement" — never "Court
+          // endorsement"; there is no need to say "court" to a lawyer.
+          "Endorsement",
         );
         // The institutional audit trail — a firmActivity row names the
         // editor, the matter and the moment (visible firm-wide).
-        logActivity("Edited a court endorsement", "Matter", matter.id, matter.title, matter.id);
+        logActivity("Edited an endorsement", "Matter", matter.id, matter.title, matter.id);
+        // ROUND 23 (owner spec §4): the matter's attached users are notified
+        // of the edit — best-effort, never blocks the save.
+        notifyEndorsement({
+          matterId: matter.id,
+          noteId: note.id,
+          action: "edited",
+          snippet: endorsementBodyOf(trimmed),
+        });
         addToast("Endorsement updated — logged to the firm activity trail.", { type: "success" });
         return true;
       } catch {
@@ -72,7 +84,7 @@ export function useCourtInlineEdit() {
         setIsSaving(false);
       }
     },
-    [updateItem, logActivity, addToast, isSaving],
+    [updateItem, logActivity, notifyEndorsement, addToast, isSaving],
   );
 
   const saveNextDate = useCallback(
@@ -85,6 +97,13 @@ export function useCourtInlineEdit() {
     }): Promise<boolean> => {
       const { matter, hearing, dateISO, timeHHmm, events } = args;
       if (!dateISO || isSaving) return false;
+      // ROUND 23 (parity): a recurrence EXPANSION INSTANCE is a virtual
+      // occurrence, not a stored row — patching it would move the whole
+      // series' anchor. The recurring series is edited on the calendar.
+      if (isRecurringInstanceId(hearing.id)) {
+        addToast("That is a recurring diary item — edit the series on the calendar.", { type: "info" });
+        return false;
+      }
       setIsSaving(true);
       try {
         if (hearing.id.startsWith(SYNTHESIZED_HEARING_ID_PREFIX)) {

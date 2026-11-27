@@ -15,7 +15,7 @@ export interface DocumentActions {
     handleRenamePage: (pageId: string, newTitle: string) => void;
     handleDeleteNotebook: (id: string, name: string) => void;
     onDeletePage: (id: string) => void;
-    handleAddMatterNote: (matterId: string, title: string, content: string) => void;
+    handleAddMatterNote: (matterId: string, title: string, content: string, type?: 'user' | 'endorsement') => void | Promise<void>;
 }
 
 import { useDataState, useDataActions } from './DataContext';

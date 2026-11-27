@@ -14,7 +14,7 @@ import { useUI } from "../../../contexts/UIContext";
 import { useFeatures } from "../../../hooks/useFeatures";
 import { useQuickCapture } from "../../../hooks/useQuickCapture";
 import { stampVoxUsedAt } from "../../../utils/voxUsageTracking";
-import { mergeLiveTranscriptDraft } from "../courtModeUtils";
+import { mergeLiveTranscriptDraft, stripDictationFiller } from "../courtModeUtils";
 import { StoredCourtDraft } from "./courtDrafts";
 
 interface UseCourtDictationArgs {
@@ -36,6 +36,11 @@ export function useCourtDictation({ matter, drafts, setDraft }: UseCourtDictatio
 
   // Live transcript merge — the pinned rules, now landing in the persisted
   // per-matter draft (kept exactly as the previous monolith ran it).
+  // ROUND 23 (owner spec §3): the dictated words lose only unambiguous
+  // spoken filler ("uh", "um", "um, so…") as they land, so the lawyer reviews
+  // a clean endorsement in the composer; every fact stays exactly as spoken.
+  // The pinned merge rules themselves are UNCHANGED (the strip is applied
+  // outside mergeLiveTranscriptDraft, after the merge).
   useEffect(() => {
     const matterId = recordingMatterIdRef.current;
     if (!matterId || !capture.transcriptSoFar) return;
@@ -49,7 +54,7 @@ export function useCourtDictation({ matter, drafts, setDraft }: UseCourtDictatio
     );
     previousTranscriptRef.current = merged.previousTranscript;
     setDraft(matterId, {
-      text: merged.draft,
+      text: stripDictationFiller(merged.draft),
       noteType: base?.noteType ?? "endorsement",
       nextDate: base?.nextDate ?? null,
       updatedAt: Date.now(),

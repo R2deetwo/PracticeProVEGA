@@ -63,7 +63,8 @@ const DiaryRow: React.FC<{
         {who || entry.lastOrderSnippet ? (
           <span className="mt-0.5 block truncate text-xs text-subtle">
             {who ? `${who} · ` : ""}
-            {entry.lastOrderSnippet ? `Last order: "${entry.lastOrderSnippet}"` : ""}
+            {/* ROUND 23 (owner vocabulary): Last endorsement — never "Last order". */}
+            {entry.lastOrderSnippet ? `Last endorsement: "${entry.lastOrderSnippet}"` : ""}
           </span>
         ) : null}
       </span>

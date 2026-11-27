@@ -6,7 +6,7 @@
  */
 import { useMemo } from "react";
 import type { CalendarEvent } from "../../../types";
-import { canSeeMatter, filterDiary, getCourtDiary, getCourtHearings, getCourtModeMatters, todayDayKey } from "../courtModeUtils";
+import { canSeeMatter, expandCourtEvents, filterDiary, getCourtDiary, getCourtHearings, getCourtModeMatters, todayDayKey } from "../courtModeUtils";
 
 export interface CourtModeDataArgs {
   viewerId: string;
@@ -22,6 +22,16 @@ export interface CourtModeDataArgs {
 
 export function useCourtModeData(args: CourtModeDataArgs) {
   const { viewerId, scope, query, selectedMatterId, users, eventTypes, matters, events, notePages } = args;
+
+  // ROUND 23 (parity): one shared event source — recurring diary items are
+  // materialised exactly like the main calendar / dashboard mini-calendar
+  // (unique `${eventId}_YYYY-MM-DD` instance ids), so a date that carries
+  // items on the main calendar shows its indicators and entries in the
+  // court diary and the matter date picker too.
+  const expandedEvents = useMemo(
+    () => expandCourtEvents(events, todayDayKey()),
+    [events],
+  );
 
   const userNames = useMemo(() => {
     const map: Record<string, string> = {};
@@ -41,17 +51,17 @@ export function useCourtModeData(args: CourtModeDataArgs) {
     [matters, viewerId],
   );
   const visibleCourtMatters = useMemo(
-    () => getCourtModeMatters(visibleMatters, events, todayDayKey()),
-    [visibleMatters, events],
+    () => getCourtModeMatters(visibleMatters, expandedEvents, todayDayKey()),
+    [visibleMatters, expandedEvents],
   );
   const visibleEventList = useMemo(() => {
     const visibleIds = new Set(visibleMatters.map((matter) => matter.id));
-    return (events || []).filter((event) => !event.matterId || visibleIds.has(event.matterId));
-  }, [events, visibleMatters]);
+    return (expandedEvents || []).filter((event) => !event.matterId || visibleIds.has(event.matterId));
+  }, [expandedEvents, visibleMatters]);
 
   const diary = useMemo(
-    () => getCourtDiary(matters, events, notePages, { viewerId, scope, userNames, today: todayDayKey() }),
-    [matters, events, notePages, viewerId, scope, userNames],
+    () => getCourtDiary(matters, expandedEvents, notePages, { viewerId, scope, userNames, today: todayDayKey() }),
+    [matters, expandedEvents, notePages, viewerId, scope, userNames],
   );
   const filteredDiary = useMemo(() => filterDiary(diary, query), [diary, query]);
 
@@ -62,8 +72,8 @@ export function useCourtModeData(args: CourtModeDataArgs) {
   const selectedCourtMatter = useMemo(() => {
     const fromDiary = visibleCourtMatters.find((courtMatter) => courtMatter.matter.id === selectedMatterId);
     if (fromDiary) return fromDiary;
-    return selectedMatter ? getCourtHearings(selectedMatter, events, todayDayKey()) : null;
-  }, [visibleCourtMatters, selectedMatterId, selectedMatter, events]);
+    return selectedMatter ? getCourtHearings(selectedMatter, expandedEvents, todayDayKey()) : null;
+  }, [visibleCourtMatters, selectedMatterId, selectedMatter, expandedEvents]);
 
   return {
     userNames,

@@ -5058,6 +5058,107 @@ export const createTask = mutation({
 });
 
 /**
+ * ROUND 23 — endorsement notifications (owner spec: "whenever a new
+ * endorsement is created or an existing endorsement is edited on a matter,
+ * send an in-app notification / message (and push notification where
+ * enabled) to users attached to that matter").
+ *
+ * Server-authoritative: the caller only names the matter and the action;
+ * the server loads the matter itself and resolves the attached users from
+ * the matter's own assignedUsers — the actor is never their own recipient.
+ * Both channels are best-effort (Promise.allSettled + try/catch on the
+ * push): a notification failure must never reject the call, because the
+ * endorsement itself was already saved through the caller's own write path
+ * (updateItem/createItem surfaced any real write failure there).
+ */
+export const notifyMatterEndorsement = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    matterId: v.string(),
+    noteId: v.optional(v.string()),
+    /** "created" | "edited" — anything not "edited" reads as "created". */
+    action: v.string(),
+    actorName: v.optional(v.string()),
+    snippet: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
+    const firmId = auth.firmId;
+    const actorId = auth.userId;
+    const actorName = args.actorName || auth.user?.name || "A colleague";
+
+    const matter = await ctx.db
+      .query("matters")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .filter((q: any) => q.eq(q.field("id"), args.matterId))
+      .first();
+    if (!matter) return { notified: 0 };
+
+    const recipients = (matter.assignedUsers || []).filter(
+      (id: string) => id && id !== actorId,
+    );
+    if (recipients.length === 0) return { notified: 0 };
+
+    const matterTitle = matter.title || "a matter";
+    const edited = args.action === "edited";
+    const verb = edited ? "edited an endorsement on" : "recorded an endorsement on";
+    const trimmedSnippet = (args.snippet || "").trim();
+    const message = trimmedSnippet
+      ? `${actorName} ${verb} ${matterTitle}: ${trimmedSnippet.slice(0, 90)}`
+      : `${actorName} ${verb} ${matterTitle}`;
+    const link = {
+      view: "matterDetail",
+      id: args.matterId,
+      context: { initialTab: "notes" },
+    };
+
+    const notificationPromises = recipients.map(async (userId: string) => {
+      await ctx.db.insert("notifications", {
+        id: crypto.randomUUID(),
+        firmId,
+        userId,
+        title: edited ? "Endorsement edited" : "New endorsement",
+        message,
+        type: "endorsement",
+        link,
+        isRead: false,
+        timestamp: Date.now(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+    await Promise.allSettled(notificationPromises);
+
+    // Real FCM push wherever the user enabled it (push tokens are registered
+    // only by opted-in devices) — one tray row per matter, best-effort.
+    try {
+      await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+        userIds: recipients,
+        title: actorName,
+        body: message,
+        data: {
+          type: "endorsement",
+          view: "matterDetail",
+          matterId: args.matterId,
+          initialTab: "notes",
+        },
+        tag: `matter-endorsement:${args.matterId}`,
+      });
+    } catch (pushErr: any) {
+      await logError(ctx, {
+        scope: "notifications",
+        name: "myFunctions:notifyMatterEndorsement:pushDispatch",
+        error: pushErr,
+        severity: "warning",
+        firmId,
+        context: { matterId: args.matterId, recipients: recipients.length },
+      });
+    }
+    return { notified: recipients.length };
+  },
+});
+
+/**
  * logActivity — Server-side audit trail logger.
  * Use this in any Convex mutation to record who did what, when.
  * Unlike the frontend logActivity (which goes through createItem),

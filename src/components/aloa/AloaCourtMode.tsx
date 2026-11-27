@@ -258,7 +258,6 @@ export const AloaCourtMode: React.FC<AloaCourtModeProps> = ({ onBackToChat, onCl
               dictation.markManualEdits();
               writeDraft(selectedMatter.id, { text });
             }}
-            onNoteTypeChange={(noteType) => writeDraft(selectedMatter.id, { noteType })}
             onNextDateChange={(nextDate) => writeDraft(selectedMatter.id, { nextDate })}
             dictation={{
               phase: dictation.capture.phase,

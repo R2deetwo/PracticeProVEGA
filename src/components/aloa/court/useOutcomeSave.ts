@@ -13,7 +13,8 @@ import { useState } from "react";
 import type { CalendarEvent, Matter } from "../../../types";
 import { useDataActions } from "../../../contexts/DataContext";
 import { useUI } from "../../../contexts/UIContext";
-import { buildOutcomePlan, diaryDayLabel, OutcomeDraft } from "../courtModeUtils";
+import { useEndorsementNotify } from "../../../hooks/useEndorsementNotify";
+import { buildOutcomePlan, diaryDayLabel, endorsementBodyOf, OutcomeDraft } from "../courtModeUtils";
 
 export interface SavedNotePlan {
   note: { matterId: string; title: string; content: string; type: "endorsement" | "user" };
@@ -67,6 +68,7 @@ export function useOutcomeSave(args: UseOutcomeSaveArgs) {
   const { matter, events, viewerId, viewerName, eventTypeNames, nextDate, addToDiary, setAsMatterNextDate } = args;
   const { addItem, handleAddMatterNote, handleUpdateMatter } = useDataActions();
   const { addToast } = useUI();
+  const notifyEndorsement = useEndorsementNotify();
   const [isSaving, setIsSaving] = useState(false);
   const [partialFailure, setPartialFailure] = useState<PartialFailureState | null>(null);
 
@@ -135,6 +137,13 @@ export function useOutcomeSave(args: UseOutcomeSaveArgs) {
       setIsSaving(false);
       return; // nothing else runs; the draft is untouched
     }
+    // ROUND 23 (owner spec §4): the matter's attached users are notified that
+    // an endorsement was recorded — best-effort, never blocks the save.
+    notifyEndorsement({
+      matterId: matter.id,
+      action: "created",
+      snippet: endorsementBodyOf(plan.note.content),
+    });
     const failed = await runDiarySteps(plan);
     await finishAfterNoteSaved(plan, failed, text);
   };

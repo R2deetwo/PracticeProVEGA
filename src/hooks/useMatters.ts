@@ -313,16 +313,23 @@ export const useMatters = (appState: any, actions: any) => {
 
     /**
      * Link a matter note.
+     *
+     * ROUND 23 (owner spec §4): the note carries its AUTHOR (the recording
+     * counsel) — authorId was never set here, so endorsement notes rendered
+     * with the "System" author label everywhere. The promise is returned so
+     * callers (Court Mode's save, the Endorsements tab) can notify only
+     * after the record itself actually saved.
      */
-    const handleAddMatterNote = useCallback((matterId: string, title: string, content: string, type?: string) => 
-        actions.addItem('notePages', { 
-            matterId, 
-            title, 
-            content, 
-            type: type || 'user', 
-            createdAt: new Date().toISOString(), 
-            updatedAt: new Date().toISOString() 
-        }, 'Matter Note'), [actions]);
+    const handleAddMatterNote = useCallback((matterId: string, title: string, content: string, type?: string) =>
+        actions.addItem('notePages', {
+            matterId,
+            title,
+            content,
+            type: type || 'user',
+            authorId: currentUser?.id || '',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }, 'Matter Note'), [actions, currentUser?.id]);
 
     /**
      * Archive an item to the global archive.

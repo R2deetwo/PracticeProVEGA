@@ -2,7 +2,7 @@ import { Matter, MatterStatus, MatterType, CalendarEvent, NotePage } from "../..
 import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
 import { extractDatedMention, formatDatedMention, endorsementTitleFrom } from "../../utils/endorsementDateParser";
 import { isPublicHoliday, isWeekend } from "../../utils/courtCalculator";
-import { parseDateString } from "../../utils/calendarUtils";
+import { expandRecurringEvents, parseDateString } from "../../utils/calendarUtils";
 
 export interface CourtHearing {
   id: string;
@@ -571,12 +571,114 @@ export function assessNextDate(input: {
   return risks;
 }
 
-/** Latest non-archived endorsement for the matter, by createdAt. */
+/** Latest non-archived endorsement for the matter — by the SITTING date
+ * (the jacket's Date line) when the record carries one, else the save moment.
+ * A backdated insertion therefore never displaces the true last endorsement. */
 export function pickLastEndorsement(notes: NotePage[], matterId: string): NotePage | null {
   const endorsements = notes
     .filter((note) => note.matterId === matterId && note.type === "endorsement" && !note.archivedAt)
-    .sort((left, right) => (right.createdAt || "").localeCompare(left.createdAt || "") || right.id.localeCompare(left.id));
+    .sort((left, right) => endorsementOrderMs(right) - endorsementOrderMs(left) || right.id.localeCompare(left.id));
   return endorsements[0] || null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUND 23 — the dictated-endorsement hygiene + ordering layer (all pure,
+// deterministic — no LLM anywhere in Court Mode; the notes-tab composer keeps
+// its own reviewed Format engine).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Unambiguous spoken filler ONLY — matched on word boundaries so real words
+ * ("sum", "thus", "August", "a") are never touched. One trailing comma and
+ * the following spaces go with the token, so "uh, the court" → "the court". */
+const SPOKEN_FILLER_RE = /\b(?:u+h+|u*m+h*|h+m+|e+r+m*|a+h+|e+h+|m+h+m+)\b[,.]?\s*/gi;
+
+/** A sentence-initial "So" is a spoken false start; a mid-sentence "so"
+ * ("…and so the matter stands adjourned") keeps its meaning and stays. */
+const LEADING_SO_RE = /(^|[\n.!?]\s+)So[,.]?\s+/gi;
+
+/** ROUND 23 (owner spec): strip conversational filler ("uh", "um", "erm",
+ * sentence-initial "so"…) from a dictated/typed endorsement while preserving
+ * every fact, name, date and figure byte-for-byte — nothing is ever invented,
+ * reordered or summarised. Pure, idempotent, and deliberately conservative:
+ * spoken false starts that cannot be told apart from substance (a repeated
+ * half-word) are the lawyer's own edit to make, never a machine guess. */
+export function stripDictationFiller(text: string): string {
+  const source = text ?? "";
+  if (!source.trim()) return source;
+  let out = source.replace(SPOKEN_FILLER_RE, "");
+  out = out.replace(LEADING_SO_RE, "$1");
+  // Tidy only the seams the removals leave behind — never the words.
+  out = out.replace(/[ \t]{2,}/g, " ");
+  out = out.replace(/^[ \t]*,[ \t]*/gm, "");
+  out = out.replace(/[ \t]+([,;:])/g, "$1");
+  return out.replace(/[ \t]+\n/g, "\n").trim();
+}
+
+/** The jacket's sitting date line — `Date: DD/MM/YYYY` (the Nigerian order) —
+ * as a local YYYY-MM-DD key; null when the record carries none (legacy raw
+ * notes). Pure, never throws. */
+export function endorsementSittingDayKey(content: string): string | null {
+  const match = /(?:^|\n)Date:[^\S\n]*(\d{2})\/(\d{2})\/(\d{4})/.exec(content || "");
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}
+
+/** The recording counsel a jacket's first Appearances line names — the
+ * honest author fallback for legacy records saved before notes carried an
+ * authorId ("- Ada Uzo for the Claimant" → "Ada Uzo"). Never invented: no
+ * appearance line, no name. */
+export function endorsementCounselOf(content: string): string | null {
+  const match = /(?:^|\n)-\s+([^\n]+?)\s+for the\s/.exec(content || "");
+  return match ? match[1].trim() : null;
+}
+
+/** Chronological order key for an endorsement: the SITTING date when the
+ * jacket records one, else the save moment. Milliseconds, higher = later. */
+export function endorsementOrderMs(note: Pick<NotePage, "content" | "createdAt">): number {
+  const sittingDayKey = endorsementSittingDayKey(note.content || "");
+  if (sittingDayKey) {
+    const [year, month, day] = sittingDayKey.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    if (!Number.isNaN(date.getTime())) return date.getTime();
+  }
+  const created = new Date(note.createdAt || "").getTime();
+  return Number.isNaN(created) ? 0 : created;
+}
+
+/** True when the id is a recurrence EXPANSION INSTANCE (`${eventId}_YYYY-MM-DD`,
+ * the calendarUtils convention) — a virtual occurrence, not a stored row.
+ * Raw event ids (uuid / kebab-case) never end in that date suffix. */
+export function isRecurringInstanceId(id: string): boolean {
+  return /_\d{4}-\d{2}-\d{2}$/.test(id || "");
+}
+
+/** How far ahead the court surfaces materialise recurring diary items —
+ * comfortably past the mini-calendar's month navigation and the diary's
+ * 14-day window, well under the 366-occurrence expansion budget. */
+const RECURRING_WINDOW_FORWARD_DAYS = 400;
+const RECURRING_WINDOW_BACK_DAYS = 1;
+
+/** ROUND 23 (parity fix): the main calendar, the dashboard mini-calendar and
+ * Daily Focus all expand recurring events — the Court Mode diary and the
+ * matter date picker did not, so a recurring court item dotted the main
+ * calendar on every occurrence date but never showed in Court Mode. This
+ * keeps every raw event AND adds the expansion instances (unique
+ * `${eventId}_YYYY-MM-DD` ids) inside the window — one shared source for the
+ * diary, the briefing's clash scan and the mini-calendar. */
+export function expandCourtEvents(events: CalendarEvent[], today: string): CalendarEvent[] {
+  const list = events || [];
+  const recurring = list.filter((event) => event.recurrence);
+  if (!recurring.length) return list;
+  const start = dayKeyToDate(offsetDayKey(today, -RECURRING_WINDOW_BACK_DAYS));
+  const end = dayKeyToDate(offsetDayKey(today, RECURRING_WINDOW_FORWARD_DAYS));
+  return [...list.filter((event) => !event.recurrence), ...expandRecurringEvents(recurring, start, end)];
+}
+
+function offsetDayKey(dayKey: string, days: number): string {
+  const date = dayKeyToDate(dayKey);
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -642,7 +744,9 @@ export function endorsementAppearances(matter: Matter, viewerName: string): stri
 
 /** The standard file jacket for one endorsement. */
 export function formatEndorsementJacket(input: EndorsementJacketInput): string {
-  const body = input.bodyText.trim();
+  // ROUND 23: the dictated/typed body loses only unambiguous spoken filler —
+  // every fact, name, date and figure stays exactly as recorded.
+  const body = stripDictationFiller(input.bodyText).trim() || input.bodyText.trim();
   const purpose =
     input.nextDate?.purpose === "Other" && input.nextDate.purposeOther?.trim()
       ? input.nextDate.purposeOther.trim()
@@ -749,8 +853,10 @@ export function buildOutcomePlan(
   const isColleaguesMatter =
     (matter.assignedUsers || []).length > 0 && !(matter.assignedUsers || []).includes(ctx.viewerId);
 
+  // ROUND 23 (owner vocabulary): "Endorsement" / "Note" — never "Court
+  // endorsement"; there is no need to say "court" to a lawyer.
   const noteTitle =
-    `${draft.noteType === "endorsement" ? "Court endorsement" : "Court note"} — ${matter.title}` +
+    `${draft.noteType === "endorsement" ? "Endorsement" : "Note"} — ${matter.title}` +
     (isColleaguesMatter ? ` (brief held by ${ctx.viewerName})` : "");
 
   // ROUND 22: an ENDORSEMENT saves as the standard Nigerian file jacket —

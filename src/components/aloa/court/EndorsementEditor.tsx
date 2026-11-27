@@ -1,11 +1,12 @@
 /**
- * ROUND 22 — the saved endorsement at the bottom of a selected matter (the
- * LAST ORDER block), now directly editable inline. Read view identical to the
- * Round 19/20 block (heading, Just-now badge, clamped body, Show more); one
- * "Edit" affordance swaps in a Textarea with a single visible Save press.
+ * ROUND 22/23 — the saved endorsement at the bottom of a selected matter (the
+ * LAST ENDORSEMENT block), directly editable inline. Read view identical to
+ * the Round 19/20 block (heading, Just-now badge, clamped body, Show more);
+ * one "Edit" affordance swaps in a Textarea with a single visible Save press.
  * Every save writes the note via updateItem('notePages') AND an audit row
- * (logActivity — the firm activity trail, firm-wide and attributed); a
- * server rejection keeps the editor open with the text intact.
+ * (logActivity — the firm activity trail, firm-wide and attributed) and
+ * notifies the matter's attached users; a server rejection keeps the editor
+ * open with the text intact.
  */
 import React, { useState } from "react";
 import { Badge, Button, SectionErrorBoundary, Textarea } from "../../ui";
@@ -13,7 +14,7 @@ import type { Matter, NotePage } from "../../../types";
 import { useCourtInlineEdit } from "./useCourtInlineEdit";
 
 interface EndorsementEditorProps {
-  /** The matter's latest endorsement (the LAST ORDER note). */
+  /** The matter's latest endorsement (the LAST ENDORSEMENT note). */
   note: NotePage;
   matter: Matter;
   /** Preserved rule: editing is disabled while dictation is busy. */
@@ -51,11 +52,11 @@ export const EndorsementEditor: React.FC<EndorsementEditorProps> = ({ note, matt
   const isLong = (note.content || "").length > 240 || (note.content || "").split("\n").length > 6;
 
   return (
-    <SectionErrorBoundary sectionName="Last order">
+    <SectionErrorBoundary sectionName="Last endorsement">
       <div>
         <div className="flex items-center justify-between gap-2">
           <h3 className="min-w-0 truncate text-2xs font-black uppercase tracking-widest text-subtle">
-            Last order · {shortDate(note.createdAt)}
+            Last endorsement · {shortDate(note.createdAt)}
             {wasEdited && !justNow ? " · edited" : ""}
           </h3>
           <div className="flex flex-shrink-0 items-center gap-1.5">

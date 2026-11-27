@@ -6,10 +6,16 @@ import {
   canSeeMatter,
   detectNextDate,
   endorsementBodyOf,
+  endorsementCounselOf,
+  endorsementOrderMs,
+  endorsementSittingDayKey,
+  expandCourtEvents,
   filterDiary,
   formatEndorsementJacket,
   getCourtDiary,
+  isRecurringInstanceId,
   pickLastEndorsement,
+  stripDictationFiller,
 } from "../../src/components/aloa/courtModeUtils";
 import { parseDrafts, serializeDrafts } from "../../src/components/aloa/court/courtDrafts";
 
@@ -53,7 +59,8 @@ const makeEvent = (overrides: Partial<CalendarEvent> = {}): CalendarEvent => ({
 const makeNote = (overrides: Partial<NotePage> = {}): NotePage => ({
   id: "n-1",
   firmId: "firm-1",
-  title: "Court endorsement — Matter one",
+  // 2026-11-27 (owner direction): "Endorsement" — never "Court endorsement".
+  title: "Endorsement — Matter one",
   content: "Adjourned for hearing.",
   notebookId: "nb-1",
   parentId: null,
@@ -373,7 +380,9 @@ describe("buildOutcomePlan", () => {
   it("plans note + event + matter patch for an own matter with both toggles on", () => {
     const matter = makeMatter({ id: "m-own", title: "Okoro v. Eze" });
     const plan = buildOutcomePlan(draft(), planCtx(matter));
-    expect(plan.note.title).toBe("Court endorsement — Okoro v. Eze");
+    // 2026-11-27 (owner direction): "Endorsement" — never "Court endorsement"
+    // (there is no need to say "court" to a lawyer).
+    expect(plan.note.title).toBe("Endorsement — Okoro v. Eze");
     expect(plan.note.type).toBe("endorsement");
     // ROUND 22: the endorsement saves as the standard Nigerian file jacket —
     // never raw verbatim text (deterministic; no LLM anywhere).
@@ -408,7 +417,7 @@ describe("buildOutcomePlan", () => {
   it("marks a colleague's matter with '(brief held by …)' and routes the event to their diary", () => {
     const matter = makeMatter({ id: "m-colleague", title: "Bob's case", assignedUsers: [BOB] });
     const plan = buildOutcomePlan({ ...draft(), matterId: "m-colleague" }, planCtx(matter));
-    expect(plan.note.title).toBe("Court endorsement — Bob's case (brief held by Alice)");
+    expect(plan.note.title).toBe("Endorsement — Bob's case (brief held by Alice)");
     expect(plan.event?.assignedUsers).toEqual([BOB]);
     expect(plan.matterPatch).toEqual({ nextAdjournedDate: "2026-03-16" });
   });
@@ -622,5 +631,123 @@ describe("ROUND 21 — Court Mode draft persistence (courtDrafts)", () => {
       "m-1": { text: "", noteType: "endorsement", nextDate: null, updatedAt: now },
     });
     expect(parseDrafts(stored, now)["m-1"]).toBeUndefined();
+  });
+});
+
+// ── ROUND 23 ──────────────────────────────────────────────────────────────
+
+describe("ROUND 23 — stripDictationFiller (filler out, every fact stays)", () => {
+  it("strips spoken filler and sentence-initial 'so' while preserving every fact", () => {
+    expect(stripDictationFiller("uh, um, the matter was called um and adjourned")).toBe(
+      "the matter was called and adjourned",
+    );
+    expect(stripDictationFiller("So, counsel appeared for the claimant")).toBe(
+      "counsel appeared for the claimant",
+    );
+    expect(stripDictationFiller("erm the court sat at 9am")).toBe("the court sat at 9am");
+  });
+
+  it("never touches real words, mid-sentence 'so', dates or figures", () => {
+    expect(stripDictationFiller("Thus the sum of N1,000,000 was awarded")).toBe(
+      "Thus the sum of N1,000,000 was awarded",
+    );
+    expect(stripDictationFiller("The matter came up so the court adjourned")).toBe(
+      "The matter came up so the court adjourned",
+    );
+    expect(stripDictationFiller("Adjourned to 16/03/2026 at 9:30am")).toBe(
+      "Adjourned to 16/03/2026 at 9:30am",
+    );
+  });
+
+  it("is idempotent (stripping twice never changes a word)", () => {
+    const once = stripDictationFiller("um, so the ruling was adjourned to 12/03/2026");
+    expect(stripDictationFiller(once)).toBe(once);
+  });
+});
+
+describe("ROUND 23 — jacket parsing and chronological ordering", () => {
+  const jacket = [
+    "Date: 26/11/2026",
+    "",
+    "Appearances:",
+    "- Ada Uzo for the Claimant",
+    "- Defendant absent / unrepresented",
+    "",
+    "Endorsement:",
+    "Matter adjourned for hearing.",
+  ].join("\n");
+
+  it("reads the sitting date from the jacket's Date line (DD/MM/YYYY → day key)", () => {
+    expect(endorsementSittingDayKey(jacket)).toBe("2026-11-26");
+    expect(endorsementSittingDayKey("no jacket here")).toBeNull();
+  });
+
+  it("reads the recording counsel from the jacket's first Appearances line", () => {
+    expect(endorsementCounselOf(jacket)).toBe("Ada Uzo");
+    expect(endorsementCounselOf("no appearances")).toBeNull();
+  });
+
+  it("orders by the sitting date when present, else the save moment", () => {
+    const backdated = { content: jacket, createdAt: "2026-11-27T10:00:00.000Z" };
+    const postedToday = { content: "Matter adjourned.", createdAt: "2026-11-26T09:00:00.000Z" };
+    // A record POSTED later about an EARLIER sitting sorts earlier.
+    expect(endorsementOrderMs(backdated)).toBeLessThan(endorsementOrderMs(postedToday));
+  });
+
+  it("pickLastEndorsement keeps the true last sitting on top (backdated insertions slot in between)", () => {
+    const notes: NotePage[] = [
+      makeNote({ id: "n-old", content: jacket.replace("26/11/2026", "18/11/2026"), createdAt: "2026-11-18T09:00:00.000Z" }),
+      makeNote({ id: "n-mid", content: jacket, createdAt: "2026-11-27T15:00:00.000Z" }), // backdated, sitting 26/11
+      makeNote({ id: "n-new", content: jacket.replace("26/11/2026", "27/11/2026"), createdAt: "2026-11-19T09:00:00.000Z" }),
+    ];
+    const last = pickLastEndorsement(notes, "m-1");
+    expect(last?.id).toBe("n-new"); // sitting 27/11 beats the later-POSTED 26/11 record
+  });
+});
+
+describe("ROUND 23 — formatEndorsementJacket strips filler from the body", () => {
+  const matter = makeMatter();
+  it("the jacket body loses only spoken filler; every fact stays byte-for-byte", () => {
+    const jacket = formatEndorsementJacket({
+      matter,
+      viewerName: "Alice",
+      bodyText: "um, so the matter was adjourned to 16/03/2026 for hearing",
+      nowISO: "2026-03-10T09:00:00.000Z",
+      nextDate: null,
+    });
+    expect(endorsementBodyOf(jacket)).toBe(
+      "the matter was adjourned to 16/03/2026 for hearing",
+    );
+    expect(jacket).toContain("Date: 10/03/2026");
+  });
+});
+
+describe("ROUND 23 — recurring diary parity (expandCourtEvents)", () => {
+  const recurring: CalendarEvent = {
+    ...makeEvent({ id: "ev-recurring", date: "2026-03-01", title: "Weekly mention" }),
+    recurrence: { frequency: "weekly" },
+  } as CalendarEvent;
+
+  it("materialises recurring instances so the court surfaces match the main calendar", () => {
+    const expanded = expandCourtEvents([recurring, makeEvent({ id: "ev-once", date: "2026-03-12" })], "2026-03-10");
+    // The non-recurring event stays as-is.
+    expect(expanded.filter((e) => e.id === "ev-once")).toHaveLength(1);
+    // The recurring anchor is REPLACED by its per-occurrence instances
+    // (the same convention the main calendar's expansion uses).
+    const instanceIds = expanded.map((e) => e.id).filter((id) => id.startsWith("ev-recurring_"));
+    expect(instanceIds.length).toBeGreaterThan(6); // weeks of occurrences ahead
+    expect(expanded.filter((e) => e.id === "ev-recurring")).toHaveLength(0);
+    expect(new Set(instanceIds).size).toBe(instanceIds.length); // ids stay unique
+  });
+
+  it("instance ids follow the ${eventId}_YYYY-MM-DD convention (isRecurringInstanceId)", () => {
+    expect(isRecurringInstanceId("ev-recurring_2026-03-17")).toBe(true);
+    expect(isRecurringInstanceId("ev-recurring")).toBe(false);
+    expect(isRecurringInstanceId("demo-e-6")).toBe(false);
+  });
+
+  it("no recurring events — the list is returned unchanged", () => {
+    const events = [makeEvent({ id: "a" }), makeEvent({ id: "b" })];
+    expect(expandCourtEvents(events, "2026-03-10")).toBe(events);
   });
 });

@@ -9,7 +9,11 @@ import { saveAloaSession, loadAloaSession, loadGlobalAloaSession, deriveAloaCont
 export type UrgencyStatus = 'none' | 'important' | 'urgent';
 export type AloaState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking';
 export type AloaModel = 'auto' | 'flash' | 'pro' | 'research';
-export type AloaView = 'chat' | 'quickNote' | 'details' | 'form';
+// ROUND 23 (owner spec §1): the redundant quick-notes pencil MODE is gone —
+// Aloa Vox (the Consultation / Note pane) owns voice capture and notes.
+// 'form' (Edit Note) and 'details' (Note Details) remain for notes opened
+// from the conversation/history.
+export type AloaView = 'chat' | 'details' | 'form';
 
 /**
  * The panel's top-level mode (owner addendum 2026-11-18: "House Quick
@@ -83,8 +87,6 @@ interface AloaContextType {
     setActiveView: (view: AloaView) => void;
     activeNoteId: string | null;
     setActiveNoteId: (id: string | null) => void;
-    quickNoteContent: string;
-    setQuickNoteContent: (content: string) => void;
 
     liveInsights: any[];
     setLiveInsights: React.Dispatch<React.SetStateAction<any[]>>;
@@ -139,7 +141,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null);
     const [activeView, setActiveView] = React.useState<AloaView>('chat');
     const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null);
-    const [quickNoteContent, setQuickNoteContent] = React.useState('');
     const [liveInsights, setLiveInsights] = React.useState<any[]>([]);
     const [injectedContext, setInjectedContext] = React.useState<AriaChatContext | null>(null);
 
@@ -349,8 +350,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setActiveView,
         activeNoteId,
         setActiveNoteId,
-        quickNoteContent,
-        setQuickNoteContent,
         liveInsights,
         setLiveInsights,
         setActionResult,

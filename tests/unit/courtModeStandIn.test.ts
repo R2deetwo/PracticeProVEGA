@@ -176,7 +176,8 @@ describe("stand-in scenario — Alice records Bob's matter outcome", () => {
     const handleAddMatterNote = async (matterId: string, title: string, content: string, type: string) => {
       calls.push(`note:${matterId}`);
       expect(matterId).toBe("m-b");
-      expect(title).toBe("Court endorsement — Okoro v. Eze (brief held by Alice)");
+      // 2026-11-27 (owner direction): "Endorsement" — never "Court endorsement".
+      expect(title).toBe("Endorsement — Okoro v. Eze (brief held by Alice)");
       expect(content).toBe(expectedJacket);
       expect(type).toBe("endorsement");
     };
@@ -206,7 +207,8 @@ describe("stand-in scenario — Alice records Bob's matter outcome", () => {
     const savedNote: NotePage = {
       id: "n-new",
       firmId: "firm-1",
-      title: "Court endorsement — Okoro v. Eze (brief held by Alice)",
+      // 2026-11-27 (owner direction): "Endorsement" — never "Court endorsement".
+      title: "Endorsement — Okoro v. Eze (brief held by Alice)",
       content: "Adjourned to 16th March 2026 at 9:30am for hearing.",
       notebookId: "nb-1",
       parentId: null,

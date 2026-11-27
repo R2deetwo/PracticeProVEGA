@@ -52,8 +52,8 @@ import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioCont
 import { JurisdictionCard } from './JurisdictionCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
-    PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
-    PencilSquareIcon, ClipboardIcon, CheckIcon, DocumentIcon,
+    PlusIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
+    ClipboardIcon, CheckIcon, DocumentIcon,
     SearchIcon, XMarkIcon 
 } from '../../constants';
 import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIcon as MessageSquareIcon } from '../../constants';
@@ -152,7 +152,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
         activeConversationId, setActiveConversationId, activeView, setActiveView,
-        activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent,
+        activeNoteId, setActiveNoteId,
         injectedContext, setInjectedContext
     } = useAloa();
     const { matterState } = useMatterState();
@@ -2926,8 +2926,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     };
 
     const handleSaveMessage = (content: string) => {
-        setQuickNoteContent(content);
-        setActiveView('quickNote');
+        // ROUND 23 (owner spec §1): the quick-notes pencil mode is gone — the
+        // Save affordance on a chat answer opens the same Save-to-Note modal
+        // the rest of the app uses (DockedModal 'saveToNote'), not an
+        // in-panel compose mode. Aloa Vox owns voice capture and notes.
+        openModal('saveToNote', null, { content });
     };
 
     const cycleModel = () => {
@@ -3571,7 +3574,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             <header className="flex-shrink-0 px-3 sm:px-4 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/50 relative z-10">
                 {/* Left: icon + title */}
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    {(activeView === 'quickNote' || activeView === 'form' || activeView === 'details') && (
+                    {(activeView === 'form' || activeView === 'details') && (
                         <button
                             onClick={() => { setActiveView('chat'); setActiveNoteId(null); }}
                             className="flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors bg-white dark:bg-zinc-800 shadow-sm border border-slate-100 dark:border-zinc-700"
@@ -3588,7 +3591,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     <div className="min-w-0">
                         <div className="flex items-center gap-2">
                             <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none truncate">
-                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : getAssistantName(isProperty)}
+                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : getAssistantName(isProperty)}
                             </h2>
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
                         </div>
@@ -3626,13 +3629,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         (the mic above opens Vox; Court Mode is one segment
                         away). Deep links from matters/events still land in
                         Court Mode directly. */}
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setActiveView(activeView === 'quickNote' ? 'chat' : 'quickNote'); }}
-                        className={`touch-target p-2 rounded-lg transition-all ${activeView === 'quickNote' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                        title="Quick Note mode"
-                    >
-                        <PencilSquareIcon className="w-5 h-5" />
-                    </button>
+                    {/* ROUND 23 (owner spec §1): the quick-notes PENCIL button
+                        and its quickNote mode are GONE too — Aloa Vox (the
+                        Consultation / Note pane) handles voice capture and
+                        notes. Chat answers keep their Save-to-Note affordance
+                        (the modal). */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setShowHistory(!showHistory); }}
                         className={`touch-target p-2 rounded-lg transition-all ${showHistory ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
@@ -3661,14 +3662,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         setActiveNoteId(null);
                     }}
                 />
-            ) : activeView === 'quickNote' || activeView === 'form' ? (
+            ) : activeView === 'form' ? (
                 <div className="flex-1 overflow-hidden bg-white dark:bg-zinc-950">
                     <SaveToNoteForm 
-                        initialContent={quickNoteContent} 
+                        initialContent={''} 
                         noteId={activeNoteId}
                         onClose={() => {
                             setActiveView('chat');
-                            setQuickNoteContent('');
                             setActiveNoteId(null);
                         }}
                         onSearch={(query) => {
@@ -3721,16 +3721,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 <PlusIcon className="w-4 h-4" />
                                 New Search
                             </button>
-                             <button
-                                onClick={() => {
-                                    setActiveView('quickNote');
-                                    setShowHistory(false);
-                                }}
-                                className="w-full py-2.5 px-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-slate-700 dark:text-white hover:border-primary-500 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                <EditIcon className="w-4 h-4" />
-                                New Note
-                            </button>
+                            {/* ROUND 23 (owner spec §1): the in-drawer "New Note"
+                                entry is gone with the quick-notes pencil mode —
+                                Aloa Vox (the Consultation / Note pane) owns
+                                voice capture and notes. */}
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
                             <section>

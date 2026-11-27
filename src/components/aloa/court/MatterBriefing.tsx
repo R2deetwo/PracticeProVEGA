@@ -7,11 +7,11 @@
  * audit trail — EndorsementEditor), accordions, and the sticky Record outcome
  * dock. Empty fields are HIDDEN.
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Badge, Button, SectionErrorBoundary } from "../../ui";
 import type { CalendarEvent, Document, Matter, NotePage } from "../../../types";
 import type { CourtMatter } from "../courtModeUtils";
-import { isCourtCalendarEvent } from "../courtModeUtils";
+import { endorsementOrderMs, isCourtCalendarEvent, SYNTHESIZED_HEARING_ID_PREFIX } from "../courtModeUtils";
 import { copyToClipboard } from "../../../utils/clipboard";
 import { useUI } from "../../../contexts/UIContext";
 import { formatDayKeyLong, timeLabelOf } from "./format";
@@ -68,6 +68,9 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   onUseDate,
 }) => {
   const { addToast } = useUI();
+  // ROUND 23 (owner spec §5): "No next date recorded." opens the SAME inline
+  // editor directly — one press, no round-trip through Record outcome.
+  const [settingNextDate, setSettingNextDate] = useState(false);
 
   const handleCopySuit = async (suitNumber: string) => {
     const copied = await copyToClipboard(suitNumber);
@@ -76,11 +79,15 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   };
 
   const isMine = (matter.assignedUsers || []).includes(viewerId);
+  // ROUND 23: chronological by the SITTING date (the jacket's Date line) so a
+  // backdated record slots into order; endorsements and plain notes stay
+  // DISTINCT lists — never an awkward "and notes" label.
   const endorsements = notes
     .filter((note) => note.type === "endorsement" && !note.archivedAt)
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const lastOrder = endorsements[0] || null;
-  const earlierNotes = notes.filter((note) => note.id !== lastOrder?.id);
+    .sort((left, right) => endorsementOrderMs(right) - endorsementOrderMs(left) || right.id.localeCompare(left.id));
+  const lastEndorsement = endorsements[0] || null;
+  const previousEndorsements = endorsements.slice(1);
+  const plainNotes = notes.filter((note) => note.type !== "endorsement" && !note.archivedAt);
 
   const nextHearing = courtMatter.upcomingHearings[0] || null;
   const responsibleNames = (matter.assignedUsers || []).map((id) => userNames[id] ?? id);
@@ -89,10 +96,14 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
   // Round 21 — the mini-calendar's clash surface: every visible court-type
   // diary event, so a tap reveals what a date collides with. Round 22 adds
   // attendeeIds so the My diary | Firm diary toggle can filter the dots.
+  // ROUND 23 (parity): THIS matter's own diary items show too (even a
+  // non-court-typed one — a filing deadline on the matter is a real date the
+  // main calendar dots), so the date picker never disagrees with the main
+  // calendar about this matter's own dates.
   const calendarEntries = useMemo(
     () =>
       events
-        .filter((event) => event.status !== "Cancelled" && isCourtCalendarEvent(event))
+        .filter((event) => event.status !== "Cancelled" && (isCourtCalendarEvent(event) || event.matterId === matter.id))
         .map((event) => {
           const eventMatter = matters.find((candidate) => candidate.id === event.matterId);
           const eventAssignees = event.assignedUsers || [];
@@ -155,10 +166,10 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
         </SectionErrorBoundary>
 
         <SectionErrorBoundary sectionName="Next date">
-          {nextHearing ? (
+          {nextHearing || settingNextDate ? (
             <NextDateEditor
               matter={matter}
-              hearing={nextHearing}
+              hearing={nextHearing || { id: `${SYNTHESIZED_HEARING_ID_PREFIX}${matter.id}`, date: "", title: "Next adjourned date" }}
               events={events}
               matters={matters}
               viewerId={viewerId}
@@ -167,8 +178,20 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
               captureBusy={captureBusy}
             />
           ) : (
-            <div className="rounded-md border border-dashed border-edge bg-surface-2 p-3 text-sm text-body">
-              No next date recorded.
+            /* ROUND 23 (owner spec §5): setting the next date is one direct
+             * press from the empty state — no round-trip through Record
+             * outcome, no awkward loop when an endorsement already exists. */
+            <div className="flex items-center justify-between gap-2 rounded-md border border-dashed border-edge bg-surface-2 p-3">
+              <p className="text-sm text-body">No next date recorded.</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                type="button"
+                disabled={captureBusy}
+                onClick={() => setSettingNextDate(true)}
+              >
+                Set next date
+              </Button>
             </div>
           )}
           {courtMatter.upcomingHearings.length > 1 ? (
@@ -197,12 +220,13 @@ export const MatterBriefing: React.FC<MatterBriefingProps> = ({
           />
         </SectionErrorBoundary>
 
-        {lastOrder ? (
-          <EndorsementEditor note={lastOrder} matter={matter} captureBusy={captureBusy} />
+        {lastEndorsement ? (
+          <EndorsementEditor note={lastEndorsement} matter={matter} captureBusy={captureBusy} />
         ) : null}
 
         <BriefingAccordions
-          earlierNotes={earlierNotes}
+          previousEndorsements={previousEndorsements}
+          plainNotes={plainNotes}
           documents={documents}
           nonCourtEvents={nonCourtEvents}
           captureBusy={captureBusy}

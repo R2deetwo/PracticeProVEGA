@@ -18,7 +18,7 @@
  *
  * Pure presentation — all data arrives via props; nothing here writes.
  */
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Button } from "../../ui";
 import { dayKeyOf, formatDayKeyLong, timeLabelOf } from "./format";
@@ -71,6 +71,13 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
   const todayDate = useMemo(() => new Date(`${today}T00:00:00`), [today]);
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  // ROUND 23 (owner spec §5): the revealed day agenda SCROLLS INTO VIEW the
+  // moment a date is picked — even while scrolled down on a matter marked
+  // "Needs a new date" / "No next date recorded".
+  const agendaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selected) agendaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selected]);
   // ROUND 22: My diary (the default, like the diary view) | Firm diary — the
   // visibility toggle over the dots. Local state — a matter-scoped view.
   const [diaryScope, setDiaryScope] = useState<CalendarDiaryScope>("mine");
@@ -187,9 +194,10 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
         })}
       </div>
 
-      {/* The flip-to-inspect day agenda — smoothly reveals under the grid. */}
+      {/* The flip-to-inspect day agenda — smoothly reveals under the grid,
+          and scrolls into view (ROUND 23) the moment a date is picked. */}
       {selected ? (
-        <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-300 rounded-md border border-hairline bg-surface-2 p-3 dark:border-zinc-800">
+        <div ref={agendaRef} tabIndex={-1} className="mt-3 animate-in fade-in slide-in-from-top-1 duration-300 rounded-md border border-hairline bg-surface-2 p-3 dark:border-zinc-800">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-extrabold text-strong">{formatDayKeyLong(selected)}</p>
             {selectedEntries.length ? (

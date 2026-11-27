@@ -1,8 +1,11 @@
 /**
- * Round 19 — the record-outcome composer (full-height view, not a modal):
+ * Round 19/23 — the record-outcome composer (full-height view, not a modal):
  * type or dictate the endorsement, detect the next date from the text
  * (debounced 500ms; never overwriting a manual date), factual risk chips,
  * the toggles and the single Save press (useOutcomeSave.ts).
+ * ROUND 23 (owner spec): the redundant `Endorsement | Note` split toggle is
+ * GONE — the drawer records a clean ENDORSEMENT directly (the jacket), with
+ * the endorsement text and the adjourned/next date directly editable.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { Button, SectionErrorBoundary, Textarea } from "../../ui";
@@ -11,7 +14,6 @@ import { assessNextDate, detectNextDate } from "../courtModeUtils";
 import type { StoredCourtDraft } from "./courtDrafts";
 import { useOutcomeSave } from "./useOutcomeSave";
 import { NextDateSection } from "./NextDateSection";
-import { SegmentedToggle } from "./SegmentedToggle";
 import { DictationBar } from "./DictationBar";
 
 export interface DictationBarState {
@@ -34,7 +36,6 @@ interface OutcomeComposerProps {
   /** Short label of the matter's next hearing day (null when none). */
   nextHearingDayLabel: string | null;
   onTextChange: (text: string) => void;
-  onNoteTypeChange: (noteType: "endorsement" | "user") => void;
   onNextDateChange: (nextDate: StoredCourtDraft["nextDate"]) => void;
   dictation: DictationBarState;
   canUseVox: boolean;
@@ -58,7 +59,6 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
   draft,
   nextHearingDayLabel,
   onTextChange,
-  onNoteTypeChange,
   onNextDateChange,
   dictation,
   canUseVox,
@@ -77,7 +77,9 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
   const [detected, setDetected] = useState<ReturnType<typeof detectNextDate>>(null);
 
   const text = draft?.text ?? "";
-  const noteType = draft?.noteType ?? "endorsement";
+  // ROUND 23: the Endorsement | Note split toggle is gone — this composer
+  // records an ENDORSEMENT (the standard jacket, built by the save plan).
+  const noteType = "endorsement" as const;
   const nextDate = draft?.nextDate ?? null;
   const isMine = (matter.assignedUsers || []).includes(viewerId);
   const responsibleNames = (matter.assignedUsers || []).map((id) => userNames[id] ?? id);
@@ -152,15 +154,6 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
         ) : null}
 
         <SectionErrorBoundary sectionName="Endorsement text">
-          <SegmentedToggle
-            label="Note type"
-            options={[
-              { value: "endorsement", label: "Endorsement" },
-              { value: "user", label: "Note" },
-            ]}
-            value={noteType}
-            onChange={(value) => onNoteTypeChange(value as "endorsement" | "user")}
-          />
           <Textarea
             ref={textAreaRef}
             value={text}
@@ -168,7 +161,7 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
             rows={6}
             label="Endorsement text"
             placeholder="Type or dictate today's outcome."
-            containerClassName="mt-2"
+            containerClassName="mt-1"
             aria-label="Editable endorsement"
           />
           {text.trim() || nextDate ? <p className="mt-1 text-xs text-subtle">Draft saved on this device</p> : null}
@@ -239,7 +232,7 @@ export const OutcomeComposer: React.FC<OutcomeComposerProps> = ({
           disabled={!text.trim() || captureBusy}
           onClick={() => void saveState.save(noteType, text, captureBusy)}
         >
-          Save outcome
+          Save endorsement
         </Button>
       </div>
     </div>

@@ -28,8 +28,12 @@ describe('ROUND 22 — inline edits inside Court Mode (audit-trailed)', () => {
   it('the saved endorsement edits through the note table and writes the audit row', () => {
     const hook = read('src/components/aloa/court/useCourtInlineEdit.ts');
     expect(hook).toContain('"notePages"');
-    expect(hook).toContain('"Court endorsement"');
-    expect(hook).toContain('logActivity("Edited a court endorsement", "Matter", matter.id, matter.title, matter.id)');
+    // 2026-11-27 (owner direction): "Endorsement" — never "Court endorsement".
+    expect(hook).toContain('"Endorsement"');
+    expect(hook).toContain('logActivity("Edited an endorsement", "Matter", matter.id, matter.title, matter.id)');
+    // ROUND 23 (owner spec §4): the edit also notifies the matter's attached users.
+    expect(hook).toContain('notifyEndorsement({');
+    expect(hook).toContain('action: "edited"');
   });
 
   it('the upcoming matter date moves the real diary event (or the matter flag) with its audit row', () => {
@@ -60,10 +64,11 @@ describe('ROUND 22 — inline edits inside Court Mode (audit-trailed)', () => {
     expect(nextDate).toContain('disabled={captureBusy}');
   });
 
-  it('the LAST ORDER block renders the full jacket (the standard structure) and marks edits', () => {
+  it('the LAST ENDORSEMENT block renders the full jacket (the standard structure) and marks edits', () => {
     const endorsement = read('src/components/aloa/court/EndorsementEditor.tsx');
     expect(endorsement).toContain('whitespace-pre-wrap');
-    expect(endorsement).toContain('Last order');
+    // 2026-11-27 (owner direction): "Last endorsement" — never "Last order".
+    expect(endorsement).toContain('Last endorsement');
     expect(endorsement).toContain('· edited');
   });
 });

@@ -11,7 +11,7 @@
 import React, { useState } from "react";
 import { Button, Input, SectionErrorBoundary } from "../../ui";
 import type { CalendarEvent, Matter } from "../../../types";
-import { assessNextDate } from "../courtModeUtils";
+import { assessNextDate, isRecurringInstanceId } from "../courtModeUtils";
 import type { CourtHearing } from "../courtModeUtils";
 import { dayKeyOf } from "./format";
 import { NextDateCard } from "./NextDateCard";
@@ -151,16 +151,24 @@ export const NextDateEditor: React.FC<NextDateEditorProps> = ({
           risks={readRisks}
           today={today}
           action={
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              disabled={captureBusy}
-              title={captureBusy ? "Finish or discard dictation first." : undefined}
-              onClick={beginEdit}
-            >
-              Edit
-            </Button>
+            /* ROUND 23 (parity): a recurring series' occurrence is a
+             * virtual instance — moving it here would silently move the
+             * whole series' anchor, so the series is edited on the
+             * calendar instead (stated plainly, never a dead button). */
+            isRecurringInstanceId(hearing.id) ? (
+              <p className="text-2xs text-subtle">Recurring diary item — edit the series on the calendar.</p>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={captureBusy}
+                title={captureBusy ? "Finish or discard dictation first." : undefined}
+                onClick={beginEdit}
+              >
+                Edit
+              </Button>
+            )
           }
         />
       )}
