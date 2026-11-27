@@ -20234,3 +20234,26 @@ staffPasses / gatehouseAccounts fixtures for the entitlement layer);
 `npx tsc --noEmit` clean; `npx tsc --noEmit -p convex` clean; `npm run
 lint` 0 errors with BOTH ratchets held (raw-element total 2201 == baseline
 — every new button uses the ui/ primitive); `npm run build` green (29.8s).
+
+**Deployment record (2026-11-27, same round).** All local checks green
+(vitest 4273/4274, tsc root+convex clean, lint 0 errors with both ratchets
+held, build green). Pushed `a6ccfb3d` (rebased cleanly over the three local
+Round-24 ALOA commits + remote version bumps), then two follow-ups:
+`447a7e1d` (CI's strict root tsc — which includes tests/ — caught four
+TS18048 possibly-undefined spots in the new test file; non-null assertions)
+and `c276c2e6` (the Round-24 aloa-fab-busy-guard E2E spec had never run in
+CI — its demo-bypass boot is dev-gated, so on production the app never
+reaches an app-skin; the spec now self-skips on non-localhost targets, and
+the fake-media-stream Chromium flags moved out of the
+PLAYWRIGHT_CHROMIUM_PATH-only branch. Verified: 2/2 pass against a local dev
+server; full suite vs production 9 passed / 4 skipped / 0 failed).
+CI green across the set: Tests, E2E smoke, Build APK, CodeQL, Staging.
+Production promote dispatched and completed (`Deploy to Production
+(promote)` success — Convex production deployed with the new schema/gates +
+Vercel build + live probes). VMS entitlement backfill dispatched via the new
+`convex-backfill-vms-entitlement.yml`: dry run reported 32 firms / 14
+legal-only skipped / 0 needing grandfathering (no paying VMS workspace
+existed at cutover — the strict gate starts clean), then the real run
+completed (idempotent no-op, as designed). Final state: production healthy
+on `57efdaa7` (APK 1.0.924), Convex production enforcing the capability
+gate, admin VMS Access queue live in the founder app.
