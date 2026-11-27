@@ -1509,7 +1509,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                             {r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}
                           </span>
                           <span className="block text-xs text-slate-400 dark:text-zinc-500 truncate">
-                            {r.kind === "legalpad" ? "Legal Pad" : "Quick note"}
+                            {/* §3.8 (Round 24): the row label is "Note" — the
+                                retired vocabulary never returns (pinned in
+                                tests/unit/aloaVoxCopy.test.ts). */}
+                            {r.kind === "legalpad" ? "Legal Pad" : "Note"}
                             {r.status === "ready" ? "" : ` · ${r.status}`}
                             {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString()}` : ""}
                           </span>

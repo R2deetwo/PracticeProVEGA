@@ -575,6 +575,10 @@ export const AloaChat: React.FC<{ onDraftStream?: (chunk: string) => void; isMob
     }, [openModal, navigateTo, openEditor, onClosePanel]);
 
     useEffect(() => {
+        // §2.2 (Round 24): with an EMPTY thread there is nothing to pin to —
+        // keep the empty state anchored at its greeting instead of letting
+        // this scroll cut the top off on tall layouts.
+        if (messages.length === 0) return;
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 

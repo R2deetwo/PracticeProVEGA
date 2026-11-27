@@ -32,7 +32,25 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Local/CI runs can point at a pre-installed Chromium (the audit
+        // scripts' binary — PLAYWRIGHT_CHROMIUM_PATH) instead of downloading
+        // the registry build, and the fake media stream grants the mic the
+        // Vox takes need without a real device.
+        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? {
+              launchOptions: {
+                executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH,
+                args: [
+                  '--use-fake-device-for-media-stream',
+                  '--use-fake-ui-for-media-stream',
+                  '--autoplay-policy=no-user-gesture-required',
+                ],
+              },
+            }
+          : {}),
+      },
     },
   ],
 });
