@@ -20376,3 +20376,18 @@ whisper-1 model only loosely follows its `prompt` param — if homophone
 mis-hearings persist at the source, switching `TRANSCRIPTION_MODEL` to a
 prompt-following model (e.g. gpt-4o-transcribe) is an env change with no
 code work; the cleanup pass repairs the unambiguous cases either way.
+
+### Round 28 — production verification addendum (2026-11-28)
+
+All local checks green (vitest 4339/4340, tsc root+convex clean, lint 0
+errors with both ratchets held at 2201, build green in 26.9s). Pushed
+`d588a958` (rebased over the remote `ba80e416` version bump). CI on the
+commit: Tests, E2E smoke, CodeQL, Deploy to Staging, Build Android APK —
+all success. Production promote dispatched (pinned to `d588a958`) and
+completed: Vercel production + Convex production (the new STT vocabulary
+biasing, the strengthened context-aware cleanup prompt + formatEndorsement
+context arg) + the Cloudflare mirror, with the pipeline's live probes green.
+Verified directly: https://practice-pro-vega.vercel.app/version.json serves
+sha `d588a95805a3a…`, status "healthy", APK 1.0.925 (build-1341). Final
+state: production healthy with the full ALOA Vox & Court Mode intelligence
+overhaul live.
