@@ -39,6 +39,10 @@ export interface ApkVersionCheckState {
   remoteVersionCode?: number;
   /** The download URL for the new APK. */
   apkUrl?: string;
+  /** Exact size of the release APK in bytes — lets users verify the
+   *  download finished before installing ("failed to extract" = truncated
+   *  download; an APK is a ZIP whose index sits at the END of the file). */
+  apkSizeBytes?: number;
   /** The current app's version code. */
   localVersionCode?: number;
   /** Open the APK download URL in the system browser. */
@@ -58,6 +62,7 @@ export function useApkVersionCheck(): ApkVersionCheckState {
   const [remoteVersion, setRemoteVersion] = useState<string | undefined>(undefined);
   const [remoteVersionCode, setRemoteVersionCode] = useState<number | undefined>(undefined);
   const [apkUrl, setApkUrl] = useState<string | undefined>(undefined);
+  const [apkSizeBytes, setApkSizeBytes] = useState<number | undefined>(undefined);
   const [localVersionCode, setLocalVersionCode] = useState<number | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const localBuildRef = useRef<number | undefined>(undefined);
@@ -123,6 +128,7 @@ export function useApkVersionCheck(): ApkVersionCheckState {
         setRemoteVersion(data.apkVersion);
         setRemoteVersionCode(data.apkVersionCode);
         setApkUrl(data.apkUrl);
+        setApkSizeBytes(typeof data.apkSizeBytes === 'number' ? data.apkSizeBytes : undefined);
         setUpdateAvailable(true);
         setDismissed(false);
 
@@ -177,6 +183,7 @@ export function useApkVersionCheck(): ApkVersionCheckState {
     remoteVersion,
     remoteVersionCode,
     apkUrl,
+    apkSizeBytes,
     localVersionCode,
     downloadUpdate,
     dismiss,

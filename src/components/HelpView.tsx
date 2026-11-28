@@ -114,6 +114,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
         { id: 'notifications-reminders', category: 'Notifications & Reminders', title: 'Notifications & Reminders', subtitle: 'Notification Center, event reminders, snooze, device alerts, preferences', keywords: ['notification', 'notifications', 'reminder', 'reminders', 'bell', 'snooze', 'device', 'push', 'alert', 'deadline', 'hearing', 'court date', 'inspection', 'preferences', 'quiet'] },
         { id: 'admin-guide', category: 'Account, Settings & Troubleshooting', title: 'Admin Guide & Settings', subtitle: 'Users, branding, letterhead, templates, portal access', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template', 'portal', 'invite', 'permissions'] },
         { id: 'security-2fa', category: 'Account, Settings & Troubleshooting', title: 'Security & 2FA', subtitle: 'Two-factor authentication, biometrics, lockout recovery, admin reset', keywords: ['security', '2fa', 'two-factor', 'biometric', 'fingerprint', 'face id', 'lockout', 'recovery', 'disable', 'admin', 'account'] },
+        { id: 'apk-updates', category: 'Account, Settings & Troubleshooting', title: 'App Updates & APK Installs (Android)', subtitle: 'Update banner, "failed to extract" install fix, safe downloads, storage', keywords: ['apk', 'update', 'updates', 'install', 'download', 'failed to extract', 'extract', 'cant open file', 'package', 'parsing', 'version', 'build', 'android', 'browser', 'chrome', 'opera mini', 'data saver', 'storage', 'reinstall', 'troubleshoot', 'unknown apps'] },
     ], [assistantName]);
 
     // Filter sections based on search query — matching covers the category
@@ -1214,6 +1215,36 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 <div>
                                     <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Content Protection</h4>
                                     <p className="text-sm">The app uses FLAG_SECURE on Android to prevent screenshots at the OS level — same technology used by banking apps. WebView debugging is disabled in production builds.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="apk-updates"
+                            title="App Updates & APK Installs (Android)"
+                            isOpen={isSectionOpen('apk-updates')}
+                            onToggle={() => handleSectionToggle('apk-updates')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How updates arrive</h4>
+                                    <p className="text-sm">The app checks for new builds every 10 minutes. When one is ready, a card appears at the bottom of the screen — tap <strong>Download Update</strong> and the file downloads in your browser. Tap the downloaded file (or the download notification) to install it. Android asks you to allow installs from that source the first time.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">"Failed to extract" or "Can't open file" on install</h4>
+                                    <p className="text-sm mb-2">That error almost always means the download did not finish — the file is incomplete. An APK is a ZIP archive whose index sits at the very <strong>end</strong> of the file, so a cut-off download can never be opened or installed, no matter how many times you tap it.</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
+                                        <li><strong>Check the file size:</strong> it must match the size shown on the update card (about 25 MB). A smaller file is a broken download — delete it and download again.</li>
+                                        <li><strong>Use a stable Wi-Fi connection</strong> and a full browser (Chrome or Samsung Internet). Avoid "data saver"/proxy browsers such as Opera Mini — they re-compress downloads and can corrupt APK files.</li>
+                                        <li><strong>Free up storage</strong> — a nearly full phone can fail mid-download or mid-install.</li>
+                                        <li>Advanced users can verify the file's <strong>SHA-256 fingerprint</strong> against the one published on the release page (linked from the download).</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Install blocked or "App not installed"</h4>
+                                    <p className="text-sm">If Android blocks the install, allow installs from your browser: <strong>Settings → Apps → (your browser) → Install unknown apps → Allow from this source</strong>. "App not installed" with a fully downloaded file usually means the older version is still running — close the app completely, check free storage, then tap the file again.</p>
                                 </div>
                             </div>
                         </AccordionItem>

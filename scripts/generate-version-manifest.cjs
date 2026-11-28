@@ -107,6 +107,8 @@ let existingApkBuildStatus = 'building';
 let existingApkBuiltAt = null;
 let existingApkVersion = null;
 let existingApkVersionCode = null;
+let existingApkSha256 = null;
+let existingApkSizeBytes = null;
 if (fs.existsSync(OUT)) {
   try {
     const existing = JSON.parse(fs.readFileSync(OUT, 'utf8'));
@@ -115,7 +117,9 @@ if (fs.existsSync(OUT)) {
     existingApkBuiltAt = existing.apkBuiltAt || null;
     existingApkVersion = existing.apkVersion || null;
     existingApkVersionCode = existing.apkVersionCode ?? null;
-    console.log(`[version] Preserving APK fields from existing version.json: apkUrl=${existingApkUrl ? 'set' : 'null'}, apkVersion=${existingApkVersion || 'null'}, apkBuildStatus=${existingApkBuildStatus}`);
+    existingApkSha256 = existing.apkSha256 || null;
+    existingApkSizeBytes = existing.apkSizeBytes ?? null;
+    console.log(`[version] Preserving APK fields from existing version.json: apkUrl=${existingApkUrl ? 'set' : 'null'}, apkVersion=${existingApkVersion || 'null'}, apkBuildStatus=${existingApkBuildStatus}, apkSha256=${existingApkSha256 ? 'set' : 'null'}`);
   } catch {
     // File exists but is invalid JSON — ignore and generate fresh
   }
@@ -155,6 +159,11 @@ const manifest = {
   apkUrl: existingApkUrl,    // preserved from GH Actions workflow
   apkBuildStatus: existingApkBuildStatus, // preserved — 'building' | 'healthy' | 'broken'
   apkBuiltAt: existingApkBuiltAt || timestamp, // preserved or current
+  // Integrity fingerprint of the release APK (2026-11-28): a truncated
+  // phone-side download reports "failed to extract" — the exact size lets
+  // users verify the download completed; the SHA-256 is the strict check.
+  apkSha256: existingApkSha256,        // preserved from GH Actions workflow
+  apkSizeBytes: existingApkSizeBytes,  // preserved — exact byte size
 };
 
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + '\n', 'utf8');

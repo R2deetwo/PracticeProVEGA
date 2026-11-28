@@ -408,7 +408,15 @@ jobs:
       - name: Update version.json with APK release info
         run: |
           APK_URL="https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/${{ env.APK_BASENAME }}"
+          # APK integrity fingerprint (2026-11-28, "failed to extract" report):
+          # a truncated phone-side download is indistinguishable from a bad
+          # build unless the exact size + SHA-256 are published. The banner
+          # shows the size; the SHA-256 is for release-page verification.
+          APK_SHA256=$(sha256sum "${DIST_APK}" | awk '{print $1}')
+          APK_SIZE_BYTES=$(stat -c%s "${DIST_APK}")
+          export APK_SHA256 APK_SIZE_BYTES
           echo "APK download URL: $APK_URL"
+          echo "APK integrity: sha256=$APK_SHA256 size=$APK_SIZE_BYTES bytes"
           node -e "
             const fs = require('fs');
             const path = './public/version.json';
@@ -416,12 +424,14 @@ jobs:
             v.apkUrl = process.env.APK_URL;
             v.apkVersion = process.env.APK_VERSION;
             v.apkChannel = process.env.APK_CHANNEL;
+            v.apkSha256 = process.env.APK_SHA256;
+            v.apkSizeBytes = Number(process.env.APK_SIZE_BYTES);
             const [maj, min, pat] = process.env.APK_VERSION.split('.').map(Number);
             v.apkVersionCode = maj * 10000 + min * 100 + pat;
             v.apkBuildStatus = 'healthy';
             v.apkBuiltAt = new Date().toISOString();
             fs.writeFileSync(path, JSON.stringify(v, null, 2) + '\n');
-            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkVersion: v.apkVersion, apkChannel: v.apkChannel, apkVersionCode: v.apkVersionCode, apkBuildStatus: v.apkBuildStatus }));
+            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkVersion: v.apkVersion, apkChannel: v.apkChannel, apkVersionCode: v.apkVersionCode, apkBuildStatus: v.apkBuildStatus, apkSizeBytes: v.apkSizeBytes, apkSha256: v.apkSha256 }));
           "
         env:
           APK_URL: https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/${{ env.APK_BASENAME }}

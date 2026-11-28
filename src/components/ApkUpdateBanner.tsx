@@ -2,6 +2,10 @@ import React from 'react';
 import { useApkVersionCheck } from '../hooks/useApkVersionCheck';
 
 import { Z_CLASS } from '../overlays/constants';
+
+/** Human-readable APK size (e.g. "24.8 MB") for the update hint. */
+const formatSizeMB = (bytes?: number): string =>
+  typeof bytes === 'number' && bytes > 0 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : '';
 /**
  * ApkUpdateBanner — shows a non-intrusive update prompt at the bottom
  * of the screen when a new APK build is available.
@@ -14,9 +18,11 @@ import { Z_CLASS } from '../overlays/constants';
  * - Mobile-optimized: full-width on small screens, centered on larger
  */
 const ApkUpdateBanner: React.FC = () => {
-  const { updateAvailable, remoteVersion, downloadUpdate, dismiss } = useApkVersionCheck();
+  const { updateAvailable, remoteVersion, apkSizeBytes, downloadUpdate, dismiss } = useApkVersionCheck();
 
   if (!updateAvailable) return null;
+
+  const sizeLabel = formatSizeMB(apkSizeBytes);
 
   return (
     <div className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.modalRaised} px-4 py-3 pb-safe animate-slide-in-up`}>
@@ -60,7 +66,9 @@ const ApkUpdateBanner: React.FC = () => {
             </div>
 
             <p className="text-3xs text-slate-400 mt-2 text-center leading-relaxed">
-                The update will download in your browser. Tap the downloaded file to install.
+                The update will download in your browser{sizeLabel ? ` (about ${sizeLabel})` : ''}. Tap the
+                downloaded file to install. If install says "failed to extract", the download didn&apos;t
+                finish — re-download it on a stable connection.
             </p>
         </div>
       </div>
