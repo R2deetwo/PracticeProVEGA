@@ -20467,3 +20467,44 @@ worklog). No gh CLI, no credential helper, no env tokens in this sandbox.
 https://x-access-token:<PAT>@github.com/R2deetwo/PracticeProVEGA.git` →
 `git push origin main` → dispatch "Deploy to Production (promote)"
 (blank sha). Rotate the PAT again once the deployment session ends.
+
+### Round 30 — push-all + production deploy + APK "failed to extract" diagnosis & integrity fingerprints (2026-11-28)
+
+**Round 29 unblocked.** Fresh PAT supplied; `89331acb` (the mobile/APK
+audit) pushed to origin/main. First promote (run 46151217182) went green
+(Vercel + Convex + Cloudflare, live-verified) — but the standalone Tests
+workflow failed on the **design-token gate**: the new Help shortcut
+callout used `rounded-xl` (74→75, ratchet violation). Fixed in
+`78ac14f4` (`rounded-lg`, matching sibling callouts) — all CI green on
+that commit (Tests, E2E smoke, CodeQL, Staging, APK).
+
+**User report: downloaded APK "kept saying failed to extract".**
+Diagnosis chain:
+- Release assets intact server-side — verified byte-for-byte: build-1343
+  (1.0.927, 24,754,705 B, sha256 f993eaf5…776d1be) and build-1345
+  (1.0.929): `unzip -t` OK, APK Signing Block present (v2/v3), all four
+  `.so` entries STORED (uncompressed) and 4KB+16KB page-aligned,
+  manifest sound (com.practicepro.app, minSdk 24 / targetSdk 36).
+- Conclusion: the phone-side copy is a **truncated download**. An APK is
+  a ZIP whose central directory sits at the END of the file — a cut-off
+  download can never extract or install, which is exactly the reported
+  error. Likely causes: flaky mobile network, a data-saver/proxy browser
+  (Opera Mini recompresses downloads), or low storage.
+
+**Fix shipped in `7713db00` (all gates green, CI all-green on main):**
+- `build-apk.yml`: fingerprints the distribution APK (SHA-256 + exact
+  byte size) into `public/version.json`; `generate-version-manifest.cjs`
+  preserves the two new fields through Vercel rebuilds (same pattern as
+  the v1.0.565 apkUrl-preservation fix). First fingerprinted release:
+  **build-1346, v1.0.930 — 24,755,886 bytes, sha256
+  4eac3c3334e7e9214dfd87f2066971c345239bc25c4f95e115047d692e68e602**
+  (verified against the downloaded file).
+- Update banner (`ApkUpdateBanner` + `useApkVersionCheck`): shows the
+  expected size ("about 23.6 MB") and states plainly that "failed to
+  extract" means the download didn't finish.
+- Help: new "App Updates & APK Installs (Android)" section with search
+  keywords (apk, failed to extract, install, download, opera mini, …).
+
+**Round 30 deploy:** promote dispatched on `7713db00` — production
+version.json now serves build-1346 with fingerprints; the in-app update
+banner carries the size + retry guidance for every future release.
