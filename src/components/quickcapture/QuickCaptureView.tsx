@@ -214,7 +214,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   onCaptureBusyChange,
   registerStopAndKeep,
 }) => {
-  const { navigateTo, addToast, setMobileSearchOpen } = useUI();
+  const { navigateTo, addToast, setMobileSearchOpen, currentHistoryEntry } = useUI();
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
@@ -619,6 +619,30 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     },
     [canUseVox, medium]
   );
+
+  // ── LONG-PRESS AUTO-START (owner brief 2026-11-28) ─────────────────────
+  // The ALOA FAB's press-and-hold lands on this screen with
+  // { voxAutoStart: <nonce> } in the view context. Recording starts
+  // IMMEDIATELY — the hold already told us the intent, no second tap.
+  // Permission / unsupported-browser failures fall through to the
+  // normal error surface (with its own Try again); a nonce from a later
+  // hold re-arms the effect (autoStartRef only guards double-firing
+  // within one mount, e.g. qc.phase transitions). Locked tiers land on
+  // the same dedicated Vox upgrade card as every other locked door.
+  const autoStartRef = useRef(false);
+  useEffect(() => {
+    if (autoStartRef.current) return;
+    const ctx = (currentHistoryEntry as { context?: { voxAutoStart?: number } } | undefined)?.context;
+    if (!ctx?.voxAutoStart) return;
+    autoStartRef.current = true;
+    if (!canUseVox) {
+      setShowVoxUpsell(true);
+      return;
+    }
+    if (!qc.supported || qc.phase !== "idle") return;
+    stampVoxUsedAt();
+    void qc.startRecording();
+  }, [currentHistoryEntry, canUseVox, qc.supported, qc.phase, qc.startRecording]);
 
   const handleAddMore = useCallback(() => {
     const capture = qc.capture;

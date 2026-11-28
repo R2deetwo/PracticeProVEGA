@@ -17,7 +17,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { checklistProgressPct } from './GettingStartedChecklist';
-import { LockClosedIcon, PlusIcon, CloudArrowUpIcon, MicrophoneIcon, ChevronRightIcon } from '../constants';
+import { LockClosedIcon } from '../constants';
 import { Skeleton } from './ui/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import {
@@ -32,13 +32,10 @@ import CompleteSetupBanner from './CompleteSetupBanner';
 import ErrorBoundary from './ErrorBoundary';
 // CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
 import TrialNudgeBanner from './TrialNudgeBanner';
-import { useAloa } from '../contexts/AloaProvider';
-import { useHapticFeedback } from '../hooks/useHapticFeedback';
-import { useIsMobile } from '../hooks/use-mobile';
-import { Button } from './ui/Button';
-// 7-day Vox-card rule (owner brief 2026-11-24): the Overview card can be
-// dismissed; it only re-surfaces after 7 days AND 7 days without Vox use.
-import { shouldShowVoxCard, dismissVoxCard, stampVoxUsedAt } from '../utils/voxUsageTracking';
+// (2026-11-28 mobile audit) The dismissible ALOA Vox card imports (ui/Button,
+// voxUsageTracking, useAloa, useHapticFeedback, useIsMobile) were RETIRED with
+// the card — the ALOA FAB's long-press (tap = ALOA, hold = ALOA Vox + record)
+// is now the ONE voice entry point from Home.
 // 2026-11-25 audit response (banner fatigue): one attention slot for the
 // onboarding banners — pure grammar in src/utils/bannerCoalescing.ts.
 import { pickAttentionBanner } from '../utils/bannerCoalescing';
@@ -159,23 +156,9 @@ const Dashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { navigateTo, openModal, setHighlightTarget } = useUI();
     const { isLegal, isUnified, isProperty, hasPropertyFeatures } = useProduct();
-    // QUICK CAPTURE one-tap launch (owner addendum 2026-11-18): the
-    // prominent card at the top of the mobile dashboard opens the ALOA
-    // panel directly in Quick Capture mode — record in 1 tap from home.
-    const { openPanel: openAloaPanel } = useAloa();
-    const { light: hapticLight } = useHapticFeedback();
-    // SPACING (2026-11-27): the quick-capture card is phone-only, so it must
-    // also be ABSENT from the desktop DOM — a display:none sibling still
-    // counts for the container's space-y `* + *` selector, which pushed the
-    // stats row 1.5rem down the page as dead vertical space on desktop.
-    const isMobile = useIsMobile();
-    const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
+    // Unified (Komplete) dashboard tab switch — Legal Matters vs Real Estate
+    // (the two halves of a combined practice) for the left-column widget.
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
-    // Dismissible Vox card (owner brief 2026-11-24): hidden after dismissal;
-    // re-evaluated on every mount against the 7-day rule (dismissed ≥7 days
-    // ago AND Vox unused ≥7 days). Local state only flips to false — the
-    // re-surface decision comes from storage, so it holds across reloads.
-    const [voxCardVisible, setVoxCardVisible] = useState(() => shouldShowVoxCard());
     
     // De-structure state
     const { matters, contacts } = matterState;
@@ -308,7 +291,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar scroll-smooth-ios bg-slate-50 dark:bg-zinc-900">
-            <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0 pt-safe">
+            <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
                 <div className="min-w-0">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Overview</h2>
                     <p className="text-2xs sm:text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
@@ -388,74 +371,14 @@ const Dashboard: React.FC = () => {
                     {attentionSlot === 'trial' && <TrialNudgeBanner />}
                 </ErrorBoundary>
 
-                {/* QUICK CAPTURE CARD (owner addendum 2026-11-18: "place a
-                    prominent, easily reachable 'Quick Capture' button on the
-                    mobile Dashboard… jump straight into recording in 1 tap").
-                    Phones only — desktop keeps the compact mic button in the
-                    top navigation bar. Opens the ALOA panel directly in
-                    Quick Capture mode (one unified voice + AI home).
-                    DISMISSIBLE (owner brief 2026-11-24): a × on the card hides
-                    it for good — the top header mic control and the
-                    bottom-right FAB are untouched and always available. The
-                    card re-surfaces only if it has been hidden ≥7 days AND
-                    Aloa Vox hasn't been used for ≥7 days.
-                    SPACING (2026-11-27): rendered ONLY on phones (and only
-                    while not dismissed) so it contributes zero DOM on
-                    desktop; its mb was removed — space-y owns the rhythm. */}
-                {isMobile && voxCardVisible && (
-                    <div
-                        role="button"
-                        tabIndex={0}
-                        aria-label="ALOA Vox — dictate a note, task or question, 1 tap to record"
-                        className="relative flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 pr-12 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left cursor-pointer"
-                        onClick={() => {
-                            hapticLight();
-                            stampVoxUsedAt();
-                            openAloaCapture();
-                        }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                hapticLight();
-                                stampVoxUsedAt();
-                                openAloaCapture();
-                            }
-                        }}
-                    >
-                            <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-md shrink-0">
-                                <MicrophoneIcon className="w-6 h-6" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-black text-slate-900 dark:text-white">
-                                    ALOA <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Vox</span>
-                                </span>
-                                <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
-                                    Dictate a note, task or question — 1 tap to record
-                                </span>
-                            </span>
-                            <ChevronRightIcon className="w-5 h-5 text-primary-500 shrink-0" />
-                            {/* Dismiss — persists the timestamp; the 7-day
-                                re-surface rule lives in voxUsageTracking. */}
-                            <Button
-                                variant="bare"
-                                size="sm"
-                                iconOnly
-                                aria-label="Dismiss Aloa Vox card"
-                                title="Hide this prompt"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    hapticLight();
-                                    dismissVoxCard();
-                                    setVoxCardVisible(false);
-                                }}
-                                className="absolute top-2.5 right-2.5 p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-white/70 dark:hover:bg-zinc-700/60 transition-colors"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </Button>
-                        </div>
-                )}
+                {/* ALOA VOX CARD RETIRED (2026-11-28 mobile audit): Home had
+                    THREE duplicate voice entry points — the rectangular
+                    "ALOA Vox — 1 tap to record" card, the top-bar mic and
+                    the ALOA FAB. The card is GONE; the top-bar mic is
+                    desktop-only now. ONE mobile door remains: the ALOA FAB —
+                    tap it to open ALOA, press-and-hold it to jump straight
+                    into ALOA Vox with recording already running (Help →
+                    ALOA Vox & Voice Guide documents the shortcut). */}
 
                 {/* DailyFocus strip — rendered ONLY when it has content
                     (loading skeleton or an AI-enabled focus card). The old

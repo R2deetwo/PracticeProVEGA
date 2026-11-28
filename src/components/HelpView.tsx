@@ -106,7 +106,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
         { id: 'trust-accounting', category: 'Core Workflows', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
         { id: 'enterprise-jurisdiction', category: 'Core Workflows', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
         { id: 'aloa-tips', category: 'AI & Voice', title: `${assistantName} — Your AI Assistant`, subtitle: 'Commands, dictation, briefings and everyday use', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria', 'tips', 'mastering'] },
-        { id: 'quick-capture-voice', category: 'AI & Voice', title: 'ALOA Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'aloa vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
+        { id: 'quick-capture-voice', category: 'AI & Voice', title: 'ALOA Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'aloa vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week', 'long press', 'long-press', 'hold', 'press and hold', 'aloa button', 'fab', 'shortcut', 'auto record', 'auto-record', 'start recording'] },
         { id: 'draftpro-editor', category: 'AI & Voice', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
         { id: 'research-guide', category: 'AI & Voice', title: 'Research Studio', subtitle: 'Chronology, legal matrix, gap analysis, audio briefings', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery', 'matrix', 'gap', 'audio', 'briefing'] },
         { id: 'aldia-analysis', category: 'AI & Voice', title: 'ALDIA Document Analysis', subtitle: 'Risk scoring, metadata extraction, PII detection', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii', 'ndpa', 'rpc', 'compliance', 'opposing counsel'] },
@@ -149,7 +149,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-10">
+            <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-10">
                 <div>
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Help Center</h2>
                     <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">Find answers and master workflows.</p>
@@ -813,6 +813,26 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                             onToggle={() => handleSectionToggle('quick-capture-voice')}
                         >
                             <div className="space-y-4">
+                                {/* ALOA BUTTON SHORTCUT (2026-11-28): the FAB's
+                                    tap vs long-press contract — one physical
+                                    button, two doors. Kept as a standalone
+                                    callout so it survives searches for
+                                    "shortcut", "hold" and "auto record". */}
+                                <div className="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/10 px-4 py-3">
+                                    <p className="text-sm font-bold text-primary-800 dark:text-primary-300 mb-1 flex items-center gap-2">
+                                        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11-4-5 2zM4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        Shortcut: tap ALOA to chat — press and hold to record
+                                    </p>
+                                    <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                                        <strong>Tap</strong> the round ALOA button to open your AI
+                                        copilot. <strong>Press and hold</strong> it (about half a
+                                        second) to jump straight into <strong>ALOA Vox</strong> with
+                                        recording already running — no second tap needed. When you
+                                        stop, the take is triaged as usual, so one recording can be
+                                        routed or reused as a note, task, question, Legal Pad entry or
+                                        Court session without re-dictating.
+                                    </p>
+                                </div>
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
                                     ALOA ALOA Vox turns spoken dictation into structured firm
                                     records — matters, diary entries, endorsements, property

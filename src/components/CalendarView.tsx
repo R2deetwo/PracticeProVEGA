@@ -613,7 +613,7 @@ export const CalendarView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 overflow-hidden">
             {/* ─── Header Toolbar — static, golden-ratio spacing ─────────── */}
-            <div className="sticky top-0 z-30 glass flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-safe">
+            <div className="sticky top-0 z-30 glass flex-shrink-0 px-4 sm:px-6 lg:px-8 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 {/* Date title + nav — aligned on center axis */}
                 <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex-1 min-w-0 truncate">

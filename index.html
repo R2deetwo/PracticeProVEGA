@@ -20,8 +20,15 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 8 36 28'%3E%3Cpath d='M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z' fill='%2316A34A'/%3E%3Cpath d='M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z' fill='white'/%3E%3Cpath d='M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z' fill='%2316A34A'/%3E%3C/svg%3E"
     type="image/svg+xml" />
 
+  <!-- MOBILE/APK AUDIT (2026-11-28): maximum-scale locked to 1.0 and
+       user-scalable=no — pinch-zoom inside the Android WebView (a) made
+       every page horizontally scrollable past the right edge once the
+       user zoomed, (b) fought the ALOA long-press (a zoom gesture right
+       where the user holds the button) and (c) broke the 100dvh flex
+       shells on notch devices. viewport-fit=cover + safe-area insets are
+       handled by the app's own pt-safe/pb-safe layer. -->
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-content" />
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-capable" content="yes">

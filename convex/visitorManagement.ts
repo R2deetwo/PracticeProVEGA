@@ -798,7 +798,99 @@ export const checkInVisitor = mutation({
       updatedAt: now,
     });
 
+    // ─── TASK VMS-E2E (2026-11-28): arrival notifications, WIRED ────────
+    // Security & Access ships two admin toggles — "Send WhatsApp to
+    // resident when visitor arrives" (vmsResidentNotifications) and the
+    // legacy gatekeeper toggle — that persisted settings NOTHING read:
+    // the advertised arrival notification never fired. Now, when the
+    // estate admin has the resident toggle ON, a check-in (a) lands an
+    // in-app bell notification on the host's account — visitor passes
+    // notify the RESIDENT, staff passes notify the ISSUING ADMIN — and
+    // (b) schedules the resident-arrival WhatsApp when the host's phone
+    // is on the pass. Best-effort: a notification failure must NEVER
+    // block or roll back a gate check-in.
+    try {
+      const settings: any = await ctx.db
+        .query("portal_settings")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", token.firmId))
+        .first();
+      if (settings?.vmsResidentNotifications === true) {
+        const isStaff = token.passCategory === "staff";
+        const gatekeeper = args.gatekeeperName || args.gatekeeperId || "the gatehouse";
+        try {
+          await ctx.db.insert("app_notifications", {
+            userId: String(token.residentId),
+            firmId: token.firmId,
+            title: isStaff ? "Worker checked in" : "Your visitor has arrived",
+            body: isStaff
+              ? `${token.visitorName}${token.staffRole ? ` (${token.staffRole})` : ""} checked in at ${token.propertyName || "the estate"} — gate: ${gatekeeper}.`
+              : `${token.visitorName} was checked in at ${token.propertyName || "the estate"} by ${gatekeeper}.`,
+            type: "security",
+            priority: "normal",
+            actionType: "dismiss",
+            isRead: false,
+            createdAt: now,
+          });
+        } catch { /* bell row is best-effort */ }
+        if (token.residentPhone) {
+          await ctx.scheduler.runAfter(0, internal.visitorManagement.sendResidentArrivalWhatsApp, {
+            firmId: token.firmId,
+            residentPhone: token.residentPhone,
+            visitorName: token.visitorName,
+            propertyName: token.propertyName || "the estate",
+            unitName: token.unitName,
+            staffRole: token.staffRole,
+            gatekeeperName: gatekeeper,
+            checkedInAt: now,
+            passCategory: token.passCategory ?? "visitor",
+          });
+        }
+      }
+    } catch { /* notifications never block the gate */ }
+
     return { success: true, checkedInAt: now };
+  },
+});
+
+// ─── Internal Action: Resident Arrival WhatsApp ─────────────────────────
+// The WhatsApp leg of the arrival notification (fired by checkInVisitor
+// via the scheduler when the admin toggle is ON and the host's phone is
+// on the pass). Free-form send; a failure is logged, never surfaced at
+// the gate — the in-app bell row above already carries the signal.
+
+export const sendResidentArrivalWhatsApp = internalAction({
+  args: {
+    firmId: v.string(), // sendWhatsAppCore binds the WhatsApp sender to the firm's own credentials
+    residentPhone: v.string(),
+    visitorName: v.string(),
+    propertyName: v.string(),
+    unitName: v.optional(v.string()),
+    staffRole: v.optional(v.string()),
+    gatekeeperName: v.string(),
+    checkedInAt: v.number(),
+    passCategory: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const time = new Date(args.checkedInAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const isStaff = args.passCategory === "staff";
+    const messageText =
+      `🛡️ SENTRY PASS — ${isStaff ? "WORKER CHECKED IN" : "VISITOR ARRIVED"}\n` +
+      `----------------------------------------\n` +
+      `${isStaff ? "Worker" : "Visitor"}: ${args.visitorName}${args.staffRole ? ` (${args.staffRole})` : ""}\n` +
+      `Estate: ${args.propertyName}${args.unitName ? `, Unit ${args.unitName}` : ""}\n` +
+      `Checked in: ${time} by ${args.gatekeeperName}`;
+    try {
+      const result = await ctx.runAction(internal.communications.sendWhatsAppCore, {
+        firmId: args.firmId,
+        to: args.residentPhone,
+        messageText,
+      });
+      if (!result.success) {
+        console.error("[VMS] Resident arrival WhatsApp failed:", (result as any).error);
+      }
+    } catch (err: any) {
+      console.error("[VMS] Resident arrival WhatsApp error:", err?.message);
+    }
   },
 });
 

@@ -545,15 +545,25 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
             <style>{pageSheetCss}</style>
 
             {/* ─── Top toolbar ─── */}
+            {/* MOBILE AUDIT (2026-11-28): the toolbar used to be a single
+                no-wrap row — the flex-shrink-0 page-nav and zoom groups
+                crushed the title paragraph to a ~1-character-wide column,
+                which wrapped "Motion on Notice" ONE LETTER PER LINE (the
+                reported red-circled stacking). Now the row wraps: on
+                phones the file title owns its own full-width line
+                (single-line, ellipsized) and the nav + zoom groups flow
+                onto the row below — nothing overflows the right edge
+                (the zoom-out button used to be clipped off-screen). */}
             <div
-                className={`flex items-center justify-between gap-2 px-3 py-2 border-b flex-shrink-0 ${
+                className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 px-3 py-2 border-b flex-shrink-0 ${
                     isDark
                         ? 'bg-zinc-900 border-zinc-800'
                         : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                 }`}
             >
-                {/* Left: file info + close */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* Left: file info + close — full row on phones so the title
+                    can never be crushed to one character per line. */}
+                <div className="flex items-center gap-2 min-w-0 basis-full sm:basis-auto sm:flex-1">
                     {isFullScreen && onRequestClose && (
                         <button
                             onClick={onRequestClose}
@@ -573,7 +583,10 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         </svg>
                     </div>
                     <div className="min-w-0">
-                        <p className={`text-xs font-bold whitespace-normal break-words ${isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'}`}>
+                        <p
+                            title={title || 'Document'}
+                            className={`text-xs font-bold truncate ${isDark ? 'text-zinc-200' : 'text-slate-700 dark:text-zinc-200'}`}
+                        >
                             {title || 'Document'}
                         </p>
                     </div>
@@ -839,6 +852,10 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
             )}
 
             {/* ─── Bottom hint ─── */}
+            {/* MOBILE AUDIT (2026-11-28): keyboard chords (Ctrl +/-, ESC…)
+            are desktop vocabulary that overflowed and collided with the
+            floating ALOA FAB on phones — touch devices get the two
+            gestures that actually exist there. */}
             <div
                 className={`flex-shrink-0 px-4 py-1.5 border-t text-center ${
                     isDark
@@ -847,7 +864,8 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 }`}
             >
                 <p className={`text-3xs ${isDark ? 'text-zinc-500' : 'text-slate-400 dark:text-zinc-500'}`}>
-                    ← → navigate • Ctrl +/− zoom • {isFullScreen ? 'Ctrl/Cmd+F find • continuous for all pages • ' : ''}Ctrl 0 fit • F thumbnails • R reading • ESC exit
+                    <span className="md:hidden">Swipe / tap ← → to change pages — pinch to zoom</span>
+                    <span className="hidden md:inline">← → navigate • Ctrl +/− zoom • {isFullScreen ? 'Ctrl/Cmd+F find • continuous for all pages • ' : ''}Ctrl 0 fit • F thumbnails • R reading • ESC exit</span>
                 </p>
             </div>
         </div>

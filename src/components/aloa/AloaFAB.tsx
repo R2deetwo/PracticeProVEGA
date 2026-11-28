@@ -8,6 +8,9 @@ import { useProduct } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { AloaIcon, LockClosedIcon, MicrophoneIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
+import { stampVoxUsedAt } from '../../utils/voxUsageTracking';
+import { VoxUpsellModal } from '../quickcapture/VoxUpsellModal';
 import { getAssistantName } from '../../utils/assistantIdentity';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -16,10 +19,11 @@ import { Z_CLASS } from '../../overlays/constants';
 const AloaFAB: React.FC = () => {
     const { togglePanel, isPanelOpen, aloaState } = useAloa();
     const { coreState } = useCoreState();
-    const { modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
+    const { modal, dockedModalType, isMobileSearchOpen, openModal, navigateTo } = useUI();
     const { isProperty } = useProduct();
-    const { canUseAI } = useFeatures();
+    const { canUseAI, canUseVox } = useFeatures();
     const { currentUser, bearerToken } = useAuth();
+    const { light, medium } = useHapticFeedback();
     const assistantName = getAssistantName(isProperty);
 
     const aiFeaturesEnabled = coreState.firmDetails.aiSettings?.enableAllAiFeatures ?? true;
@@ -42,6 +46,60 @@ const AloaFAB: React.FC = () => {
         [proactiveInsights]
     );
 
+    // ── TAP vs LONG-PRESS (owner brief 2026-11-28) ──────────────────────
+    // Tap = open ALOA (the copilot panel). Press-and-hold (≥450ms) = jump
+    // straight into ALOA Vox with recording already running — one physical
+    // button, two doors. Pointer Events give mouse, touch and pen one code
+    // path; the timer is cleared on pointer up / leave / cancel so a scroll
+    // that starts on the FAB never misfires Vox. select-none + the
+    // callout/style guards stop Android's long-press text-selection and
+    // context menus from racing the gesture.
+    const [showVoxUpsell, setShowVoxUpsell] = React.useState(false);
+    const LONG_PRESS_MS = 450;
+    const pressTimerRef = React.useRef<number | null>(null);
+    const longPressedRef = React.useRef(false);
+
+    const clearPressTimer = React.useCallback(() => {
+        if (pressTimerRef.current !== null) {
+            window.clearTimeout(pressTimerRef.current);
+            pressTimerRef.current = null;
+        }
+    }, []);
+
+    // Safety net: an unmount mid-hold must never leave a pending timer.
+    React.useEffect(() => clearPressTimer, [clearPressTimer]);
+
+    const openVoxWithAutorecord = React.useCallback(() => {
+        if (!canUseVox) {
+            // The same door the locked Vox tab uses — the dedicated Vox
+            // upgrade card, never a dead long-press.
+            setShowVoxUpsell(true);
+            return;
+        }
+        stampVoxUsedAt();
+        // Date.now() nonce: every hold is a fresh auto-start instruction,
+        // so holding again later re-arms recording even from the same view.
+        navigateTo('quickCapture', null, { voxAutoStart: Date.now() });
+    }, [canUseVox, navigateTo]);
+
+    const handlePressStart = React.useCallback(
+        (e: React.PointerEvent<HTMLButtonElement>) => {
+            // Secondary mouse buttons keep their native context-menu path.
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            longPressedRef.current = false;
+            clearPressTimer();
+            pressTimerRef.current = window.setTimeout(() => {
+                pressTimerRef.current = null;
+                longPressedRef.current = true;
+                medium();
+                openVoxWithAutorecord();
+            }, LONG_PRESS_MS);
+        },
+        [clearPressTimer, medium, openVoxWithAutorecord]
+    );
+
+    const handlePressEnd = React.useCallback(() => clearPressTimer(), [clearPressTimer]);
+
     // HIDE FAB IF ANY MODAL OR SEARCH IS OPEN
     if (modal || dockedModalType || isMobileSearchOpen) return null;
 
@@ -53,6 +111,12 @@ const AloaFAB: React.FC = () => {
     const isHidden = false;
 
     const handleClick = () => {
+        // A completed long-press already opened ALOA Vox — swallow the
+        // trailing click so the FAB doesn't ALSO open the copilot panel.
+        if (longPressedRef.current) {
+            longPressedRef.current = false;
+            return;
+        }
         if (!isAiActive) {
             // 2026-09-23 audit: this used to be a silent no-op, which made
             // the FAB a dead button for every free-tier firm (AI is
@@ -92,11 +156,14 @@ const AloaFAB: React.FC = () => {
 
     // ── §1.5(a) ONE accessible name per state — tooltip and aria-label
     // always agree (no registered-trademark mark; assistantIdentity.ts
-    // mandates none).
+    // mandates none). The 2026-11-28 long-press shortcut is part of the
+    // button's contract, so it is named in both.
     let accessibleName = `Open ${assistantName}`;
     if (!isAiActive) accessibleName = `Unlock ${assistantName}`;
     else if (isListening) accessibleName = `Open ${assistantName} — recording in progress`;
     else if (criticalCount > 0) accessibleName = `${assistantName}, ${criticalCount} alert${criticalCount === 1 ? '' : 's'}`;
+    else accessibleName = `Open ${assistantName}`;
+    const accessibleHint = ' — tap to open, press and hold to record with ALOA Vox';
 
     // Apply visibility transition — 200ms so the FAB settles with the
     // sheet reveal, not a slow float (Kowalski: snappier in, never sluggish).
@@ -105,15 +172,23 @@ const AloaFAB: React.FC = () => {
         : 'opacity-100 translate-y-0 pointer-events-auto';
 
     return (
+        <>
         <div className={`fixed bottom-20 md:bottom-8 right-6 ${Z_CLASS.bottomNavVeil} transition-all duration-200 ease-out ${visibilityClass}`}>
-            <Tooltip text={accessibleName}>
+            <Tooltip text={`${accessibleName}${accessibleHint}`}>
                 <button
                     onClick={handleClick}
+                    onPointerDown={handlePressStart}
+                    onPointerUp={handlePressEnd}
+                    onPointerLeave={handlePressEnd}
+                    onPointerCancel={handlePressEnd}
+                    onContextMenu={(e) => e.preventDefault()}
                     data-tour-id="aloa-fab"
-                    aria-label={accessibleName}
+                    aria-label={`${accessibleName}${accessibleHint}`}
+                    style={{ WebkitTouchCallout: 'none' } as React.CSSProperties}
                     className={`
                         relative w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center
                         transition-all duration-150 active:scale-[0.98] focus:outline-none
+                        select-none touch-manipulation [-webkit-touch-callout:none]
                         focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 dark:focus:ring-offset-zinc-900 focus:ring-primary-500
                         ${bgClass}
                         ${animationClass}
@@ -148,6 +223,10 @@ const AloaFAB: React.FC = () => {
                 </button>
             </Tooltip>
         </div>
+        {/* VOX UPSELL (2026-11-28): a long-press on a locked Vox tier opens
+            the SAME dedicated upgrade card the locked Vox tab uses. */}
+        {showVoxUpsell && <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} />}
+        </>
     );
 };
 

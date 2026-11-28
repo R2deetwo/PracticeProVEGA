@@ -233,10 +233,19 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-lg p-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-lg p-2 sm:p-4 custom-scrollbar">
+            {/* MOBILE AUDIT (2026-11-28): the sheet REFLOWS on phones
+                (max-width, not a fixed A4) — but its padding stayed at a
+                hardcoded 25mm (~95px) per side, which crushed a 360px
+                viewport's readable column to ~140px. Inside mammoth-converted
+                DOCX layouts (court letterheads, nested tables) that squeezed
+                cells to a couple of characters — titles rendered one letter
+                per line. padding is now min(25mm, 5vw): full A4 margins on
+                desktop, phone-appropriate margins (~18px) on narrow screens,
+                and table cells keep readable multi-word lines. */}
             <div
                 className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-slate-200 mx-auto"
-                style={{ maxWidth: '210mm', minHeight: '297mm', padding: '25mm 25mm 25mm 25mm' }}
+                style={{ maxWidth: '210mm', minHeight: '297mm', padding: 'min(25mm, 5vw)' }}
             >
                 <style>{`
                     .docx-preview h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
@@ -246,7 +255,7 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
                     .docx-preview ul, .docx-preview ol { margin: 0 0 8pt; padding-left: 20pt; }
                     .docx-preview li { margin-bottom: 4pt; }
                     .docx-preview table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-                    .docx-preview td, .docx-preview th { border: 1px solid #ccc; padding: 4pt 8pt; }
+                    .docx-preview td, .docx-preview th { border: 1px solid #ccc; padding: 4pt 8pt; overflow-wrap: break-word; }
                     .docx-preview th { background: #f5f5f5; font-weight: bold; }
                     .docx-preview strong { font-weight: bold; }
                     .docx-preview em { font-style: italic; }
@@ -532,8 +541,13 @@ const DocumentDetailViewContent: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 overflow-hidden">
-            <div className="flex-shrink-0 px-6 py-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex justify-between items-center z-10 shadow-sm">
-                <div className="min-w-0 flex-1 mr-4">
+            {/* MOBILE AUDIT (2026-11-28): the header row is wrap-friendly on
+                phones — the edit/fullscreen/Share cluster keeps shrink-0 so
+                it never clips, the title column stays min-w-0 (single-line
+                breadcrumb), and the row collapses to a comfortable two-line
+                stack instead of squeezing anything off the right edge. */}
+            <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex flex-wrap justify-between items-center gap-y-2 z-10 shadow-sm">
+                <div className="min-w-0 flex-1 mr-4 basis-full sm:basis-auto">
                     <Breadcrumbs items={[{ label: previousViewName === 'matters' ? 'Matter' : 'Documents', onClick: onGoBack }, { label: document.title || 'Untitled Document' }]} />
                     {document.isCourtProcess && (
                         <div className="mt-1 flex items-center gap-2">
@@ -544,7 +558,7 @@ const DocumentDetailViewContent: React.FC = () => {
                     )}
                 </div>
                 {!isLocal && (
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex flex-col items-end gap-2 shrink-0">
                         {document.isCourtProcess && (
                             <Tooltip text="View / update in the Pipeline tab">
                                 <button

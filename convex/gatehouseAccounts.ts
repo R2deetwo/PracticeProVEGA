@@ -44,9 +44,13 @@ import { sha256Hex } from "./sha256";
 // ─── Station session TTL: 30 days, fixed. Admin revocation is instant. ────
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Exported for seedVmsPersonas (the dev-only persona seeder) so a seeded
+// station is hashed through the IDENTICAL scheme — never a second copy of
+// the format string that could drift from provisionGatehouseAccount.
 function pinHashFor(salt: string, pin: string): string {
   return sha256Hex(`${salt}:${pin}`);
 }
+export { pinHashFor };
 
 /** 6-digit crypto-secure station PIN (provisioning default). */
 function generateStationPin(): string {

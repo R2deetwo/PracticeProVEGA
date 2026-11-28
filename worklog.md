@@ -20391,3 +20391,79 @@ Verified directly: https://practice-pro-vega.vercel.app/version.json serves
 sha `d588a95805a3a…`, status "healthy", APK 1.0.925 (build-1341). Final
 state: production healthy with the full ALOA Vox & Court Mode intelligence
 overhaul live.
+
+### Round 29 — mobile/APK page-by-page audit: header→Overview gap, one voice door, ALOA long-press, document-preview wrapping (2026-11-28)
+
+**The tall dead band between the utility bar and `Overview`: root-caused and
+killed.** The shell root (App.tsx) owns the ONE top safe-area inset
+(`pt-safe`, max(env(), --native-safe-top)). But every in-app view ALSO
+stamped `pt-safe` on its own sticky header — the status-bar height was
+applied TWICE, stacking a status-bar-tall empty band between the top bar
+and each view's title (exactly the reported gap on Home). Removed `pt-safe`
+from all 17 in-app view headers (Dashboard, Settings, Messages, Tasks,
+Help, Reporting, Calendar, DocumentList, ContractAnalyzer, Compliance,
+Notes, Archive, Contacts, Billing, PropertyManager ×2, Research, MatterList).
+The shell inset and the Vox shell's own header inset are untouched; the
+marketing-site shells (fixed headers) keep theirs.
+
+**ONE voice door on mobile Home.** Removed the dismissible rectangular
+"ALOA Vox — 1 tap to record" card from the Home dashboard (and its dead
+state/imports), and made the top-bar mic DESKTOP-ONLY (`hidden md:flex`).
+The account trigger keeps its slot, now `shrink-0` (never clipped off the
+right edge) with a tightened `gap-1.5 sm:gap-4` cluster and `px-2 sm:px-4`
+header padding — the avatar fits a 360px viewport with the mic gone.
+
+**Tap vs long-press on the ALOA button.** AloaFAB: tap opens the ALOA
+copilot panel (unchanged); press-and-hold ≥450ms jumps straight into
+full-screen ALOA Vox with recording ALREADY RUNNING — QuickCaptureView
+consumes `{ voxAutoStart: <nonce> }` from the view context and calls
+`qc.startRecording()` on mount (mic-permission and unsupported-browser
+failures land in the normal error surface with Try again; a locked tier
+opens the same dedicated VoxUpsellModal as the locked Vox tab). One take
+then routes/reuses through the existing triage — note, task, question,
+Legal Pad or Court session — without re-dictating. Pointer Events give
+mouse/touch/pen one path; the trailing click after a long-press is
+swallowed; `onContextMenu` + `select-none` + `-webkit-touch-callout:none` +
+`touch-manipulation` suppress Android's long-press selection/context menus
+on the trigger. Help → "ALOA Vox & Voice Guide" carries a shortcut callout
+(tap = chat, hold = record) and the search index gained the shortcut
+keywords. `tests/unit/aloaFabPanelFrame.test.ts` pins the new contract.
+
+**Document preview never stacks one letter per line.** Root cause was the
+HtmlPagePreview toolbar: the flex-shrink-0 page-nav and zoom groups crushed
+the title paragraph to a ~1-character column (the red-circled vertical
+"Motion on Notice"). The toolbar now wraps (title owns a full-width line on
+phones, single-line + ellipsis; nav/zoom flow onto the next row — also
+fixes the clipped zoom-out button). The bottom keyboard-hint bar shows a
+touch-appropriate short hint on phones. DocxPreview: the sheet's hardcoded
+25mm padding crushed a 360px reflow to ~140px of readable column (nested
+DOCX table cells collapsed to a couple of characters) — now
+`min(25mm, 5vw)`, full A4 margins on desktop, phone margins on phones.
+DocumentDetailView header row wraps cleanly with a shrink-0 action cluster.
+
+**Viewport + labels.** `maximum-scale=1.0, user-scalable=no` (pinch-zoom
+inside the WebView made every page horizontally scrollable once zoomed and
+fought the ALOA long-press); BottomNav labels are `whitespace-nowrap`
+("Properties"/"Financials" folded to two lines on 360px).
+
+**Convex fixups (Task VMS-E2E WIP, uncommitted from the prior round):
+schema alignment.** `seedVmsPersonas.ts`: firms carry no `email` column
+(the persona's Woosh address lives on the admin user only) and properties
+carry no `name` column (address is the identity; the estate display name
+rides in `description`). `visitorManagement.ts`: the resident-arrival
+WhatsApp action now passes the firmId `sendWhatsAppCore` requires.
+
+Checks: `npx tsc --noEmit` clean; `npx tsc --noEmit -p convex` clean;
+`npm run lint` 0 errors (ratchets held, 2201 == baseline); `npx vitest run`
+4340/4340; `npm run build` green (28.3s); `npx cap sync android` clean.
+
+**Round 29 push status: BLOCKED on GitHub auth.** Commit `43f0498d` (30
+files, +714/−144) is committed locally on main with all local gates green,
+but `git push` fails with "Invalid username or token" — the PAT embedded
+in the remote URL is dead (exposed in chat in an earlier round and
+revoked; same blocker as the round noted previously in the session
+worklog). No gh CLI, no credential helper, no env tokens in this sandbox.
+**To ship:** supply a fresh GitHub PAT → `git remote set-url origin
+https://x-access-token:<PAT>@github.com/R2deetwo/PracticeProVEGA.git` →
+`git push origin main` → dispatch "Deploy to Production (promote)"
+(blank sha). Rotate the PAT again once the deployment session ends.

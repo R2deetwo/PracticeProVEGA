@@ -112,7 +112,7 @@ export const ContractAnalyzer: React.FC<{ embedded?: boolean }> = ({ embedded = 
                 so a second sticky header would stack two glass bars — hide it
                 and keep only the workspace. */}
             {!embedded && (
-            <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
+            <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="p-2 bg-slate-900 dark:bg-zinc-800 rounded-lg">
                         <ScalesIcon className="w-6 h-6 text-white dark:text-zinc-100" />

@@ -114,9 +114,31 @@ describe('ROUND 24 §1.5 — FAB states', () => {
     expect(fab).toContain('accessibleName = `Unlock ${assistantName}`;');
     expect(fab).toContain('accessibleName = `Open ${assistantName} — recording in progress`;');
     expect(fab).toContain('accessibleName = `${assistantName}, ${criticalCount} alert');
-    expect(fab).toContain('<Tooltip text={accessibleName}>');
-    expect(fab).toContain('aria-label={accessibleName}');
+    // 2026-11-28 long-press contract: tooltip and aria-label still carry the
+    // SAME string — now the tap/hold hint rides along in both.
+    expect(fab).toContain("const accessibleHint = ' — tap to open, press and hold to record with ALOA Vox';");
+    expect(fab).toContain('<Tooltip text={`${accessibleName}${accessibleHint}`}>\n                <button');
+    expect(fab).toContain('aria-label={`${accessibleName}${accessibleHint}`}');
     expect(fab).not.toContain('®');
+  });
+
+  it('tap vs long-press: hold 450ms opens ALOA Vox with auto-record; the trailing click is swallowed', () => {
+    // Long-press opens the full-screen Vox view with an auto-start nonce.
+    expect(fab).toContain('const LONG_PRESS_MS = 450;');
+    expect(fab).toContain("navigateTo('quickCapture', null, { voxAutoStart: Date.now() })");
+    // The take starts by itself in QuickCaptureView (guardVox mirrors the
+    // locked-tab path via the same VoxUpsellModal).
+    const vox = read('src/components/quickcapture/QuickCaptureView.tsx');
+    expect(vox).toContain('const autoStartRef = useRef(false);');
+    expect(vox).toContain('void qc.startRecording();');
+    // Locked tiers land on the dedicated Vox upgrade card, never a dead hold.
+    expect(fab).toContain('setShowVoxUpsell(true)');
+    expect(fab).toContain('{showVoxUpsell && <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} />}');
+    // A completed long-press must not ALSO open the copilot panel.
+    expect(fab).toContain('if (longPressedRef.current) {');
+    // Android long-press side effects are suppressed on the trigger.
+    expect(fab).toContain('onContextMenu={(e) => e.preventDefault()}');
+    expect(fab).toContain('select-none touch-manipulation [-webkit-touch-callout:none]');
   });
 
   it('critical-insight count dot: same query as the chat empty state, red only for critical, hidden at 0', () => {

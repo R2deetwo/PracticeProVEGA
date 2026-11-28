@@ -1201,7 +1201,7 @@ const MessagesView: React.FC = () => {
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">
             {/* ── Page Header (matches Documents/Contacts pattern) ── */}
-            <div className="flex-shrink-0 sticky top-0 pt-safe z-30 glass py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
+            <div className="flex-shrink-0 sticky top-0 z-30 glass py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <div className="flex items-center gap-2">

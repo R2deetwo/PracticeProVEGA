@@ -100,7 +100,11 @@ const NavItem: React.FC<{
                     </span>
                 )}
             </div>
-            <span className="text-2xs font-medium">{text}</span>
+            {/* whitespace-nowrap (2026-11-28 mobile audit): a nav label must
+                never fold onto two lines on a 360px viewport — "Properties"
+                and "Financials" wrapped and pushed the tab bar taller on
+                narrow devices. */}
+            <span className="text-2xs font-medium whitespace-nowrap">{text}</span>
         </button>
     );
 };

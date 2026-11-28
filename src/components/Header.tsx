@@ -363,7 +363,7 @@ const Header: React.FC = React.memo(() => {
     if (!currentUser) return null;
 
     return (
-        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-16 flex items-center justify-between px-4 sticky top-0">
+        <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-16 flex items-center justify-between px-2 sm:px-4 sticky top-0">
             {/* Impersonation Banner — uses isImpersonating (synchronous) rather than
                 originalUser (async query) so the banner is always visible during
                 impersonation, even if the admin's DB record is still loading or
@@ -422,7 +422,7 @@ const Header: React.FC = React.memo(() => {
                 </div>
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-4">
                 <div className="relative hidden lg:block mr-2">
                     <button
                         onClick={toggleCommandPalette}
@@ -452,12 +452,20 @@ const Header: React.FC = React.memo(() => {
                     (voice, dictation and AI share one unified home).
                     Built on the ui/Button primitive (ADR-0004) with the
                     'bare' variant for the one-off emerald look.
+                    MOBILE AUDIT (2026-11-28): DESKTOP-ONLY now. Phones had
+                    THREE voice doors (this mic, the Home card, the ALOA
+                    FAB) — the mic duplicated the FAB's long-press Vox
+                    shortcut on every screen, and together with the search,
+                    status, theme, bell and account controls it squeezed the
+                    account avatar off the right edge of a 360px viewport.
+                    Mobile keeps ONE door: the ALOA FAB (tap = ALOA,
+                    press-and-hold = ALOA Vox + auto-record).
                     VOX ENTITLEMENT (owner spec 2026-11-20; Pro-target since
                     2026-11-23): Free- and Growth-tier users still see the
                     mic (discoverability) with a subtle lock dot — tapping it
                     opens Vox, where the upgrade card explains what they get
                     on Pro. */}
-                <div className="relative">
+                <div className="relative hidden md:flex">
                     <Button
                         variant="bare"
                         size="md"
@@ -811,14 +819,20 @@ const Header: React.FC = React.memo(() => {
                     <PresenceAvatars activePeers={activePeers} currentUser={currentUser} />
                 </div>
 
-                <div className="relative flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 ml-1 border-l border-slate-200 dark:border-zinc-700" ref={userMenuRef}>
+                {/* ACCOUNT TRIGGER (2026-11-28 mobile audit): shrink-0 — the
+                    avatar and its dropdown are the one control that must
+                    NEVER be clipped off the right edge (settings + sign-out
+                    live here). The PresenceAvatars strip above is the
+                    min-w-0/overflow-hidden shock absorber; this block is
+                    rigid. */}
+                <div className="relative flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 ml-1 border-l border-slate-200 dark:border-zinc-700 shrink-0" ref={userMenuRef}>
                     <div className="hidden lg:block text-right">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{displayUserName}</p>
                         <p className="text-2xs text-slate-500 dark:text-zinc-500 uppercase">{currentUser.role}</p>
                     </div>
                     <button
                         onClick={toggleUserMenu}
-                        className="relative focus:outline-none"
+                        className="relative focus:outline-none touch-target rounded-full"
                         aria-label="User menu"
                     >
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ${getUserColor(displayUserName)} ring-2 ring-transparent hover:ring-slate-200 dark:hover:ring-zinc-600 transition-all`}>
