@@ -818,7 +818,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                     button, two doors. Kept as a standalone
                                     callout so it survives searches for
                                     "shortcut", "hold" and "auto record". */}
-                                <div className="rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/10 px-4 py-3">
+                                <div className="rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/10 px-4 py-3">
                                     <p className="text-sm font-bold text-primary-800 dark:text-primary-300 mb-1 flex items-center gap-2">
                                         <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11-4-5 2zM4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                         Shortcut: tap ALOA to chat — press and hold to record
